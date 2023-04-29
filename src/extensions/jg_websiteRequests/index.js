@@ -160,7 +160,7 @@ class JgWebsiteRequestBlocks {
             const fetchingUrl = args.WEBSITE.replace("rawRequest()", "");
             fetch(fetchingUrl, {cache: "no-cache"}).then(r => {
                 r.text().then(text => {
-                    resolve(String(text));
+                    resolve(text.toString());
                 })
                     .catch(() => {
                         resolve("");
