@@ -128,6 +128,9 @@ class Scratch3SensingBlocks {
     getBrowser () {
         if (!('userAgent' in navigator)) return 'Unknown';
         const agent = navigator.userAgent;
+        if(navigator.userAgentData.brands[1].brand=="Microsoft Edge"){
+            return 'Microsoft Edge';
+        }
         if (agent.includes('Chrome')) {
             return 'Chrome';
         }
