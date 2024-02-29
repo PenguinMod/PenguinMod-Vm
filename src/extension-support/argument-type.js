@@ -77,7 +77,12 @@ const ArgumentType = {
      * @deprecated Not functioning as intended
      * @todo Fix menu resetting on update
      */
-    BROADCAST: 'broadcast'
+    BROADCAST: 'broadcast',
+
+    /**
+     * Arbitrary scratch-blocks XML.
+     */
+    XML: 'xml'
 };
 
 module.exports = ArgumentType;
