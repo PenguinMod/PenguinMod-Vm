@@ -1888,6 +1888,12 @@ class Runtime extends EventEmitter {
                 shadowType = (argTypeInfo.shadow && argTypeInfo.shadow.type) || null;
                 fieldName = (argTypeInfo.shadow && argTypeInfo.shadow.fieldName) || null;
             }
+            if (argInfo.type === 'xml' && typeof argInfo.xml === 'string') {
+                valueName = null;
+                shadowType = null;
+                fieldName = null;
+                context.inputList.push(argInfo.xml);
+            }
 
             // <value> is the ScratchBlocks name for a block input.
             if (valueName) {
