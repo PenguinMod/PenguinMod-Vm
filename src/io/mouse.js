@@ -62,16 +62,11 @@ class Mouse {
      * @return {Target} the target at that location
      * @private
      */
-    _pickTarget (x, y) {
+    _pickTarget(x, y) {
         if (this.runtime.renderer) {
             const drawableID = this.runtime.renderer.pick(x, y);
-            for (let i = 0; i < this.runtime.targets.length; i++) {
-                const target = this.runtime.targets[i];
-                if (target.hasOwnProperty('drawableID') &&
-                    target.drawableID === drawableID) {
-                    return target;
-                }
-            }
+            const target = this.runtime.targets.find(target => target.drawableID === drawableID);
+            if (target) return target;
         }
         // Return the stage if no target was found
         return this.runtime.getTargetForStage();
