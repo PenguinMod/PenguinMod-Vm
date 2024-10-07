@@ -277,7 +277,11 @@ class Scratch3DataBlocks {
         // Go through the list items one-by-one using Cast.compare. This is for
         // cases like checking if 123 is contained in a list [4, 7, '123'] --
         // Scratch considers 123 and '123' to be equal.
-        for (let i = 0; i < list.value.length; i++) {
+
+        // Store list length to prevent the engine repeatedly accessing the length of the array on each iteration
+        // improves performance for large lists
+        const length = list.value.length;
+        for (let i = 0; i < length; i++) {
             if (Cast.compare(list.value[i], item) === 0) {
                 return i + 1;
             }
@@ -312,7 +316,11 @@ class Scratch3DataBlocks {
         }
         // Try using Scratch comparison operator on each item.
         // (Scratch considers the string '123' equal to the number 123).
-        for (let i = 0; i < list.value.length; i++) {
+
+        // Store list length to prevent the engine repeatedly accessing the length of the array on each iteration
+        // improves performance for large lists
+        const length = list.value.length;
+        for (let i = 0; i < length; i++) {
             if (Cast.compare(list.value[i], item) === 0) {
                 return true;
             }

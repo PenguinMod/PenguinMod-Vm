@@ -2540,11 +2540,9 @@ class Runtime extends EventEmitter {
             // This needs to happen before the block is evaluated
             // (i.e., before the predicate can be run) because "broadcast and wait"
             // needs to have a precise collection of started threads.
-            for (const matchField in optMatchFields) {
-                if (hatFields[matchField].value !== optMatchFields[matchField]) {
-                    // Field mismatch.
-                    return;
-                }
+            if (!Object.keys(optMatchFields).every(matchField => hatFields[matchField].value === optMatchFields[matchField])) {
+                // Field mismatch.
+                return;
             }
 
             if (hatMeta.restartExistingThreads) {
@@ -3540,12 +3538,7 @@ class Runtime extends EventEmitter {
      * @return {?Target} The target, if found.
      */
     getTargetById (targetId) {
-        for (let i = 0; i < this.targets.length; i++) {
-            const target = this.targets[i];
-            if (target.id === targetId) {
-                return target;
-            }
-        }
+        return this.targets.find(target => target.id === targetId) || undefined;
     }
 
     /**
@@ -3556,15 +3549,9 @@ class Runtime extends EventEmitter {
     getSpriteTargetByName (spriteName) {
         const json = validateJSON(spriteName);
         if (json.id) return this.getTargetById(json.id);
-        for (let i = 0; i < this.targets.length; i++) {
-            const target = this.targets[i];
-            if (target.isStage) {
-                continue;
-            }
-            if (target.sprite && target.sprite.name === spriteName) {
-                return target;
-            }
-        }
+
+        const target = this.targets.find(target => !target.isStage && target.sprite && target.sprite.name === spriteName);
+        return target || undefined;
     }
 
     /**
@@ -3572,11 +3559,8 @@ class Runtime extends EventEmitter {
      * @param {number} drawableID drawable id of target to find
      * @return {?Target} The target, if found
      */
-    getTargetByDrawableId (drawableID) {
-        for (let i = 0; i < this.targets.length; i++) {
-            const target = this.targets[i];
-            if (target.drawableID === drawableID) return target;
-        }
+    getTargetByDrawableId(drawableID) {
+        return this.targets.find(target => target.drawableID === drawableID) || undefined;
     }
 
     /**
@@ -3708,13 +3692,7 @@ class Runtime extends EventEmitter {
         if (this._stageTarget) {
             return this._stageTarget;
         }
-        for (let i = 0; i < this.targets.length; i++) {
-            const target = this.targets[i];
-            if (target.isStage) {
-                this._stageTarget = target;
-                return target;
-            }
-        }
+        return this.targets.find(target => target.isStage) || undefined;
     }
 
     /**
@@ -3725,13 +3703,12 @@ class Runtime extends EventEmitter {
         return this._editingTarget;
     }
 
-    getAllVarNamesOfType (varType) {
-        let varNames = [];
-        for (const target of this.targets) {
-            const targetVarNames = target.getAllVariableNamesInScopeByType(varType, true);
-            varNames = varNames.concat(targetVarNames);
-        }
-        return varNames;
+    getAllVarNamesOfType(varType) {
+        return Array.from(
+            new Set(this.targets.flatMap(
+                target => target.getAllVariableNamesInScopeByType(varType, true)
+            ))
+        );
     }
 
     /**

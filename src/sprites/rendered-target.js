@@ -530,15 +530,11 @@ class RenderedTarget extends Target {
      * Clear all graphic effects on this rendered target.
      */
     clearEffects () { // used by compiler
-        for (const effectName in this.effects) {
-            if (!this.effects.hasOwnProperty(effectName)) continue;
-            this.effects[effectName] = 0;
-        }
+        Object.values(this.effects).forEach(effect => { effect = 0 });
         if (this.renderer) {
-            for (const effectName in this.effects) {
-                if (!this.effects.hasOwnProperty(effectName)) continue;
+            Object.keys(this.effects).forEach(effectName => {
                 this.renderer.updateDrawableEffect(this.drawableID, effectName, 0);
-            }
+            });
             if (this.visible) {
                 this.emitVisualChange();
                 this.runtime.requestRedraw();
@@ -719,14 +715,9 @@ class RenderedTarget extends Target {
      * @param {?string} costumeName Name of a costume.
      * @return {number} Index of the named costume, or -1 if not present.
      */
-    getCostumeIndexByName (costumeName) {
+    getCostumeIndexByName(costumeName) {
         const costumes = this.getCostumes();
-        for (let i = 0; i < costumes.length; i++) {
-            if (costumes[i].name === costumeName) {
-                return i;
-            }
-        }
-        return -1;
+        return costumes.findIndex(costume => costume.name === costumeName);
     }
 
     /**
@@ -809,10 +800,9 @@ class RenderedTarget extends Target {
             const costume = this.getCostumes()[this.currentCostume];
             this.renderer.updateDrawableSkinId(this.drawableID, costume.skinId);
 
-            for (const effectName in this.effects) {
-                if (!this.effects.hasOwnProperty(effectName)) continue;
-                this.renderer.updateDrawableEffect(this.drawableID, effectName, this.effects[effectName]);
-            }
+            Object.entries(this.effects).forEach(([effectName, value]) => {
+                this.renderer.updateDrawableEffect(this.drawableID, effectName, value);
+            });
 
             if (this.visible) {
                 this.emitVisualChange();

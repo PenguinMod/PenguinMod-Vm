@@ -219,11 +219,8 @@ class Profiler {
      *   incremented for each call.
      */
     frame (id, arg) {
-        for (let i = 0; i < this.counters.length; i++) {
-            if (this.counters[i].id === id && this.counters[i].arg === arg) {
-                return this.counters[i];
-            }
-        }
+        const foundCounter = this.counters.find(counter => counter.id === id && counter.arg === arg);
+        if (foundCounter) return foundCounter;
 
         const newCounter = new ProfilerFrame(-1);
         newCounter.id = id;
@@ -355,12 +352,8 @@ class Profiler {
      * @return {string} The name for the given id.
      */
     static nameById (id) {
-        for (const name in profilerNames) {
-            if (profilerNames[name] === id) {
-                return name;
-            }
-        }
-        return null;
+        const foundEntry = Object.entries(profilerNames).find(([name, value]) => value === id);
+        return foundEntry ? foundEntry[0] : null;
     }
 
     /**

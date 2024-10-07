@@ -375,13 +375,8 @@ class Scratch3SoundBlocks {
 
     getSoundIndexByName (soundName, util) {
         const sounds = util.target.sprite.sounds;
-        for (let i = 0; i < sounds.length; i++) {
-            if (sounds[i].name === soundName) {
-                return i;
-            }
-        }
         // if there is no sound by that name, return -1
-        return -1;
+        return sounds.findIndex(sound => sound.name === soundName);
     }
 
     stopAllSounds () {
@@ -475,10 +470,9 @@ class Scratch3SoundBlocks {
 
     _clearEffectsForTarget (target) {
         const soundState = this._getSoundState(target);
-        for (const effect in soundState.effects) {
-            if (!soundState.effects.hasOwnProperty(effect)) continue;
+        Object.keys(soundState.effects).forEach(effect => {
             soundState.effects[effect] = 0;
-        }
+        });
         this._syncEffectsForTarget(target);
     }
 
