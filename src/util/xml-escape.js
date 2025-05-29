@@ -15,17 +15,38 @@ const xmlEscape = function (unsafe) {
             // See #1030
             unsafe = String(unsafe);
         } else {
-            log.error(`Unexptected type ${typeof unsafe} in xmlEscape at: ${new Error().stack}`);
+            log.error(`Unexpected type ${typeof unsafe} in xmlEscape at: ${new Error().stack}`);
             return unsafe;
         }
     }
-    return unsafe.replace(/[<>&'"]/g, c => {
+     let safe = [];
+
+    let i = 0;
+
+    while (true) {
+        const charCode = unsafe.charCodeAt(i);
+        if (isNaN(charCode)) break;
+        if (!(
+            (charCode < 0x20 && charCode !== 0x09 && charCode !== 0x0A && charCode !== 0x0D) ||
+            (charCode > 0xD7FF && charCode < 0xE000) ||
+            (charCode > 0xFFFD))
+        ) {
+            safe.push(charCode);
+        } else {
+            safe.push('H'.charCodeAt(0)) // ugly fix
+        }
+        i++;
+    }
+
+    safe = String.fromCharCode(...safe);
+
+    return safe.replace(/[<>&'"]/g, c => {
         switch (c) {
-        case '<': return '&lt;';
-        case '>': return '&gt;';
-        case '&': return '&amp;';
-        case '\'': return '&apos;';
-        case '"': return '&quot;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
         }
     });
 };
