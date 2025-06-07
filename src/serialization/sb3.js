@@ -1395,7 +1395,7 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
         for (const info of object.customVars) {
             // im lay z so customVars is just a list of arg lists to be passed into the variable creator
             const newVar = runtime.newVariableInstance(...info);
-            target.variables[newVar.id] = newVar;
+            target.variables[info[1]] = newVar;
         }
     }
     if (object.hasOwnProperty('comments')) {
