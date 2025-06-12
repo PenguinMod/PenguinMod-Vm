@@ -3,13 +3,15 @@ const formatMessage = require('format-message');
 const BlockType = require('../../extension-support/block-type');
 const ArgumentType = require('../../extension-support/argument-type');
 const Cast = require('../../util/cast');
-const { 
-    validateJSON, 
-    validateArray, 
-    stringToEqivalint, 
+const {
+    validateJSON,
+    validateArray,
+    stringToEqivalint,
     valueToString,
-    validateRegex 
+    validateRegex
 } = require('../../util/json-block-utilities');
+
+const noopSwitch = { isNoop: true };
 
 // const Cast = require('../../util/cast');
 
@@ -45,8 +47,18 @@ class JgJSONBlocks {
                             defaultValue: "{}"
                         }
                     },
-                    text: 'is json [json] valid?'
-                }, 
+                    text: 'is json [json] valid?',
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'json_array_validate',
+                            remapArguments: {
+                                json: 'array'
+                            }
+                        }
+                    ],
+                    switchText: 'is json valid?',
+                },
                 "---",
                 {
                     opcode: 'getValueFromJSON',
@@ -70,7 +82,25 @@ class JgJSONBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: '{"key": "value"}'
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        'getTreeValueFromJSON',
+                        {
+                            opcode: 'setValueToKeyInJSON',
+                            remapArguments: {
+                                VALUE: 'KEY'
+                            }
+                        },
+                        {
+                            opcode: 'json_delete',
+                            remapArguments: {
+                                VALUE: 'key',
+                                JSON: 'json'
+                            }
+                        },
+                    ],
+                    switchText: 'get key from json'
                 },
                 {
                     opcode: 'getTreeValueFromJSON',
@@ -86,7 +116,25 @@ class JgJSONBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: '{"first": {"second": 2, "third": 3}}'
                         }
-                    }
+                    },
+                    switches: [
+                        'getValueFromJSON',
+                        noopSwitch,
+                        {
+                            opcode: 'setValueToKeyInJSON',
+                            remapArguments: {
+                                VALUE: 'KEY'
+                            }
+                        },
+                        {
+                            opcode: 'json_delete',
+                            remapArguments: {
+                                VALUE: 'key',
+                                JSON: 'json'
+                            }
+                        },
+                    ],
+                    switchText: 'get path from json'
                 },
                 {
                     opcode: 'setValueToKeyInJSON',
@@ -118,8 +166,31 @@ class JgJSONBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "{}"
                         }
-                    }
-                }, 
+                    },
+                    switches: [
+                        {
+                            opcode: 'getValueFromJSON',
+                            remapArguments: {
+                                KEY: 'VALUE'
+                            }
+                        },
+                        {
+                            opcode: 'getTreeValueFromJSON',
+                            remapArguments: {
+                                KEY: 'VALUE'
+                            }
+                        },
+                        noopSwitch,
+                        {
+                            opcode: 'json_delete',
+                            remapArguments: {
+                                KEY: 'key',
+                                JSON: 'json'
+                            }
+                        }
+                    ],
+                    switchText: 'set key to value in json'
+                },
                 {
                     opcode: 'json_delete',
                     blockType: BlockType.REPORTER,
@@ -137,8 +208,33 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'in json [json] delete key [key]'
-                }, 
+                    text: 'in json [json] delete key [key]',
+                    switches: [
+                        {
+                            opcode: 'getValueFromJSON',
+                            remapArguments: {
+                                key: 'VALUE',
+                                json: 'JSON'
+                            }
+                        },
+                        {
+                            opcode: 'getTreeValueFromJSON',
+                            remapArguments: {
+                                key: 'VALUE',
+                                json: 'JSON'
+                            }
+                        },
+                        {
+                            opcode: 'setValueToKeyInJSON',
+                            remapArguments: {
+                                key: 'KEY',
+                                json: 'JSON'
+                            }
+                        },
+                        noopSwitch,
+                    ],
+                    switchText: 'in json delete key'
+                },
                 {
                     opcode: 'json_values',
                     blockType: BlockType.REPORTER,
@@ -148,8 +244,13 @@ class JgJSONBlocks {
                             defaultValue: "{}"
                         }
                     },
-                    text: 'get all values from json [json]'
-                }, 
+                    text: 'get all values from json [json]',
+                    switches: [
+                        noopSwitch,
+                        'json_keys',
+                    ],
+                    switchText: 'get all values from json',
+                },
                 {
                     opcode: 'json_keys',
                     blockType: BlockType.REPORTER,
@@ -159,8 +260,13 @@ class JgJSONBlocks {
                             defaultValue: "{}"
                         }
                     },
-                    text: 'get all keys from json [json]'
-                }, 
+                    text: 'get all keys from json [json]',
+                    switches: [
+                        'json_values',
+                        noopSwitch,
+                    ],
+                    switchText: 'get all keys from json',
+                },
                 {
                     opcode: 'json_has',
                     blockType: BlockType.BOOLEAN,
@@ -178,7 +284,7 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'json [json] has key [key] ?'
+                    text: 'json [json] has key [key]?'
                 },
                 {
                     opcode: 'json_combine',
@@ -208,8 +314,18 @@ class JgJSONBlocks {
                             defaultValue: "[]"
                         }
                     },
-                    text: 'is array [array] valid?'
-                }, 
+                    text: 'is array [array] valid?',
+                    switches: [
+                        {
+                            opcode: 'json_validate',
+                            remapArguments: {
+                                array: 'json'
+                            }
+                        },
+                        noopSwitch,
+                    ],
+                    switchText: 'is array valid?',
+                },
                 {
                     opcode: 'json_array_split',
                     blockType: BlockType.REPORTER,
@@ -223,8 +339,18 @@ class JgJSONBlocks {
                             defaultValue: ', '
                         }
                     },
-                    text: 'create an array from text [text] with delimeter [delimeter]'
-                }, 
+                    text: 'create an array from text [text] with delimeter [delimeter]',
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'json_array_join',
+                            remapArguments: {
+                                text: 'array'
+                            }
+                        }
+                    ],
+                    switchText: 'create array from text'
+                },
                 {
                     opcode: 'json_array_join',
                     blockType: BlockType.REPORTER,
@@ -238,8 +364,18 @@ class JgJSONBlocks {
                             defaultValue: ', '
                         }
                     },
-                    text: 'create text from array [array] with delimeter [delimeter]'
-                }, 
+                    text: 'create text from array [array] with delimeter [delimeter]',
+                    switches: [
+                        {
+                            opcode: 'json_array_split',
+                            remapArguments: {
+                                array: 'text'
+                            }
+                        },
+                        noopSwitch,
+                    ],
+                    switchText: 'create text from array'
+                },
                 "---",
                 {
                     opcode: 'json_array_push',
@@ -258,7 +394,14 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'in array [array] add [item]'
+                    text: 'in array [array] add [item]',
+                    switches: [
+                        noopSwitch,
+                        'json_array_delete',
+                        'json_array_insert',
+                        'json_array_set',
+                    ],
+                    switchText: 'in array add item',
                 },
                 "---",
                 {
@@ -274,7 +417,12 @@ class JgJSONBlocks {
                             defaultValue: "[\"D\", \"E\", \"F\"]"
                         }
                     },
-                    text: 'add items from array [array2] to array [array1]'
+                    text: 'add items from array [array2] to array [array1]',
+                    switches: [
+                        noopSwitch,
+                        'json_array_concatLayer2'
+                    ],
+                    switchText: 'add items from array to array',
                 },
                 {
                     opcode: 'json_array_concatLayer2',
@@ -293,8 +441,13 @@ class JgJSONBlocks {
                             defaultValue: "[\"G\", \"H\", \"I\"]"
                         }
                     },
-                    text: 'add items from array [array2] and array [array3] to array [array1]'
-                }, 
+                    text: 'add items from array [array2] and array [array3] to array [array1]',
+                    switches: [
+                        'json_array_concatLayer1',
+                        noopSwitch,
+                    ],
+                    switchText: 'add items from array and array to array',
+                },
                 "---",
                 {
                     opcode: 'json_array_delete',
@@ -309,7 +462,14 @@ class JgJSONBlocks {
                             defaultValue: 2
                         }
                     },
-                    text: 'in array [array] delete [index]'
+                    text: 'in array [array] delete [index]',
+                    switches: [
+                        'json_array_push',
+                        noopSwitch,
+                        'json_array_insert',
+                        'json_array_set',
+                    ],
+                    switchText: 'in array delete index',
                 },
                 {
                     opcode: 'json_array_reverse',
@@ -321,7 +481,7 @@ class JgJSONBlocks {
                         }
                     },
                     text: 'reverse array [array]'
-                }, 
+                },
                 {
                     opcode: 'json_array_insert',
                     blockType: BlockType.REPORTER,
@@ -343,7 +503,14 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'in array [array] insert [value] at [index]'
+                    text: 'in array [array] insert [value] at [index]',
+                    switches: [
+                        'json_array_push',
+                        'json_array_delete',
+                        noopSwitch,
+                        'json_array_set',
+                    ],
+                    switchText: 'in array insert value at index',
                 },
                 {
                     opcode: 'json_array_set',
@@ -366,8 +533,15 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'in array [array] set [index] to [value]'
-                },  
+                    text: 'in array [array] set [index] to [value]',
+                    switches: [
+                        'json_array_push',
+                        'json_array_delete',
+                        'json_array_insert',
+                        noopSwitch,
+                    ],
+                    switchText: 'in array set index to value',
+                },
                 "---",
                 {
                     opcode: 'json_array_get',
@@ -382,7 +556,24 @@ class JgJSONBlocks {
                             defaultValue: 2
                         }
                     },
-                    text: 'in array [array] get [index]'
+                    text: 'in array [array] get [index]',
+                    switches: [
+                        noopSwitch,
+                        'json_array_indexofNostart',
+                        {
+                            opcode: 'json_array_indexof',
+                            remapArguments: {
+                                index: 'number',
+                            },
+                        },
+                        {
+                            opcode: 'json_array_getrange',
+                            remapArguments: {
+                                index: 'index1'
+                            }
+                        }
+                    ],
+                    switchText: 'in array get index',
                 },
                 {
                     opcode: 'json_array_indexofNostart',
@@ -397,8 +588,15 @@ class JgJSONBlocks {
                             defaultValue: "value"
                         }
                     },
-                    text: 'in array [array] get index of [value]'
-                }, 
+                    text: 'in array [array] get index of [value]',
+                    switches: [
+                        'json_array_get',
+                        noopSwitch,
+                        'json_array_indexof',
+                        'json_array_getrange',
+                    ],
+                    switchText: 'in arrray get index of value',
+                },
                 {
                     opcode: 'json_array_indexof',
                     blockType: BlockType.REPORTER,
@@ -420,8 +618,25 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'in array [array] from [number] get index of [value]'
-                }, 
+                    text: 'in array [array] from [number] get index of [value]',
+                    switches: [
+                        {
+                            opcode: 'json_array_get',
+                            remapArguments: {
+                                number: 'index'
+                            }
+                        },
+                        'json_array_indexofNostart',
+                        noopSwitch,
+                        {
+                            opcode: 'json_array_getrange',
+                            remapArguments: {
+                                number: 'index1'
+                            }
+                        }
+                    ],
+                    switchText: 'in array from index get index of value',
+                },
                 {
                     opcode: 'json_array_length',
                     blockType: BlockType.REPORTER,
@@ -432,7 +647,7 @@ class JgJSONBlocks {
                         }
                     },
                     text: 'length of array [array]'
-                }, 
+                },
                 {
                     opcode: 'json_array_contains',
                     blockType: BlockType.BOOLEAN,
@@ -450,7 +665,7 @@ class JgJSONBlocks {
                             })
                         }
                     },
-                    text: 'array [array] contains [value] ?'
+                    text: 'array [array] contains [value]?'
                 },
                 "---",
                 {
@@ -486,8 +701,25 @@ class JgJSONBlocks {
                             defaultValue: 2
                         }
                     },
-                    text: 'in array [array] get all items from [index1] to [index2]'
-                }, 
+                    text: 'in array [array] get all items from [index1] to [index2]',
+                    switches: [
+                        {
+                            opcode: 'json_array_get',
+                            remapArguments: {
+                                index1: 'index'
+                            }
+                        },
+                        'json_array_indexofNostart',
+                        {
+                            opcode: 'json_array_get',
+                            remapArguments: {
+                                index1: 'number'
+                            }
+                        },
+                        noopSwitch
+                    ],
+                    switchText: 'in array get items from index to index',
+                },
                 "---",
                 {
                     opcode: 'json_array_isempty',
@@ -499,7 +731,7 @@ class JgJSONBlocks {
                         }
                     },
                     text: 'is array [array] empty?'
-                }, 
+                },
                 "---",
                 {
                     opcode: 'json_array_listtoarray',
@@ -685,7 +917,7 @@ class JgJSONBlocks {
 
         return array.indexOf(stringToEqivalint(value), number);
     }
-    
+
     json_array_indexofNostart (args) {
         const array = validateArray(args.array).array;
         const value = args.value;

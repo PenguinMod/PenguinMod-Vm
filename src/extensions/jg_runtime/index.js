@@ -5,6 +5,8 @@ const BufferUtil = new (require('../../util/array buffer'));
 const Cast = require('../../util/cast');
 const Color = require('../../util/color');
 
+const noopSwitch = { isNoop: true };
+
 // ShovelUtils
 let fps = 0;
 
@@ -38,7 +40,7 @@ class JgRuntimeBlocks {
 
     _typeIsBitmap(type) {
         return (
-            type === 'image/png' || type === 'image/bmp' || type === 'image/jpg' || type === 'image/jpeg' || 
+            type === 'image/png' || type === 'image/bmp' || type === 'image/jpg' || type === 'image/jpeg' ||
             type === 'image/jfif' || type === 'image/webp' || type === 'image/gif'
         );
     }
@@ -62,7 +64,15 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: `https://corsproxy.io/?${encodeURIComponent('https://penguinmod.com/Sprite1.pms')}`
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        'addCostumeUrl',
+                        'addCostumeUrlForceMime',
+                        'addSoundUrl',
+                        'loadProjectDataUrl',
+                    ],
+                    switchText: 'add sprite from url'
                 },
                 {
                     opcode: 'addCostumeUrl',
@@ -77,7 +87,20 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: 'penguinmod'
                         }
-                    }
+                    },
+                    switches: [
+                        'addSpriteUrl',
+                        noopSwitch,
+                        'addCostumeUrlForceMime',
+                        {
+                            opcode: 'addSoundUrl',
+                            remapArguments: {
+                                name: 'NAME'
+                            }
+                        },
+                        'loadProjectDataUrl',
+                    ],
+                    switchText: 'add costume from url'
                 },
                 {
                     opcode: 'addCostumeUrlForceMime',
@@ -96,7 +119,20 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: 'penguinmod'
                         }
-                    }
+                    },
+                    switches: [
+                        'addSpriteUrl',
+                        'addCostumeUrl',
+                        noopSwitch,
+                        {
+                            opcode: 'addSoundUrl',
+                            remapArguments: {
+                                name: 'NAME'
+                            }
+                        },
+                        'loadProjectDataUrl',
+                    ],
+                    switchText: 'add typed costume from url'
                 },
                 {
                     opcode: 'addSoundUrl',
@@ -111,7 +147,25 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: 'Meow'
                         }
-                    }
+                    },
+                    switches: [
+                        'addSpriteUrl',
+                        {
+                            opcode: 'addCostumeUrl',
+                            remapArguments: {
+                                NAME: 'name'
+                            }
+                        },
+                        {
+                            opcode: 'addCostumeUrlForceMime',
+                            remapArguments: {
+                                NAME: 'name'
+                            }
+                        },
+                        noopSwitch,
+                        'loadProjectDataUrl',
+                    ],
+                    switchText: 'add sound from url'
                 },
                 {
                     opcode: 'loadProjectDataUrl',
@@ -122,7 +176,15 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: ''
                         }
-                    }
+                    },
+                    switches: [
+                        'addSpriteUrl',
+                        'addCostumeUrl',
+                        'addCostumeUrlForceMime',
+                        'addSoundUrl',
+                        noopSwitch
+                    ],
+                    switchText: 'load project from url'
                 },
                 {
                     opcode: 'getIndexOfCostume',
@@ -133,7 +195,17 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "costume1"
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'getIndexOfSound',
+                            remapArguments: {
+                                costume: 'NAME'
+                            }
+                        },
+                    ],
+                    switchText: 'get costume index of...'
                 },
                 {
                     opcode: 'getIndexOfSound',
@@ -144,7 +216,17 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Pop"
                         }
-                    }
+                    },
+                    switches: [
+                        {
+                            opcode: 'getIndexOfCostume',
+                            remapArguments: {
+                                NAME: 'costume'
+                            }
+                        },
+                        noopSwitch
+                    ],
+                    switchText: 'get sound index of...'
                 },
                 {
                     opcode: 'getProjectDataUrl',
@@ -180,7 +262,12 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the width of the stage.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        noopSwitch,
+                        'getStageHeight',
+                    ],
+                    switchText: 'get stage width'
                 },
                 {
                     opcode: 'getStageHeight',
@@ -190,7 +277,12 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the height of the stage.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'getStageWidth',
+                        noopSwitch
+                    ],
+                    switchText: 'get stage height'
                 },
                 '---',
                 {
@@ -299,7 +391,13 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the maximum amount of clones that may exist.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        noopSwitch,
+                        'amountOfClones',
+                        'getIsClone'
+                    ],
+                    switchText: 'max clone count'
                 },
                 {
                     opcode: 'amountOfClones',
@@ -309,7 +407,13 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the amount of clones that currently exist.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'maxAmountOfClones',
+                        noopSwitch,
+                        'getIsClone'
+                    ],
+                    switchText: 'clone count'
                 },
                 {
                     opcode: 'getIsClone',
@@ -319,7 +423,13 @@ class JgRuntimeBlocks {
                         description: 'Block that returns whether the sprite is a clone or not.'
                     }),
                     disableMonitor: true,
-                    blockType: BlockType.BOOLEAN
+                    blockType: BlockType.BOOLEAN,
+                    switches: [
+                        'maxAmountOfClones',
+                        'amountOfClones',
+                        noopSwitch
+                    ],
+                    switchText: 'is clone?'
                 },
                 '---',
                 {
@@ -335,7 +445,7 @@ class JgRuntimeBlocks {
                             type: ArgumentType.NUMBER,
                             defaultValue: 30
                         }
-                    }
+                    },
                 },
                 {
                     opcode: 'getMaxFrameRate',
@@ -345,7 +455,12 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the amount of FPS allowed.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        noopSwitch,
+                        'getFrameRate',
+                    ],
+                    switchText: 'max framerate'
                 },
                 {
                     opcode: 'getFrameRate',
@@ -355,7 +470,12 @@ class JgRuntimeBlocks {
                         description: 'Block that returns the amount of FPS.'
                     }),
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'getMaxFrameRate',
+                        noopSwitch
+                    ],
+                    switchText: 'framerate'
                 },
                 '---',
                 {
@@ -392,7 +512,12 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "my script",
                         },
-                    }
+                    },
+                    switches: [
+                        'pauseScript',
+                        'unpauseScript',
+                    ],
+                    switchText: 'pause this script',
                 },
                 {
                     opcode: "unpauseScript",
@@ -403,7 +528,12 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "my script",
                         },
-                    }
+                    },
+                    switches: [
+                        'pauseScript',
+                        noopSwitch,
+                    ],
+                    switchText: 'unpause script named'
                 },
                 {
                     opcode: "isScriptPaused",
@@ -424,7 +554,13 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "my variable" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableScope" }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        'variables_createCloudVariable',
+                        'variables_createList'
+                    ],
+                    switchText: 'create variable'
                 },
                 {
                     opcode: 'variables_createCloudVariable',
@@ -432,7 +568,13 @@ class JgRuntimeBlocks {
                     blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "cloud variable" },
-                    }
+                    },
+                    switches: [
+                        'variables_createVariable',
+                        noopSwitch,
+                        'variables_createList'
+                    ],
+                    switchText: 'create cloud variable'
                 },
                 {
                     opcode: 'variables_createList',
@@ -441,7 +583,13 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "list" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableScope" }
-                    }
+                    },
+                    switches: [
+                        'variables_createVariable',
+                        'variables_createCloudVariable',
+                        noopSwitch
+                    ],
+                    switchText: 'create list'
                 },
                 {
                     opcode: 'variables_getVariable',
@@ -451,7 +599,24 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "my variable" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableTypes" }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'variables_getList',
+                            remapMenus: {
+                                SCOPE: {
+                                    'for all sprites': 'for all sprites',
+                                    'in every sprite': 'in every sprite',
+                                    'in this sprite':  'in this sprite',
+                                    'in the cloud':    'for all sprites',
+                                }
+                            }
+                        },
+                        'variables_existsVariable',
+                        'variables_existsList'
+                    ],
+                    switchText: 'value of variable in scope'
                 },
                 {
                     opcode: 'variables_getList',
@@ -461,7 +626,14 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "list" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableScope" }
-                    }
+                    },
+                    switches: [
+                        'variables_getVariable',
+                        noopSwitch,
+                        'variables_existsVariable',
+                        'variables_existsList'
+                    ],
+                    switchText: 'value of list in scope'
                 },
                 {
                     opcode: 'variables_existsVariable',
@@ -471,7 +643,14 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "my variable" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableTypes" }
-                    }
+                    },
+                    switches: [
+                        'variables_getVariable',
+                        'variables_getList',
+                        noopSwitch,
+                        'variables_existsList'
+                    ],
+                    switchText: 'variable exists in scope'
                 },
                 {
                     opcode: 'variables_existsList',
@@ -481,7 +660,15 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "list" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableScope" }
-                    }
+                    },
+                    switches: [
+                        'variables_getVariable',
+                        'variables_getList',
+                        'variables_existsVariable',
+                        noopSwitch
+                    ],
+                    switchText: 'list exists in scope'
+
                 },
                 "---",
                 {
@@ -502,7 +689,12 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Sprite1"
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        'getDataUriOption',
+                    ],
+                    switchText: 'get binary data of option'
                 },
                 {
                     opcode: 'getDataUriOption',
@@ -522,7 +714,12 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Sprite1"
                         }
-                    }
+                    },
+                    switches: [
+                        'getDataOption',
+                        noopSwitch
+                    ],
+                    switchText: 'get data uri of option'
                 },
                 "---",
                 {
@@ -560,7 +757,22 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             menu: "allVariableType"
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'getAllLists',
+                            remapMenus: {
+                                ALLSCOPE: {
+                                    'for all sprites': 'for all sprites',
+                                    'in every sprite': 'in every sprite',
+                                    'in this sprite':  'in this sprite',
+                                    'in the cloud':    'for all sprites',
+                                }
+                            }
+                        }
+                    ],
+                    switchText: 'get all variables'
                 },
                 {
                     opcode: 'getAllLists',
@@ -572,7 +784,12 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             menu: "allVariableScope"
                         }
-                    }
+                    },
+                    switches: [
+                        'getAllVariables',
+                        noopSwitch,
+                    ],
+                    switchText: 'get all lists',
                 },
                 "---",
                 {
