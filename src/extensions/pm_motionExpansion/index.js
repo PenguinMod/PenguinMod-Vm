@@ -182,6 +182,11 @@ class pmMotionExpansion {
                             defaultValue: "0",
                         },
                     },
+                    switches: [
+                        { isNoop: true },
+                        "tweentowards"
+                    ],
+                    switchText: "move steps towards xy"
                 },
                 {
                     opcode: "tweentowards",
@@ -201,6 +206,11 @@ class pmMotionExpansion {
                             defaultValue: "0",
                         },
                     },
+                    switches: [
+                        "steptowards",
+                        { isNoop: true },
+                    ],
+                    switchText: "move _% of the way to xy"
                 },
                 {
                     opcode: "touchingxy",
@@ -216,6 +226,10 @@ class pmMotionExpansion {
                             defaultValue: "0",
                         },
                     },
+                    switches: [
+                        { isNoop: true },
+                        "touchingrect"
+                    ]
                 },
                 {
                     opcode: "touchingrect",
@@ -239,16 +253,28 @@ class pmMotionExpansion {
                             defaultValue: "100",
                         },
                     },
+                    switches: [
+                        "touchingxy",
+                        { isNoop: true },
+                    ]
                 },
                 {
                     opcode: "setHome",
                     blockType: BlockType.COMMAND,
                     text: "set my home",
+                    switches: [
+                        { isNoop: true },
+                        "gotoHome"
+                    ]
                 },
                 {
                     opcode: "gotoHome",
                     blockType: BlockType.COMMAND,
                     text: "go to home",
+                    switches: [
+                        "setHome",
+                        { isNoop: true }
+                    ]
                 },
             ]
         };
