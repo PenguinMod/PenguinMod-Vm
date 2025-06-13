@@ -183,6 +183,26 @@ function generateJoin(amount) {
     };
 }
 
+function generateSeveralJoins(amount) {
+    const joins = [];
+    for (let i = 3; i < amount; i++) {
+        joins.push(generateJoin(i+1));
+    }
+    return joins.map((e, index) => {
+        const switches = [];
+        for (let i = 3; i < amount; i++) {
+            if (i == index+3) {
+                switches.push({ isNoop: true });
+                continue;
+            }
+            switches.push(`join${i+1}`);
+        }
+        e["switchText"] = `join x${index+4}`;
+        e["switches"]   = switches;
+        return e;
+    });
+}
+
 function generateJoinTranslations(amount, word, type) {
     switch (type) {
     case 1:
@@ -246,12 +266,7 @@ class pmOperatorsExpansion {
             isDynamic: true,
             orderBlocks: this.orderCategoryBlocks,
             blocks: [
-                generateJoin(4),
-                generateJoin(5),
-                generateJoin(6),
-                generateJoin(7),
-                generateJoin(8),
-                generateJoin(9),
+                ...generateSeveralJoins(9),
                 {
                     opcode: 'partOfRatio',
                     text: '[PART] part of ratio [RATIO]',
@@ -721,48 +736,48 @@ class pmOperatorsExpansion {
                 shiftLeft: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
                     const num2 = compiler.descendInput(node.num2).asNumber();
-                    
+
                     return new TypedInput(`(${num1} << ${num2})`, TYPE_NUMBER);
                 },
                 shiftRight: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
                     const num2 = compiler.descendInput(node.num2).asNumber();
-                    
+
                     return new TypedInput(`(${num1} >> ${num2})`, TYPE_NUMBER);
                 },
                 binnaryAnd: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
                     const num2 = compiler.descendInput(node.num2).asNumber();
-                    
+
                     return new TypedInput(`(${num1} & ${num2})`, TYPE_NUMBER);
                 },
                 binnaryOr: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
                     const num2 = compiler.descendInput(node.num2).asNumber();
-                    
+
                     return new TypedInput(`(${num1} | ${num2})`, TYPE_NUMBER);
                 },
                 binnaryXor: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
                     const num2 = compiler.descendInput(node.num2).asNumber();
-                    
+
                     return new TypedInput(`(${num1} ^ ${num2})`, TYPE_NUMBER);
                 },
                 binnaryNot: (node, compiler, {TypedInput, TYPE_NUMBER}) => {
                     const num1 = compiler.descendInput(node.num1).asNumber();
-                    
+
                     return new TypedInput(`(~${num1})`, TYPE_NUMBER);
                 },
                 orIfFalsey: (node, compiler, {TypedInput, TYPE_UNKNOWN}) => {
                     const num1 = compiler.descendInput(node.one).asUnknown();
                     const num2 = compiler.descendInput(node.two).asUnknown();
-                    
+
                     return new TypedInput(`(${num1} || ${num2})`, TYPE_UNKNOWN);
                 },
                 ifIsTruthy: (node, compiler, {TypedInput, TYPE_UNKNOWN}) => {
                     const num1 = compiler.descendInput(node.one).asUnknown();
                     const num2 = compiler.descendInput(node.two).asUnknown();
-                    
+
                     return new TypedInput(`(${num1} && ${num2})`, TYPE_UNKNOWN);
                 },
                 speedToPitch: (node, compiler, { TypedInput, TYPE_NUMBER_NAN }) => {
