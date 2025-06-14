@@ -603,10 +603,10 @@ class pmOperatorsExpansion {
                     switches: [
                         { isNoop: true },
                         'shiftRight',
-                        'binaryAnd',
-                        'binaryOr',
-                        'binaryXor',
-                        'binaryNot',
+                        'binnaryAnd',
+                        'binnaryOr',
+                        'binnaryXor',
+                        'binnaryNot',
                     ],
                     switchText: 'lshift'
                 },
@@ -628,10 +628,10 @@ class pmOperatorsExpansion {
                     switches: [
                         'shiftLeft',
                         { isNoop: true },
-                        'binaryAnd',
-                        'binaryOr',
-                        'binaryXor',
-                        'binaryNot',
+                        'binnaryAnd',
+                        'binnaryOr',
+                        'binnaryXor',
+                        'binnaryNot',
                     ],
                     switchText: 'rshift'
                 },
@@ -654,9 +654,9 @@ class pmOperatorsExpansion {
                         'shiftLeft',
                         'shiftRight',
                         { isNoop: true },
-                        'binaryOr',
-                        'binaryXor',
-                        'binaryNot',
+                        'binnaryOr',
+                        'binnaryXor',
+                        'binnaryNot',
                     ],
                     switchText: 'and'
                 },
@@ -678,10 +678,10 @@ class pmOperatorsExpansion {
                     switches: [
                         'shiftLeft',
                         'shiftRight',
-                        'binaryAnd',
+                        'binnaryAnd',
                         { isNoop: true },
-                        'binaryXor',
-                        'binaryNot',
+                        'binnaryXor',
+                        'binnaryNot',
                     ],
                     switchText: 'or'
                 },
@@ -703,10 +703,10 @@ class pmOperatorsExpansion {
                     switches: [
                         'shiftLeft',
                         'shiftRight',
-                        'binaryAnd',
-                        'binaryOr',
+                        'binnaryAnd',
+                        'binnaryOr',
                         { isNoop: true },
-                        'binaryNot',
+                        'binnaryNot',
                     ],
                     switchText: 'xor'
                 },
@@ -724,9 +724,9 @@ class pmOperatorsExpansion {
                     switches: [
                         'shiftLeft',
                         'shiftRight',
-                        'binaryAnd',
-                        'binaryOr',
-                        'binaryXor',
+                        'binnaryAnd',
+                        'binnaryOr',
+                        'binnaryXor',
                         { isNoop: true }
                     ],
                     switchText: 'not'
