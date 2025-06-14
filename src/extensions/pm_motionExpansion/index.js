@@ -229,7 +229,8 @@ class pmMotionExpansion {
                     switches: [
                         { isNoop: true },
                         "touchingrect"
-                    ]
+                    ],
+                    switchText: "touching xy"
                 },
                 {
                     opcode: "touchingrect",
@@ -256,7 +257,8 @@ class pmMotionExpansion {
                     switches: [
                         "touchingxy",
                         { isNoop: true },
-                    ]
+                    ],
+                    switchText: "touching rectangle"
                 },
                 {
                     opcode: "setHome",

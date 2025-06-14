@@ -390,7 +390,7 @@ class pmOperatorsExpansion {
                         'isPrime',
                         'isEven'
                     ],
-                    switchText: 'is an integer?'
+                    switchText: 'is integer?'
                 },
                 {
                     opcode: 'isPrime',
@@ -408,7 +408,8 @@ class pmOperatorsExpansion {
                         'isInteger',
                         { isNoop: true },
                         'isEven'
-                    ]
+                    ],
+                    switchText: 'is prime?'
                 },
                 {
                     opcode: 'isEven',
@@ -426,7 +427,8 @@ class pmOperatorsExpansion {
                         'isInteger',
                         'isPrime',
                         { isNoop: true }
-                    ]
+                    ],
+                    switchText: 'is even?'
                 },
                 {
                     opcode: 'reverseChars',
@@ -782,7 +784,8 @@ class pmOperatorsExpansion {
                             }
                         },
                         { isNoop: true },
-                    ]
+                    ],
+                    switchText: 'pitch to speed'
                 },
                 {
                     opcode: 'orIfFalsey',
