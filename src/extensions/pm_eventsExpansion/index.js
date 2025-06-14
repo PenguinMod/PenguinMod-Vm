@@ -216,7 +216,13 @@ class pmEventsExpansion {
                             type: ArgumentType.STRING,
                             defaultValue: "your not supposed to see this?"
                         }
-                    }
+                    },
+                    switches: [
+                        { isNoop: true },
+                        'broadcastFunctionArgs',
+                        'broadcastThreadCount'
+                    ],
+                    switchText: 'broadcast and wait'
                 },
                 {
                     opcode: 'returnFromBroadcastFunc',
@@ -235,7 +241,13 @@ class pmEventsExpansion {
                     opcode: 'broadcastThreadCount',
                     text: 'broadcast [BROADCAST] and get # of blocks started',
                     blockType: BlockType.REPORTER,
-                    disableMonitor: true
+                    disableMonitor: true,
+                    switches: [
+                        'broadcastFunction',
+                        'broadcastFunctionArgs',
+                        { isNoop: true },
+                    ],
+                    switchText: 'broadcast and get blocks started'
                 },
                 {
                     opcode: 'broadcastFunctionArgs',
@@ -252,7 +264,13 @@ class pmEventsExpansion {
                             type: ArgumentType.STRING,
                             defaultValue: "abc"
                         }
-                    }
+                    },
+                    switches: [
+                        'broadcastFunction',
+                        { isNoop: true },
+                        'broadcastThreadCount'
+                    ],
+                    switchText: 'broadcast with data'
                 },
             ],
             menus: {

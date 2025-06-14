@@ -524,12 +524,22 @@ class pmOperatorsExpansion {
                             type: ArgumentType.STRING,
                             defaultValue: "world"
                         }
-                    }
+                    },
+                    switches: [
+                        { isNoop: true },
+                        'resetReplacers'
+                    ],
+                    switchText: 'set replacer'
                 },
                 {
                     opcode: 'resetReplacers',
                     text: 'reset replacers',
-                    blockType: BlockType.COMMAND
+                    blockType: BlockType.COMMAND,
+                    switches: [
+                        'setReplacer',
+                        { isNoop: true }
+                    ],
+                    switchText: 'reset replacers'
                 },
                 {
                     opcode: 'applyReplacers',
