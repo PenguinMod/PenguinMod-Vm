@@ -242,6 +242,12 @@ class pmEventsExpansion {
                     text: 'broadcast [BROADCAST] and get # of blocks started',
                     blockType: BlockType.REPORTER,
                     disableMonitor: true,
+                    arguments: {
+                        BROADCAST: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "your not supposed to see this?"
+                        }
+                    },
                     switches: [
                         'broadcastFunction',
                         'broadcastFunctionArgs',
