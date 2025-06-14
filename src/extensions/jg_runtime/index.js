@@ -205,7 +205,7 @@ class JgRuntimeBlocks {
                             }
                         },
                     ],
-                    switchText: 'get costume index of...'
+                    switchText: 'get costume index'
                 },
                 {
                     opcode: 'getIndexOfSound',
@@ -226,7 +226,7 @@ class JgRuntimeBlocks {
                         },
                         noopSwitch
                     ],
-                    switchText: 'get sound index of...'
+                    switchText: 'get sound index of'
                 },
                 {
                     opcode: 'getProjectDataUrl',
@@ -606,10 +606,9 @@ class JgRuntimeBlocks {
                             opcode: 'variables_getList',
                             remapMenus: {
                                 SCOPE: {
-                                    'for all sprites': 'for all sprites',
-                                    'in every sprite': 'in every sprite',
-                                    'in this sprite':  'in this sprite',
-                                    'in the cloud':    'for all sprites',
+                                    'all sprites': 'for all sprites',
+                                    'this sprite':  'in this sprite',
+                                    'cloud':    'for all sprites',
                                 }
                             }
                         },
@@ -726,25 +725,49 @@ class JgRuntimeBlocks {
                     opcode: 'getAllSprites',
                     text: 'get all sprites',
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        noopSwitch,
+                        'getAllCostumes',
+                        'getAllSounds',
+                        'getAllFonts',
+                    ]
                 },
                 {
                     opcode: 'getAllCostumes',
                     text: 'get all costumes',
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'getAllSprites',
+                        noopSwitch,
+                        'getAllSounds',
+                        'getAllFonts',
+                    ]
                 },
                 {
                     opcode: 'getAllSounds',
                     text: 'get all sounds',
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'getAllSprites',
+                        'getAllCostumes',
+                        noopSwitch,
+                        'getAllFonts',
+                    ]
                 },
                 {
                     opcode: 'getAllFonts',
                     text: 'get all fonts',
                     disableMonitor: false,
-                    blockType: BlockType.REPORTER
+                    blockType: BlockType.REPORTER,
+                    switches: [
+                        'getAllSprites',
+                        'getAllCostumes',
+                        'getAllSounds',
+                        noopSwitch,
+                    ]
                 },
                 "---",
                 {
@@ -809,7 +832,23 @@ class JgRuntimeBlocks {
                             type: ArgumentType.NUMBER,
                             defaultValue: 1
                         }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'deleteSound',
+                            remapArguments: {
+                                COSTUME: 'SOUND'
+                            }
+                        },
+                        {
+                            opcode: 'deleteSprite',
+                            remapArguments: {
+                                COSTUME: 'NAME'
+                            }
+                        },
+                    ],
+                    switchText: 'delete costume at index'
                 },
                 {
                     opcode: 'deleteSound',
@@ -824,7 +863,23 @@ class JgRuntimeBlocks {
                             type: ArgumentType.NUMBER,
                             defaultValue: 1
                         }
-                    }
+                    },
+                    switches: [
+                        {
+                            opcode: 'deleteCostume',
+                            remapArguments: {
+                                SOUND: 'COSTUME'
+                            }
+                        },
+                        noopSwitch,
+                        {
+                            opcode: 'deleteSprite',
+                            remapArguments: {
+                                SOUND: 'NAME'
+                            }
+                        },
+                    ],
+                    switchText: 'delete sound at index'
                 },
                 "---",
                 {
@@ -834,7 +889,21 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "my variable" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableTypes" }
-                    }
+                    },
+                    switches: [
+                        noopSwitch,
+                        {
+                            opcode: 'variables_deleteList',
+                            remapMenus: {
+                                SCOPE: {
+                                    'all sprites': 'all sprites',
+                                    'this sprite': 'this sprite',
+                                    'cloud': 'all sprites'
+                                }
+                            }
+                        }
+                    ],
+                    switchText: 'delete variable'
                 },
                 {
                     opcode: 'variables_deleteList',
@@ -843,7 +912,12 @@ class JgRuntimeBlocks {
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "list" },
                         SCOPE: { type: ArgumentType.STRING, menu: "variableScope" }
-                    }
+                    },
+                    switches: [
+                        'variables_deleteVariable',
+                        noopSwitch
+                    ],
+                    switchText: 'delete list'
                 },
                 "---",
                 {
@@ -859,7 +933,23 @@ class JgRuntimeBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Sprite1"
                         }
-                    }
+                    },
+                    switches: [
+                        {
+                            opcode: 'deleteCostume',
+                            remapArguments: {
+                                NAME: 'COSTUME'
+                            }
+                        },
+                        {
+                            opcode: 'deleteSound',
+                            remapArguments: {
+                                NAME: 'SOUND'
+                            }
+                        },
+                        noopSwitch,
+                    ],
+                    switchText: 'delete sprite named'
                 },
             ],
             menus: {
