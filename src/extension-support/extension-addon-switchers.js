@@ -45,7 +45,10 @@ function getSwitches({runtime}) {
                     .querySelectorAll(`[type="${get_block.json.type}"] > value`)
                     .forEach(el => {
                         let name = el.getAttribute("name");
-                        if (Object.keys(block.info.arguments).includes(name)) return;
+                        if (
+                            !!block.info.arguments[name]
+                            && !(current.remapArguments ?? {})[name]
+                        ) return;
                         if (Object.values(current.remapArguments ?? {}).includes(name)) return;
 
                         let shadowType = el.getElementsByTagName("shadow")[0].getAttribute("type");
