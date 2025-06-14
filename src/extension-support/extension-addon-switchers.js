@@ -77,7 +77,12 @@ function getSwitches({runtime}) {
                     .forEach(el => {
                         let name = el.getAttribute("name");
                         if (!(name in remapShadowType)) return;
-                        let shadowType = el.getElementsByTagName("shadow")[0].getAttribute("type");
+
+                        let shadowType = el.querySelector("shadow");
+                        if (!shadowType) {
+                            return;
+                        }
+                        shadowType = shadowType.getAttribute("type");
 
                         if (remapShadowType[name] == shadowType) {
                             delete remapShadowType[name];

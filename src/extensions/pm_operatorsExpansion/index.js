@@ -789,12 +789,7 @@ class pmOperatorsExpansion {
                             type: ArgumentType.STRING,
                             defaultValue: "b"
                         }
-                    },
-                    switches: [
-                        { isNoop: true },
-                        'ifIsTruthy'
-                    ],
-                    switchText: 'or else'
+                    }
                 },
                 {
                     opcode: 'ifIsTruthy',
@@ -810,12 +805,7 @@ class pmOperatorsExpansion {
                             type: ArgumentType.STRING,
                             defaultValue: "perfect!"
                         }
-                    },
-                    switches: [
-                        'orIfFalsey',
-                        { isNoop: true },
-                    ],
-                    switchText: 'if is true then'
+                    }
                 },
             ],
             menus: {
