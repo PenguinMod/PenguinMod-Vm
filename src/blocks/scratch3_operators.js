@@ -395,6 +395,7 @@ class Scratch3OperatorsBlocks {
         case 'asin': return (Math.asin(n) * 180) / Math.PI;
         case 'acos': return (Math.acos(n) * 180) / Math.PI;
         case 'atan': return (Math.atan(n) * 180) / Math.PI;
+        case 'atan2': return (Math.atan2(n) * 180) / Math.PI;
         case 'ln': return Math.log(n);
         case 'log': return Math.log(n) / Math.LN10;
         case 'log2': return Math.log2(n);
