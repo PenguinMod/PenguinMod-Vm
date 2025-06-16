@@ -518,6 +518,10 @@ class ScriptTreeGenerator {
                 kind: 'op.atan',
                 value
             };
+            case 'atan2': return {
+                kind: 'op.atan2',
+                value
+            };
             case 'ln': return {
                 kind: 'op.ln',
                 value
