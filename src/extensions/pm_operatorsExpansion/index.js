@@ -339,6 +339,21 @@ class pmOperatorsExpansion {
                     ]
                 },
                 {
+                    opcode: 'atan2',
+                    text: 'atan2 of x [X] y [Y]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: "45"
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: "90"
+                        },
+                    }
+                },
+                {
                     opcode: 'truncateNumber',
                     text: 'truncate number [NUM]',
                     blockType: BlockType.REPORTER,
@@ -888,6 +903,11 @@ class pmOperatorsExpansion {
                 pitchToSpeed: (generator, block) => ({
                     kind: 'input',
                     pitch: generator.descendInputOfBlock(block, 'PITCH'),
+                }),
+                atan2: (generator, block) => ({
+                    kind: 'input',
+                    x: generator.descendInputOfBlock(block, 'X'),
+                    y: generator.descendInputOfBlock(block, 'Y'),
                 })
             },
             js: {
@@ -945,6 +965,11 @@ class pmOperatorsExpansion {
                 pitchToSpeed: (node, compiler, { TypedInput, TYPE_NUMBER_NAN }) => {
                     const pitch = compiler.descendInput(node.pitch).asNumber();
                     return new TypedInput(`(Math.pow(2, (${pitch} * 10) / 1200))`, TYPE_NUMBER_NAN);
+                },
+                atan2: (node, compiler, { TypedInput, TYPE_NUMBER_NAN }) => {
+                    const x = compiler.descendInput(node.x).asNumber();
+                    const y = compiler.descendInput(node.y).asNumber();
+                    return new TypedInput(`(Math.atan2((${y} * 180) / Math.PI, (${x} * 180) / Math.PI)`, TYPE_NUMBER_NAN);
                 }
             }
         };
@@ -1177,6 +1202,7 @@ class pmOperatorsExpansion {
     binnaryNot(args) { return false }
     speedToPitch(args) { return 0 }
     pitchToSpeed(args) { return 1 }
+    atan2(args) { return 0 }
 }
 
 module.exports = pmOperatorsExpansion;
