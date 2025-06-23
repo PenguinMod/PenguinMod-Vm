@@ -3,6 +3,8 @@ const ArgumentType = require('../../extension-support/argument-type');
 const Cast = require('../../util/cast');
 const xmlEscape = require('../../util/xml-escape');
 
+const noopSwitch = { isNoop: true };
+
 /**
  * @param {string} line The line with the quote
  * @param {number} index The point where the quote appears
@@ -174,12 +176,14 @@ class jgDebuggingBlocks {
                 {
                     opcode: 'openDebugger',
                     text: 'open debugger',
-                    blockType: BlockType.COMMAND
+                    blockType: BlockType.COMMAND,
+                    switches: [ noopSwitch, 'closeDebugger' ]
                 },
                 {
                     opcode: 'closeDebugger',
                     text: 'close debugger',
-                    blockType: BlockType.COMMAND
+                    blockType: BlockType.COMMAND,
+                    switches: [ 'openDebugger', noopSwitch ]
                 },
                 '---',
                 {
@@ -191,7 +195,9 @@ class jgDebuggingBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Hello!"
                         }
-                    }
+                    },
+                    switches: [ noopSwitch, 'warn', 'error' ],
+                    switchText: 'log'
                 },
                 {
                     opcode: 'warn',
@@ -202,7 +208,9 @@ class jgDebuggingBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Warning"
                         }
-                    }
+                    },
+                    switches: [ 'log', noopSwitch, 'error' ],
+                    switchText: 'warn'
                 },
                 {
                     opcode: 'error',
@@ -213,8 +221,15 @@ class jgDebuggingBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: "Error"
                         }
-                    }
+                    },
+                    switches: [ 'log', 'warn', noopSwitch ],
+                    switchText: 'error'
                 },
+                '---',
+                {
+                    opcode: 'breakpoint',
+                    blockType: BlockType.COMMAND,
+                }
             ]
         };
     }
@@ -389,6 +404,10 @@ class jgDebuggingBlocks {
             + `\n${stack.map(text => (`\tat ${text}`)).join("\n")}`;
         console.error(text);
         this._addLog(text, "color: red;");
+    }
+
+    breakpoint() {
+        this.runtime.pause();
     }
 }
 
