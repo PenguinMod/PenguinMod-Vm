@@ -555,20 +555,29 @@ class ExtensionManager {
 
     /**
      * Regenerate blockinfo for any loaded extensions
+     * @param {string} [extension] optional extension id
      * @returns {Promise} resolved once all the extensions have been reinitialized
      */
-    refreshBlocks() {
-        const allPromises = Array.from(this._loadedExtensions.values()).map(serviceName =>
-            dispatch.call(serviceName, 'getInfo')
+    refreshBlocks(extension) {
+        const refresh_service = service =>
+            dispatch.call(service, 'getInfo')
                 .then(info => {
-                    info = this._prepareExtensionInfo(serviceName, info);
+                    info = this._prepareExtensionInfo(service, info);
                     dispatch.call('runtime', '_refreshExtensionPrimitives', info);
                 })
                 .catch(e => {
                     log.error(`Failed to refresh built-in extension primitives: ${e}`);
-                })
-        );
-        return Promise.all(allPromises);
+                });
+
+        if (!extension) {
+            const all_services = Array.from(this._loadedExtensions.values()).map(refresh_service);
+            return Promise.all(all_services);
+        }
+        if (!this._loadedExtensions.has(extension)) {
+            return Promise.reject(new Error(`Extension ${extension} doesn't exist`));
+        }
+
+        return refresh_service(this._loadedExtensions.get(extension));
     }
 
     prepareSwap(id) {
