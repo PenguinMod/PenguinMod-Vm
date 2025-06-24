@@ -534,27 +534,36 @@ class ExtensionManager {
     }
 
     /**
-     * Regenerate blockinfo for all loaded dynamic extensions
+     * Regenerate blockinfo for all (or one) loaded dynamic extensions
+     * @param {string} [extension] optional extension id
      * @returns {Promise} resolved once all the extensions have been reinitialized
      */
-    refreshDynamicCategorys() {
-        if (!this._loadedExtensions) return Promise.reject('_loadedExtensions is not readable yet');
-        const allPromises = Array.from(this._loadedExtensions.values()).map(serviceName =>
-            dispatch.call(serviceName, 'getInfo')
+    refreshDynamicCategorys(extension) {
+        const refresh_service = service =>
+            dispatch.call(service, 'getInfo')
                 .then(info => {
-                    info = this._prepareExtensionInfo(serviceName, info);
+                    info = this._prepareExtensionInfo(service, info);
                     if (!info.isDynamic) return;
                     dispatch.call('runtime', '_refreshExtensionPrimitives', info);
                 })
                 .catch(e => {
                     log.error(`Failed to refresh built-in extension primitives: ${e}`);
                 })
-        );
-        return Promise.all(allPromises);
+
+        if (!this._loadedExtensions) return Promise.reject('_loadedExtensions is not readable yet');
+        if (!extension) {
+            const all_services = Array.from(this._loadedExtensions.values()).map(refresh_service);
+            return Promise.all(all_services);
+        }
+        if (!this._loadedExtensions.has(extension)) {
+            return Promise.reject(new Error(`Unknown extension: ${extension}`));
+        }
+
+        return refresh_service(this._loadedExtensions.get(extension));
     }
 
     /**
-     * Regenerate blockinfo for any loaded extensions
+     * Regenerate blockinfo for all (or one) loaded extensions
      * @param {string} [extension] optional extension id
      * @returns {Promise} resolved once all the extensions have been reinitialized
      */
@@ -574,7 +583,7 @@ class ExtensionManager {
             return Promise.all(all_services);
         }
         if (!this._loadedExtensions.has(extension)) {
-            return Promise.reject(new Error(`Extension ${extension} doesn't exist`));
+            return Promise.reject(new Error(`Unknown extension: ${extension}`));
         }
 
         return refresh_service(this._loadedExtensions.get(extension));
