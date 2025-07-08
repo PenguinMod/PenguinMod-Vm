@@ -1276,19 +1276,21 @@ class VirtualMachine extends EventEmitter {
     /**
      * TW: Get the raw binary data to use when exporting a costume to the user's local file system.
      * @param {Costume} costumeObject scratch-vm costume object
+     * @param {Boolean} determines wether to add assets like fonts or not
      * @returns {Uint8Array}
      */
-    getExportedCostume (costumeObject) {
-        return exportCostume(costumeObject);
+    getExportedCostume (costumeObject, optIncludeExtras) {
+        return exportCostume(costumeObject, optIncludeExtras);
     }
 
     /**
      * TW: Get a base64 string to use when exporting a costume to the user's local file system.
      * @param {Costume} costumeObject scratch-vm costume object
+     * @param {Boolean} determines wether to add assets like fonts or not
      * @returns {string} base64 string. Not a data: URI.
      */
-    getExportedCostumeBase64 (costumeObject) {
-        const binaryData = this.getExportedCostume(costumeObject);
+    getExportedCostumeBase64 (costumeObject, optIncludeExtras) {
+        const binaryData = this.getExportedCostume(costumeObject, optIncludeExtras);
         return Base64Util.uint8ArrayToBase64(binaryData);
     }
 
