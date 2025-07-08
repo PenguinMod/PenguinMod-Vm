@@ -28,6 +28,31 @@ const regex = new RegExp(
 );
 
 /**
+ * @returns {string} css for directions to custom fonts
+ */
+const generateCustomFontsCSS = () => {
+    if (!vm?.runtime?.fontManager?.fonts) return '';
+    const fonts = vm.runtime.fontManager.fonts.filter(f => !f.system);
+
+    let fontCSS = '';
+    for (const font of fonts) {
+        const base64 = btoa(String.fromCharCode.apply(null, font.data));
+
+        // normalize format for browser compatibility
+        let format = font.format.toLowerCase();
+        if (format === 'otf') format = 'opentype';
+        if (format === 'ttf') format = 'truetype';
+
+        fontCSS += "@font-face {\n";
+        fontCSS += `font-family: "${font.name}";\n`;
+        fontCSS += `src: url('data:font/${format};base64,${base64}') format('${format}');\n`;
+        fontCSS += "}\n";
+    }
+
+    return fontCSS;
+};
+
+/**
  * @param {string} svgString SVG source
  * @returns {[number, number]|null} The detected rotation center of the SVG, if any.
  */
@@ -49,9 +74,10 @@ const parseVectorMetadata = svgString => {
 
 /**
  * @param {Costume} costume scratch-vm costume object
+ * @param {Boolean} optIncludeExtras determines if we add things like custom fonts to the export
  * @returns {Uint8Array} Binary data to export
  */
-const exportCostume = costume => {
+const exportCostume = (costume, optIncludeExtras) => {
     /** @type {Uint8Array} */
     const originalData = costume.asset.data;
 
@@ -68,6 +94,15 @@ const exportCostume = costume => {
     const centerY = costume.rotationCenterY;
     const extraData = `${HTML_COMMENT_START}rotationCenter:${centerX}:${centerY}${HTML_COMMENT_END}`;
     decodedData += extraData;
+
+    if (optIncludeExtras) {
+        // TODO compress this by only adding fonts that are used in the costume
+        const cssText = generateCustomFontsCSS();
+        if (cssText) {
+            const styleElement = `<style type="text/css">${cssText}></style>`;
+            decodedData.replace(new RegExp(`/<svg[^>]*?>/`), match => `${match}${styleElement}`);
+        }
+    }
 
     return new _TextEncoder().encode(decodedData);
 };
