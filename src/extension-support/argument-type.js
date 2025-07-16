@@ -49,6 +49,11 @@ const ArgumentType = {
     POLYGON: 'polygon',
 
     /**
+     * pm: creates an user-defined DOM input
+     */
+    CUSTOM: 'custom',
+
+    /**
      * Costume menu (taken from tw)
      */
     COSTUME: 'costume',
