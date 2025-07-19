@@ -1784,7 +1784,10 @@ class Runtime extends EventEmitter {
             }
         }
 
-        if (typeof blockInfo.blockShape === 'number') {
+        if (
+            typeof blockInfo.blockShape === 'number' ||
+            (typeof blockInfo.blockShape === 'string' && blockInfo.blockShape.startsWith("custom-"))
+        ) {
             blockJSON.outputShape = blockInfo.blockShape;
         }
         if (blockInfo.forceOutputType) {
