@@ -27,6 +27,11 @@ const BlockShape = {
      * Output shape: plus (custom).
      */
     PLUS: 5,
+
+    /**
+     * Output shape: custom (user-defined in Blockly.BlockSvg).
+     */
+    CUSTOM: -1,
 };
 
 module.exports = BlockShape;
