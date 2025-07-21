@@ -54,9 +54,9 @@ const BlockShape = {
     ARROW: 10,
 
     /**
-     * pm: Output shape: bookmark (Dates).
+     * pm: Output shape: ticket (Dates).
      */
-    BOOKMARK: 11,
+    TICKET: 11,
 };
 
 module.exports = BlockShape;

@@ -431,10 +431,10 @@ class JgDevBlocks {
                     }
                 },
                 {
-                    opcode: 'customShapeBOOKMARK',
-                    text: 'custom shape BOOKMARK [TEST]',
-                    forceOutputType: BlockShape.BOOKMARK,
-                    blockShape: BlockShape.BOOKMARK,
+                    opcode: 'customShapeTICKET',
+                    text: 'custom shape TICKET [TEST]',
+                    forceOutputType: BlockShape.TICKET,
+                    blockShape: BlockShape.TICKET,
                     blockType: BlockType.REPORTER,
                     arguments: {
                         TEST: {
@@ -498,11 +498,11 @@ class JgDevBlocks {
                     blockType: BlockType.REPORTER,
                 },
                 {
-                    opcode: 'customShapeInputBOOKMARK',
+                    opcode: 'customShapeInputTICKET',
                     arguments: {
                         TEST: {
-                            shape: BlockShape.BOOKMARK,
-                            check: BlockShape.BOOKMARK,
+                            shape: BlockShape.TICKET,
+                            check: BlockShape.TICKET,
                         }
                     },
                     text: 'custom shape [TEST]',
