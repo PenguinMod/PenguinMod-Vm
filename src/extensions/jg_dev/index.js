@@ -368,6 +368,143 @@ class JgDevBlocks {
                 },
                 {
                     blockType: BlockType.LABEL,
+                    text: "Native CUSTOM_SHAPES"
+                },
+                {
+                    opcode: 'customShapeOCTAGONAL',
+                    text: 'custom shape OCTAGONAL [TEST]',
+                    forceOutputType: BlockShape.OCTAGONAL,
+                    blockShape: BlockShape.OCTAGONAL,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeBUMPED',
+                    text: 'custom shape BUMPED [TEST]',
+                    blockShape: BlockShape.BUMPED,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeINDENTED',
+                    text: 'custom shape INDENTED [TEST]',
+                    blockShape: BlockShape.INDENTED,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeSCRAPPED',
+                    text: 'custom shape SCRAPPED [TEST]',
+                    blockShape: BlockShape.SCRAPPED,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeARROW',
+                    text: 'custom shape ARROW [TEST]',
+                    blockShape: BlockShape.ARROW,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeBOOKMARK',
+                    text: 'custom shape BOOKMARK [TEST]',
+                    blockShape: BlockShape.BOOKMARK,
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TEST: {
+                            type: ArgumentType.STRING,
+                        }
+                    }
+                },
+                {
+                    opcode: 'customShapeInputOCTAGONAL',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.OCTAGONAL,
+                            check: BlockShape.OCTAGONAL,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'customShapeInputBUMPED',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.BUMPED,
+                            check: BlockShape.BUMPED,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'customShapeInputINDENTED',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.INDENTED,
+                            check: BlockShape.INDENTED,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'customShapeInputSCRAPPED',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.SCRAPPED,
+                            check: BlockShape.SCRAPPED,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'customShapeInputARROW',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.ARROW,
+                            check: BlockShape.ARROW,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'customShapeInputBOOKMARK',
+                    arguments: {
+                        TEST: {
+                            shape: BlockShape.BOOKMARK,
+                            check: BlockShape.BOOKMARK,
+                        }
+                    },
+                    text: 'custom shape [TEST]',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    blockType: BlockType.LABEL,
                     text: "switching test cases"
                 },
                 {

@@ -1789,8 +1789,7 @@ class Runtime extends EventEmitter {
         else if (typeof blockShape === 'string') {
             // assume we are handling a custom shape...
             // if it doesnt exist it will default to a round reporter
-            if (blockShape.startsWith('native-')) blockJSON.outputShape = blockShape;
-            else if (!blockShape.startsWith('custom-')) blockJSON.outputShape = 'custom-' + blockShape;
+            if (!blockShape.startsWith('custom-')) blockJSON.outputShape = 'custom-' + blockShape;
             else blockJSON.outputShape = blockShape;
         }
         if (blockInfo.forceOutputType) {
@@ -1976,8 +1975,7 @@ class Runtime extends EventEmitter {
                 else {
                     // assume we are handling a custom shape...
                     // if it doesnt exist it will default to a null input
-                    if (argShape.startsWith('native-')) argJSON.shape = argShape;
-                    else if (!argShape.startsWith('custom-')) argJSON.shape = 'custom-' + argShape;
+                    if (!argShape.startsWith('custom-')) argJSON.shape = 'custom-' + argShape;
                     else argJSON.shape = argShape;
                 }
             }
