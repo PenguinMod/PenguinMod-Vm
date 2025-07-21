@@ -385,6 +385,7 @@ class JgDevBlocks {
                 {
                     opcode: 'customShapeBUMPED',
                     text: 'custom shape BUMPED [TEST]',
+                    forceOutputType: BlockShape.BUMPED,
                     blockShape: BlockShape.BUMPED,
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -396,6 +397,7 @@ class JgDevBlocks {
                 {
                     opcode: 'customShapeINDENTED',
                     text: 'custom shape INDENTED [TEST]',
+                    forceOutputType: BlockShape.INDENTED,
                     blockShape: BlockShape.INDENTED,
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -407,6 +409,7 @@ class JgDevBlocks {
                 {
                     opcode: 'customShapeSCRAPPED',
                     text: 'custom shape SCRAPPED [TEST]',
+                    forceOutputType: BlockShape.SCRAPPED,
                     blockShape: BlockShape.SCRAPPED,
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -418,6 +421,7 @@ class JgDevBlocks {
                 {
                     opcode: 'customShapeARROW',
                     text: 'custom shape ARROW [TEST]',
+                    forceOutputType: BlockShape.ARROW,
                     blockShape: BlockShape.ARROW,
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -429,6 +433,7 @@ class JgDevBlocks {
                 {
                     opcode: 'customShapeBOOKMARK',
                     text: 'custom shape BOOKMARK [TEST]',
+                    forceOutputType: BlockShape.BOOKMARK,
                     blockShape: BlockShape.BOOKMARK,
                     blockType: BlockType.REPORTER,
                     arguments: {
