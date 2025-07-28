@@ -1334,6 +1334,9 @@ class Runtime extends EventEmitter {
             categoryInfo.color3 = defaultExtensionColors[2];
         }
 
+        // undefined will default to the regular text color
+        categoryInfo.blockText = extensionInfo.blockText;
+
         if (extensionInfo.isDynamic) {
             categoryInfo.isDynamic = extensionInfo.isDynamic;
             categoryInfo.orderBlocks = extensionInfo.orderBlocks;
@@ -1641,6 +1644,7 @@ class Runtime extends EventEmitter {
             colour: blockInfo.color1 ?? categoryInfo.color1,
             colourSecondary: blockInfo.color2 ?? categoryInfo.color2,
             colourTertiary: blockInfo.color3 ?? categoryInfo.color3,
+            blockText: blockInfo.blockText ?? extensionInfo.blockText,
             canDragDuplicate: blockInfo.canDragDuplicate === true
         };
         const context = {
