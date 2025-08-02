@@ -83,11 +83,13 @@ const Target = {
     Type: jwTargetType,
     Block: {
         blockType: BlockType.REPORTER,
+        blockShape: BlockShape.OCTAGONAL,
         forceOutputType: "Target",
         disableMonitor: true
     },
     Argument: {
-        check: ["Target"]
+        check: ["Target"],
+        shape: BlockShape.OCTAGONAL
     }
 }
 
