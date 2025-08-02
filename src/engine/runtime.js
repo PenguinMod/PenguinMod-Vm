@@ -584,11 +584,18 @@ class Runtime extends EventEmitter {
         this.extensionButtons = new Map();
 
         /**
-         * Contains the audio context and gain node for each extension that registers them.
-         * Used to make sure the extensions respect addons or the pause button.
-         * @type {Map<string, {audioContext: AudioContext, gainNode: GainNode}>}
+         * Stores information from extensions that integrate features into the GUI, VM, Addons, etc.
+         * Do not update this directly. Use Runtime.registerExtensionIntegrationComponents() instead.
+         * @private
+         * @type {Map<string, {
+         *      whitelist: Array<string>,
+         *      whitelistUsed: boolean,
+         *      audioContexts: Array<AudioContext>,
+         *      audioNodes: Array<AudioNode>,
+         *      gainNodes: Array<GainNode>,
+         * }>}
          */
-        this._extensionAudioObjects = new Map();
+        this._extensionIntegrationObjects = new Map();
 
         /**
          * Responsible for managing custom fonts.
@@ -959,6 +966,15 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for reporting that an extension registered components with Runtime.registerExtensionIntegrationComponents()
+     * This event can run several times for the same extension.
+     * @const {string}
+     */
+    static get EXTENSION_INTEGRATION_REGISTERED () {
+        return 'EXTENSION_INTEGRATION_REGISTERED';
+    }
+
+    /**
      * Event name for updating the available set of peripheral devices.
      * This causes the peripheral connection modal to update a list of
      * available peripherals.
@@ -1260,25 +1276,53 @@ class Runtime extends EventEmitter {
     }
 
     /**
-     * Allows AudioContexts and GainNodes from an extension to respect addons and runtime pausing by default.
-     * If audioContext is not supplied, recording addon + pause button will not work with the extension this way.
-     * If gainNode is not supplied, recording addon + volume slider will not work with the extension this way.
-     * @param {string} extensionId The extension's ID. May be used internally in the future, or by other extensions.
-     * @param {AudioContext} audioContext The AudioContext being used in the extension.
-     * @param {GainNode} gainNode The GainNode that is connected to the AudioContext. All other nodes in the extension should be connected to this GainNode, and this GainNode should be connected to the destination of the AudioContext.
+     * @deprecated Use registerExtensionIntegrationComponents() instead.
+     * @param {string} extensionId
+     * @param {AudioContext} audioContext 
+     * @param {GainNode} gainNode 
      */
     registerExtensionAudioContext(extensionId, audioContext, gainNode) {
-        if (typeof extensionId !== "string") throw new TypeError('Extension ID must be string');
-        if (!extensionId) throw new Error('No extension ID specified'); // empty string
-
-        const obj = {};
-        if (audioContext) {
-            obj.audioContext = audioContext;
-        }
-        if (gainNode) {
-            obj.gainNode = gainNode;
-        }
-        this._extensionAudioObjects.set(extensionId, obj);
+        const whitelist = [];
+        if (audioContext) whitelist.push("audioContextSuspend", "audioContextResume", "audioMediaStream");
+        if (gainNode) whitelist.push("audioMediaStream", "gainNodeSet");
+        this.registerExtensionIntegrationComponents(extensionId, [...new Set(whitelist)], audioContext, gainNode);
+    }
+    /**
+     * Allows extensions to register components that are used for other PenguinMod features.
+     * This can include GUI menus, addons, or other extensions.
+     * 
+     * The `audioContexts` are used for features that need "audioContextSuspend", "audioContextResume", "audioMediaStream"
+     * 
+     * The `audioNodes` are used for features that need "audioMediaStream"
+     * 
+     * The `gainNodes` are used for features that need "gainNodeSet"
+     * 
+     * You can re-run this function if you need to change any information.
+     * However, the original information will be replaced, not appended to.
+     * @param {string} extensionId The extension's ID. May be used internally in the future, or by other extensions.
+     * @param {Array<
+     *      "audioContextSuspend"|"audioContextResume"
+     *      |"audioMediaStream"
+     *      |"gainNodeSet"
+     * >} whitelistFeatures Which features to enable. Passing an empty array will allow all components provided to be used by PenguinMod.
+     * @param {object} components Parts of your extension.
+     * @param {Array<AudioContext>} components.audioContexts Any `AudioContext`s being used in the extension that you want to register.
+     * @param {Array<AudioNode>} components.audioNodes Any destination `AudioNode`s you want to register. These nodes should be connected to the `destination` of the `AudioContext`s provided.
+     * @param {Array<GainNode>} components.gainNodes The deepest `GainNode`s you want to register. Do not include `GainNode`s within the same tree of `AudioNode`s, only specify the `GainNode` closest to the `AudioContext`'s `destination`.
+     */
+    registerExtensionIntegrationComponents(extensionId, whitelistFeatures, components) {
+        if (!extensionId || typeof extensionId !== "string") throw new TypeError('Extension ID must be string');
+        if (!Array.isArray(whitelistFeatures)) throw new TypeError("whitelistFeatures must be Array");
+        
+        const information = {
+            whitelist: whitelistFeatures,
+            whitelistUsed: whitelistFeatures.length > 0,
+            audioContexts: components.audioContexts ? components.audioContexts : [],
+            audioNodes: components.audioNodes ? components.audioNodes : [],
+            gainNodes: components.gainNodes ? components.gainNodes : [],
+        };
+        this._extensionIntegrationObjects.set(extensionId, information);
+        this.emit(Runtime.EXTENSION_INTEGRATION_REGISTERED, information);
     }
 
     getMonitorState () {
@@ -2884,11 +2928,13 @@ class Runtime extends EventEmitter {
         if (this.paused) return;
         this.emit(Runtime.RUNTIME_PRE_PAUSED);
         this.paused = true;
+
         // pause all audio contexts (that includes exts with their own AC or gain node)
         this.audioEngine.audioContext.suspend();
-        for (const audioData of this._extensionAudioObjects.values()) {
-            if (audioData.audioContext) {
-                audioData.audioContext.suspend();
+        for (const extensionInformation of this._extensionIntegrationObjects.values()) {
+            if (extensionInformation.whitelistUsed && !extensionInformation.whitelist.includes("audioContextSuspend")) continue;
+            for (const audioContext of extensionInformation.audioContexts) {
+                audioContext.suspend();
             }
         }
 
@@ -2905,11 +2951,13 @@ class Runtime extends EventEmitter {
     play() {
         if (!this.paused) return;
         this.paused = false;
+
         // resume all audio contexts (that includes exts with their own AC or gain node)
         this.audioEngine.audioContext.resume();
-        for (const audioData of this._extensionAudioObjects.values()) {
-            if (audioData.audioContext) {
-                audioData.audioContext.resume();
+        for (const extensionInformation of this._extensionIntegrationObjects.values()) {
+            if (extensionInformation.whitelistUsed && !extensionInformation.whitelist.includes("audioContextResume")) continue;
+            for (const audioContext of extensionInformation.audioContexts) {
+                audioContext.resume();
             }
         }
 
