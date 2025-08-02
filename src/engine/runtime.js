@@ -1285,7 +1285,10 @@ class Runtime extends EventEmitter {
         const whitelist = [];
         if (audioContext) whitelist.push("audioContextSuspend", "audioContextResume", "audioMediaStream");
         if (gainNode) whitelist.push("audioMediaStream", "gainNodeSet");
-        this.registerExtensionIntegrationComponents(extensionId, [...new Set(whitelist)], audioContext, gainNode);
+        this.registerExtensionIntegrationComponents(extensionId, [...new Set(whitelist)], {
+            audioContexts: [audioContext],
+            gainNodes: [gainNode],
+        });
     }
     /**
      * Allows extensions to register components that are used for other PenguinMod features.
