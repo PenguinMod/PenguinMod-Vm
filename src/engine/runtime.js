@@ -1287,6 +1287,7 @@ class Runtime extends EventEmitter {
         if (gainNode) whitelist.push("audioMediaStream", "gainNodeSet");
         this.registerExtensionIntegrationComponents(extensionId, [...new Set(whitelist)], {
             audioContexts: [audioContext],
+            audioNodes: [gainNode],
             gainNodes: [gainNode],
         });
     }
