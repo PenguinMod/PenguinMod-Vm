@@ -1266,7 +1266,7 @@ class Runtime extends EventEmitter {
             // Use the unsafe "raw" version of the compiling API.
             log.warn(extensionId, "called Runtime.registerCompiledExtensionBlocks() with the old undocumented version of the Extension Block Compiling API.",
                 "This extension should be updated soon to support the new API.\nSee the documentation here: TODO",
-                "\nFor now, this extension will be forced to use the \"raw\" unsafe version of the Extension Block Compiling API.");
+                "\nFor now, this extension will be set to use the \"raw\" unsafe version of the Extension Block Compiling API.");
             return this.registerCompiledExtensionBlocks(extensionId, "raw", version);
         }
 
