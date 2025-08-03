@@ -59,6 +59,12 @@ const parseProcedureCode = variant => variant.substring(1);
  */
 const parseIsWarp = variant => variant.charAt(0) === 'W';
 
+class ScriptTreeGeneratorWrapper {
+    // TODO: This will be given to Extension IR instead of the real ScriptTreeGenerator incase the
+    // underlying methods need to be changed. Runtime can also be passed to the extension IR, and
+    // the thread, target, isOptimized, isWarp, etc can be passed.
+    // Although, don't pass the block or script directly.
+}
 class ScriptTreeGenerator {
     constructor (thread) {
         /** @private */
@@ -169,6 +175,7 @@ class ScriptTreeGenerator {
      * @returns {Node} Compiled input node for this input.
      */
     descendInput (block) {
+        // TODO: Move this to tryDescendExtensionBlock since this is the same as descendStackedBlock but irData.kind is checked differently
         // check if we have extension ir for this opcode
         const extensionId = String(block.opcode).split('_')[0];
         const blockId = String(block.opcode).replace(extensionId + '_', '');
@@ -980,6 +987,9 @@ class ScriptTreeGenerator {
         }
     }
 
+    tryDescendExtensionBlock (kind, block) {
+
+    }
     /**
      * Descend into a stacked block. (eg. "move ( ) steps")
      * @param {*} block The Scratch block to parse.
@@ -988,11 +998,14 @@ class ScriptTreeGenerator {
      */
     descendStackedBlock (block) {
         // check if we have extension ir for this opcode
-        const extensionId = String(block.opcode).split('_')[0];
+        const extensionIr = this.tryDescendExtensionBlock(block);
+        if (extensionIr) return extensionIr;
+        // TODO: Move this to tryDescendExtensionBlock
+        const extensionId = block.opcode.split('_')[0];
         const blockId = String(block.opcode).replace(extensionId + '_', '');
-        if (IRGenerator.hasExtensionIr(extensionId) && IRGenerator.getExtensionIr(extensionId)[blockId]) {
+        if (IRGenerator.hasExtensionIr(extensionId) && IRGenerator._getExtensionIr(extensionId)[blockId]) {
             // this is an extension block that wants to be compiled
-            const irFunc = IRGenerator.getExtensionIr(extensionId)[blockId];
+            const irFunc = IRGenerator._getExtensionIr(extensionId)[blockId];
             let irData = null;
             // make sure irFunc isnt broken
             try {
@@ -2364,15 +2377,15 @@ class IRGenerator {
         this.analyzedProcedures = [];
     }
 
-    static _extensionIRInfo = {};
-    static setExtensionIr(id, data) {
-        IRGenerator._extensionIRInfo[id] = data;
+    /** @private */
+    static _extensionIRInfo = new Map();
+    /** @private */
+    static _setExtensionIr(id, data) {
+        this._extensionIRInfo.set(id, data);
     }
-    static hasExtensionIr(id) {
-        return Boolean(IRGenerator._extensionIRInfo[id]);
-    }
-    static getExtensionIr(id) {
-        return IRGenerator._extensionIRInfo[id];
+    /** @private */
+    static _getExtensionIr(id) {
+        return this._extensionIRInfo.get(id);
     }
 
     addProcedureDependencies (dependencies) {

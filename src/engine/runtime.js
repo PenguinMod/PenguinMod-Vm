@@ -1245,18 +1245,46 @@ class Runtime extends EventEmitter {
     compilerRegisterExtension (name, extensionObject) {
         this[`ext_${name}`] = extensionObject;
     }
-    registerCompiledExtensionBlocks (extensionId, information) {
-        if (!information) return;
-        if (!information.ir) return;
-        if (!information.js) return;
+    
+    /**
+     * The Extension Block Compiling API allows extensions to make blocks that run within the compiler.
+     * This is recommended for blocks that would require hacky methods to work in the interpreter.
+     * 
+     * New versions of this API may release if we receive major updates to the compiler from upstream TurboWarp.
+     * You should avoid using the `"raw"` version of this API for this reason, and make suggestions for the API
+     * if you can't do something without the `"raw"` version.
+     * @param {string} extensionId The ID of your extension.
+     * @param {"v2"|"raw"} version Which version of the API to use. It's recommended to use the latest version in the documentation, and only use the `"raw"` version if you have to.
+     * @param {*} information 
+     * @returns {void}
+     */
+    registerCompiledExtensionBlocks (extensionId, version, information) {
+        if (!version) throw new Error("Invalid version provided to registerCompiledExtensionBlocks from " + extensionId);
 
-        // Used for extension's compiled blocks.
+        // In older versions of PM, the "version" variable here is actually an object containing ir and js info.
+        if (typeof version === "object" && (version.ir || version.js)) {
+            // Use the unsafe "raw" version of the compiling API.
+            log.warn(extensionId, "called Runtime.registerCompiledExtensionBlocks() with the old undocumented version of the Extension Block Compiling API.",
+                "This extension should be updated soon to support the new API.\nSee the documentation here: TODO",
+                "\nFor now, this extension will be forced to use the \"raw\" unsafe version of the Extension Block Compiling API.");
+            return this.registerCompiledExtensionBlocks(extensionId, "raw", version);
+        }
+
         // Importing the generators here avoids circular dependency issues
         const JSGenerator = require('../compiler/jsgen');
         const IRGenerator = require('../compiler/irgen');
-
-        IRGenerator.setExtensionIr(extensionId, information.ir);
-        JSGenerator.setExtensionJs(extensionId, information.js);
+        switch (version) {
+            case "raw":
+                log.warn(extensionId, "called Runtime.registerCompiledExtensionBlocks() with the \"raw\" version of the Extension Block Compiling API.",
+                    "This version of the API is unstable and can potentially break in the future. It's recommended to use the version listed in the documentation.",
+                    "If you need to use the \"raw\" API for anything that isn't possible in the current API, please make an issue on GitHub.",
+                    "\nSee the documentation here: TODO");
+                IRGenerator.setExtensionIr(extensionId, information.ir);
+                JSGenerator.setExtensionJs(extensionId, information.js);
+                return;
+            default:
+                throw new Error("Unknown registerCompiledExtensionBlocks version " + version);
+        }
     }
 
     /**
