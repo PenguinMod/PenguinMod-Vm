@@ -161,6 +161,24 @@ class jgDebuggingBlocks {
         this._logs = [];
         this.commandSet = {};
         this.commandExplanations = {};
+
+        runtime.on('HATS_STARTED', (opcode, fields, target, threads, caller_thread) => {
+            if (threads.length === 0) return;
+            console.debug(opcode, fields, target, threads, caller_thread);
+
+            const starting_stack = !caller_thread ? new Set() : caller_thread.traceback;
+
+            for (let thread of threads) {
+                const top_block = thread.blockContainer.getBlock(thread.topBlock);
+                const stack_point = {
+                    target: thread.target,
+                    top_block,
+                };
+                const stack = new Set(starting_stack);
+                stack.add(stack_point);
+                thread.traceback = stack;
+            }
+        });
     }
 
     /**
@@ -228,6 +246,11 @@ class jgDebuggingBlocks {
                 '---',
                 {
                     opcode: 'breakpoint',
+                    blockType: BlockType.COMMAND,
+                },
+                '---',
+                {
+                    opcode: 'trace',
                     blockType: BlockType.COMMAND,
                 }
             ]
@@ -405,6 +428,8 @@ class jgDebuggingBlocks {
         console.error(text);
         this._addLog(text, "color: red;");
     }
+
+    trace(args, util) {}
 
     breakpoint() {
         this.runtime.pause();

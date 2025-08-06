@@ -2612,9 +2612,10 @@ class Runtime extends EventEmitter {
      * @param {!string} requestedHatOpcode Opcode of hats to start.
      * @param {object=} optMatchFields Optionally, fields to match on the hat.
      * @param {Target=} optTarget Optionally, a target to restrict to.
+     * @param {Thread=} optParentThread Optionally, a parent thread.
      * @return {Array.<Thread>} List of threads started by this function.
      */
-    startHats (requestedHatOpcode, optMatchFields, optTarget) {
+    startHats (requestedHatOpcode, optMatchFields, optTarget, optParentThread) {
         if (!this._hats.hasOwnProperty(requestedHatOpcode)) {
             // No known hat with this opcode.
             return;
@@ -2695,7 +2696,9 @@ class Runtime extends EventEmitter {
                 thread.goToNextBlock();
             }
         });
-        this.emit(Runtime.HATS_STARTED, requestedHatOpcode, optMatchFields, optTarget, newThreads);
+        this.emit(Runtime.HATS_STARTED,
+            requestedHatOpcode, optMatchFields, optTarget, newThreads, optParentThread
+        );
         return newThreads;
     }
 
