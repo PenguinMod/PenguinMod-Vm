@@ -166,14 +166,26 @@ class jgDebuggingBlocks {
             if (threads.length === 0) return;
             console.debug(opcode, fields, target, threads, caller_thread);
 
-            const starting_stack = !caller_thread ? new Set() : caller_thread.traceback;
+            const starting_stack = (() => {
+                if (!caller_thread) return new Set();
+                if (caller_thread.traceback) return caller_thread.traceback;
+
+                const guess_traceback_entry = {
+                    target: caller_thread.target.id,
+                    top_block: caller_thread.topBlock,
+                };
+                return new Set().add(guess_traceback_entry);
+            })();
 
             for (let thread of threads) {
-                const top_block = thread.blockContainer.getBlock(thread.topBlock);
+                const top_block = thread.topBlock;
+                const target = thread.target.id;
+
                 const stack_point = {
-                    target: thread.target,
+                    target,
                     top_block,
                 };
+
                 const stack = new Set(starting_stack);
                 stack.add(stack_point);
                 thread.traceback = stack;
@@ -248,11 +260,6 @@ class jgDebuggingBlocks {
                     opcode: 'breakpoint',
                     blockType: BlockType.COMMAND,
                 },
-                '---',
-                {
-                    opcode: 'trace',
-                    blockType: BlockType.COMMAND,
-                }
             ]
         };
     }
@@ -429,7 +436,9 @@ class jgDebuggingBlocks {
         this._addLog(text, "color: red;");
     }
 
-    trace(args, util) {}
+    _renderTraceback(traceback) {
+        // TODO
+    }
 
     breakpoint() {
         this.runtime.pause();
