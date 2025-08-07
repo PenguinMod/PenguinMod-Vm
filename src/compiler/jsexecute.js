@@ -57,7 +57,7 @@ runtimeFunctions.nullish = `const nullish = (check, alt) => {
  */
 runtimeFunctions.startHats = `const startHats = (requestedHat, optMatchFields) => {
     const thread = globalState.thread;
-    const threads = thread.target.runtime.startHats(requestedHat, optMatchFields);
+    const threads = thread.target.runtime.startHats(requestedHat, optMatchFields, null, thread);
     return threads;
 }`;
 
@@ -596,7 +596,7 @@ runtimeFunctions.tan = `const tan = (angle) => {
     return Math.round(Math.tan((Math.PI * angle) / 180) * 1e10) / 1e10;
 }`;
 
-runtimeFunctions.resolveImageURL = `const resolveImageURL = imgURL => 
+runtimeFunctions.resolveImageURL = `const resolveImageURL = imgURL =>
     typeof imgURL === 'object' && imgURL.type === 'canvas'
         ? Promise.resolve(imgURL.canvas)
         : new Promise(resolve => {
@@ -629,29 +629,29 @@ runtimeFunctions._resolveKeyPath = `const _resolveKeyPath = (obj, keyPath) => {
 
 runtimeFunctions.get = `const get = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    return typeof root === 'undefined' 
-        ? '' 
+    return typeof root === 'undefined'
+        ? ''
         : root.get?.(key) ?? root[key];
 }`;
 
 runtimeFunctions.set = `const set = (obj, keyPath, val) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    return typeof root === 'undefined' 
-        ? '' 
+    return typeof root === 'undefined'
+        ? ''
         : root.set?.(key) ?? (root[key] = val);
 }`;
 
 runtimeFunctions.remove = `const remove = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    return typeof root === 'undefined' 
-        ? '' 
+    return typeof root === 'undefined'
+        ? ''
         : root.delete?.(key) ?? root.remove?.(key) ?? (delete root[key]);
 }`;
 
 runtimeFunctions.includes = `const includes = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    return typeof root === 'undefined' 
-        ? '' 
+    return typeof root === 'undefined'
+        ? ''
         : root.has?.(key) ?? (key in root);
 }`;
 

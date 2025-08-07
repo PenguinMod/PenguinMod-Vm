@@ -2622,6 +2622,7 @@ class Runtime extends EventEmitter {
         }
         const instance = this;
         const newThreads = [];
+
         // Look up metadata for the relevant hat.
         const hatMeta = instance._hats[requestedHatOpcode];
 
