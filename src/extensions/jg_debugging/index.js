@@ -453,6 +453,8 @@ class jgDebuggingBlocks {
 
         if (!block_id || !this.isScratchBlocksReady) return;
 
+        console.log("b")
+
         const workspace = this.ScratchBlocks.getMainWorkspace();
         const block = workspace.getBlockById(block_id);
 
@@ -483,7 +485,7 @@ class jgDebuggingBlocks {
         ) {
             const sx = x - s.contentLeft - this.offsetX;
             const sy = y - s.contentTop - this.offsetY;
-            worspace.scrollbar.set(sx, sy);
+            workspace.scrollbar.set(sx, sy);
         }
         this.ScratchBlocks?.hideChaff();
     }
