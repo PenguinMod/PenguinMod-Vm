@@ -480,7 +480,7 @@ class Extension {
                     const originalSource = compiler.source;
                     compiler.source = '(yield* (function*() {';
                     compiler.source += `runtime.ext_jwArray.builderIndex.push([]);`
-                    compiler.descendStack(node.substack, new imports.Frame(false));
+                    compiler.descendStack(node.substack, new imports.Frame(false, undefined, true));
                     compiler.source += `return new runtime.vm.jwArray.Type(runtime.ext_jwArray.builderIndex.pop());`
                     compiler.source += '})())';
                     // save edited

@@ -1153,6 +1153,50 @@ class JgDevBlocks {
         // Generic noop
         return;
     }
+
+    duplicato() {
+        return 0
+    }
+    theheheuoihew9h9() {}
+    docsScreenshotBlock() {
+        return 0
+    }
+    customShapeOCTAGONAL() {
+        return 0
+    }
+    customShapeBUMPED() {
+        return 0
+    }
+    customShapeINDENTED() {
+        return 0
+    }
+    customShapeSCRAPPED() {
+        return 0
+    }
+    customShapeARROW() {
+        return 0
+    }
+    customShapeTICKET() {
+        return 0
+    }
+    customShapeInputOCTAGONAL() {
+        return 0
+    }
+    customShapeInputBUMPED() {
+        return 0
+    }
+    customShapeInputINDENTED() {
+        return 0
+    }
+    customShapeInputSCRAPPED() {
+        return 0
+    }
+    customShapeInputARROW() {
+        return 0
+    }
+    customShapeInputTICKET() {
+        return 0
+    }
 }
 
 module.exports = JgDevBlocks;

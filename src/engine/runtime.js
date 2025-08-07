@@ -105,7 +105,11 @@ const ArgumentTypeMap = (() => {
         }
     };
     map[ArgumentType.BOOLEAN] = {
-        check: 'Boolean'
+        check: 'Boolean',
+        shadow: {
+            type: 'checkbox',
+            fieldName: 'CHECKBOX'
+        }
     };
     map[ArgumentType.MATRIX] = {
         shadow: {
@@ -1142,6 +1146,14 @@ class Runtime extends EventEmitter {
 
     static get HATS_STARTED () {
         return 'HATS_STARTED'
+    }
+
+    /**
+     * Event name for thread initialization.
+     * @const {string}
+     */
+    static get THREAD_STARTED () {
+        return 'THREAD_STARTED'
     }
 
     /**
@@ -2445,6 +2457,7 @@ class Runtime extends EventEmitter {
             thread.tryCompile();
         }
 
+        this.emit(Runtime.THREAD_STARTED, thread);
         return thread;
     }
 

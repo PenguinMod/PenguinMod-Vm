@@ -17,10 +17,38 @@ ${blockSeparator}
 %b34> ` +/* or if falsey */`
 %b35> ` +/* if is true */`
 ${blockSeparator}
-<block type="operator_nand" />
-<block type="operator_nor" />
-<block type="operator_xor" />
-<block type="operator_xnor" />
+<block type="operator_nand">
+    <value name="OPERAND1">
+        <shadow type="checkbox" />
+    </value>
+    <value name="OPERAND2">
+        <shadow type="checkbox" />
+    </value>
+</block>
+<block type="operator_nor">
+    <value name="OPERAND1">
+        <shadow type="checkbox" />
+    </value>
+    <value name="OPERAND2">
+        <shadow type="checkbox" />
+    </value>
+</block>
+<block type="operator_xor">
+    <value name="OPERAND1">
+        <shadow type="checkbox" />
+    </value>
+    <value name="OPERAND2">
+        <shadow type="checkbox" />
+    </value>
+</block>
+<block type="operator_xnor">
+    <value name="OPERAND1">
+        <shadow type="checkbox" />
+    </value>
+    <value name="OPERAND2">
+        <shadow type="checkbox" />
+    </value>
+</block>
 <block type="operator_randomBoolean" />
 ${blockSeparator}
 %b20> ` +/* evaluate math expression */`
@@ -954,7 +982,7 @@ class pmOperatorsExpansion {
                     return new TypedInput(`(${num1} || ${num2})`, TYPE_UNKNOWN);
                 },
                 ifIsTruthy: (node, compiler, {TypedInput, TYPE_UNKNOWN}) => {
-                    const num1 = compiler.descendInput(node.one).asUnknown();
+                    const num1 = compiler.descendInput(node.one).asBoolean();
                     const num2 = compiler.descendInput(node.two).asUnknown();
 
                     return new TypedInput(`(${num1} && ${num2})`, TYPE_UNKNOWN);

@@ -1321,7 +1321,6 @@ const convertProcedureCompat = function (blockJSON, blocks) {
           else {
               // we could be in a branch
               for (const input of Object.values(parent.inputs)) {
-                  console.log(input, blockJSON.id);
                   if (input.block === blockJSON.id && input.name.startsWith('SUBSTACK')) {
                       blockJSON.mutation.returns = 'false';
                       break;
@@ -1387,9 +1386,7 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
         }
 
         // convert TurboWarp custom reporters to PenguinMod's format
-        if (runtime.origin === 'TurboWarp') for (const block of _converterCache) {
-            convertProcedureCompat(block, blocks);
-        }
+        if (runtime.origin === 'TurboWarp') for (const block of _converterCache) convertProcedureCompat(block, blocks);
     }
     // Costumes from JSON.
     const {costumePromises} = assets;
@@ -1778,6 +1775,9 @@ const deserialize = function (json, runtime, zip, isSingleSprite) {
             }))
         .then(targets => replaceUnsafeCharsInVariableIds(targets))
         .then(targets => {
+            // all blocks have been created, its safe to reset the origin from Turbowarp
+            if (runtime.origin === 'TurboWarp') runtime.origin = null;
+
             // at this point, stage size has not been set by 'runtime.parseProjectOptions'
             const stage = targets.find(t => t.isStage);
             if (stage) {

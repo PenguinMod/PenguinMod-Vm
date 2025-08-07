@@ -3,7 +3,7 @@ const switches = {};
 const parser = new DOMParser();
 
 const define_error_noop = (msg) => {
-    log.error(msg);
+    log.warn(msg);
     return {
         msg,
         isNoop: true,

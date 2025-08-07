@@ -212,6 +212,11 @@ class ScriptTreeGenerator {
                 kind: 'constant',
                 value: block.fields.TEXT.value
             };
+        case 'checkbox':
+            return {
+                kind: 'constant',
+                value: block.fields.CHECKBOX.value == "TRUE"
+            };
         case 'polygon':
             const points = [];
             for (let point = 1; point <= block.mutation.points; point++) {
@@ -221,7 +226,7 @@ class ScriptTreeGenerator {
                     x: this.descendInputOfBlock(block, xn),
                     y: this.descendInputOfBlock(block, yn)
                 });
-            }
+            };
             return {
                 kind: 'math.polygon',
                 points
