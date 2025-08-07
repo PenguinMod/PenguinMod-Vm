@@ -170,26 +170,26 @@ class jgDebuggingBlocks {
                 if (!caller_thread) return new Set();
                 if (caller_thread.traceback) return caller_thread.traceback;
 
-                const guess_traceback_entry = {
-                    target: caller_thread.target.id,
-                    top_block: caller_thread.topBlock,
-                };
+                const guess_traceback_entry = this._createStackTraceEntryFromThread(caller_thread);
                 return new Set().add(guess_traceback_entry);
             })();
 
             for (let thread of threads) {
-                const top_block = thread.topBlock;
-                const target = thread.target.id;
-
-                const stack_point = {
-                    target,
-                    top_block,
-                };
+                const stack_point = this._createStackTraceEntryFromThread(thread);;
 
                 const stack = new Set(starting_stack);
                 stack.add(stack_point);
                 thread.traceback = stack;
             }
+        });
+
+        this.isScratchBlocksReady = typeof ScratchBlocks === "object";
+        this.ScratchBlocks = ScratchBlocks;
+        this.runtime.vm.on("workspaceUpdate", () => {
+            if (this.isScratchBlocksReady) return;
+            this.isScratchBlocksReady = typeof ScratchBlocks === "object";
+            if (!this.isScratchBlocksReady) return;
+            this.ScratchBlocks = ScratchBlocks;
         });
     }
 
@@ -271,7 +271,7 @@ class jgDebuggingBlocks {
         if (style) {
             logElement.style = `white-space: break-spaces; ${style}`;
         }
-        logElement.innerHTML = xmlEscape(log);
+        logElement.innerHTML = log;
         this.consoleLogs.scrollBy(0, 1000000);
     }
     _parseCommand(command) {
@@ -398,46 +398,94 @@ class jgDebuggingBlocks {
     }
 
     log(args) {
-        const text = Cast.toString(args.INFO);
+        const text = xmlEscape(Cast.toString(args.INFO));
         console.log(text);
         this._addLog(text);
     }
     warn(args) {
-        const text = Cast.toString(args.INFO);
+        const text = xmlEscape(Cast.toString(args.INFO));
         console.warn(text);
         this._addLog(text, "color: yellow;");
     }
     error(args, util) {
-        // create error stack
-        const stack = [];
-        const target = util.target;
-        const thread = util.thread;
-        if (thread.stackClick) {
-            stack.push('clicked blocks');
-        }
-        const commandBlockId = thread.peekStack();
-        const block = this._findBlockFromId(commandBlockId, target);
-        if (block) {
-            stack.push(`block ${block.opcode}`);
-        } else {
-            stack.push(`block ${commandBlockId}`);
-        }
-        const eventBlock = this._findBlockFromId(thread.topBlock, target);
-        if (eventBlock) {
-            stack.push(`event ${eventBlock.opcode}`);
-        } else {
-            stack.push(`event ${thread.topBlock}`);
-        }
-        stack.push(`sprite ${target.sprite.name}`);
+        const traceback = util.thread.traceback
+                ?? new Set().add(this._createStackTraceEntryFromThread(util.thread));
+                // Assume we haven't yet touched this thread.
 
-        const text = `Error: ${Cast.toString(args.INFO)}`
-            + `\n${stack.map(text => (`\tat ${text}`)).join("\n")}`;
-        console.error(text);
-        this._addLog(text, "color: red;");
+        const text = xmlEscape(Cast.toString(args.INFO));
+        const log = `Error: ${text}\n` +
+            this._renderTraceback(traceback);
+        console.error(log);
+        this._addLog(log, "color: red;");
     }
 
     _renderTraceback(traceback) {
-        // TODO
+        let initial_trace   = Array.from(traceback).toReversed();
+        let final_traceback = [];
+        for (let stack_element of initial_trace) {
+            const target_id = stack_element.target;
+            const block_id  = stack_element.block_id;
+
+            const target = this.runtime.targets.find(target => target.id == target_id);
+            const block  = target.blocks.getBlock(block_id);
+
+            const trace_text = "\t" + target.getName() + "::" + block.opcode + "@" + block.id;
+            // TODO: Replace the block ID with a cool link to the block instead.
+            // Note: Would require redoing the console to be HTML-safe.
+
+            final_traceback.push(trace_text);
+        }
+        return final_traceback.join("\n");
+    }
+
+    _createStackTraceEntryFromThread(thread) {
+        return {
+            target: thread.target.id,
+            block_id: thread.topBlock,
+        };
+    }
+
+    _jumpToTargetAndBlock(target_id, block_id) {
+        if (target_id != this.runtime.vm.editingTarget.id) {
+            this.runtime.vm.setEditingTarget(target_id);
+            this.runtime.vm.refreshWorkspace();
+        }
+
+        if (!block_id || !this.isScratchBlocksReady) return;
+
+        const workspace = this.ScratchBlocks.getMainWorkspace();
+        const block = workspace.getBlockById(block_id);
+
+        const root = block.getRootBlock();
+
+        let base = block;
+        while (base.getOutputShape() && base.getSurroundParent()) {
+            base = base.getSurroundParent();
+        }
+
+        const offsetx = 32;
+        const offsety = 32;
+
+        const epos = base.getRelativeToSurfaceXY();
+        const rpos = root.getRelativeToSurfaceXY();
+        const scale = workspace.scale;
+        const x = rpos.x * scale;
+        const y = epos.y * scale;
+        const xx = block.width + x;
+        const yy = block.height + y;
+        const s = workspace.getMetrics();
+
+        if (
+            x < s.viewLeft + this.offsetX - 4 ||
+            xx > s.viewLeft + s.viewWidth ||
+            y < s.viewTop + this.offsetY - 4 ||
+            yy > s.viewTop + s.viewHeight
+        ) {
+            const sx = x - s.contentLeft - this.offsetX;
+            const sy = y - s.contentTop - this.offsetY;
+            worspace.scrollbar.set(sx, sy);
+        }
+        this.ScratchBlocks?.hideChaff();
     }
 
     breakpoint() {
