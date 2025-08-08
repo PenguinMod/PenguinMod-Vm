@@ -1165,6 +1165,30 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for sprite renaming.
+     * @const {string}
+     */
+    static get SPRITE_RENAMED () {
+        return 'SPRITE_RENAMED'
+    }
+
+    /**
+     * Event name for costume renaming.
+     * @const {string}
+     */
+    static get COSTUME_RENAMED () {
+        return 'COSTUME_RENAMED'
+    }
+
+    /**
+     * Event name for sound renaming.
+     * @const {string}
+     */
+    static get SOUND_RENAMED () {
+        return 'SOUND_RENAMED'
+    }
+
+    /**
      * How rapidly we try to step threads by default, in ms.
      */
     static get THREAD_STEP_INTERVAL () {
