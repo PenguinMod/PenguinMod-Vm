@@ -103,7 +103,7 @@ const Vector = {
     },
     Argument: {
         shape: BlockShape.LEAF,
-        fillIn: 'vector',
+        fillIn: 'menu_vector',
         check: ["Vector"]
     }
 }
