@@ -103,6 +103,7 @@ const Vector = {
     },
     Argument: {
         shape: BlockShape.LEAF,
+        fillIn: 'vector',
         check: ["Vector"]
     }
 }
@@ -124,6 +125,19 @@ class Extension {
             color1: "#6babff",
             menuIconURI: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM6Yng9Imh0dHBzOi8vYm94eS1zdmcuY29tIj4KICA8ZWxsaXBzZSBzdHlsZT0ic3Ryb2tlLXdpZHRoOiAycHg7IHBhaW50LW9yZGVyOiBzdHJva2U7IGZpbGw6IHJnYigxMDcsIDE3MSwgMjU1KTsgc3Ryb2tlOiByZ2IoNjksIDEyNiwgMjA0KTsiIGN4PSIxMCIgY3k9IjEwIiByeD0iOSIgcnk9IjkiPjwvZWxsaXBzZT4KICA8cGF0aCBkPSJNIDQuMzUyIDEzLjc2NiBDIDQuMzUyIDE0LjgwNSA1LjE5NCAxNS42NDggNi4yMzUgMTUuNjQ4IEwgMTAgMTUuNjQ4IEMgMTEuMDM5IDE1LjY0OCAxMS44ODIgMTQuODA1IDExLjg4MiAxMy43NjYgTCAxMS44ODIgMTAgQyAxMS44ODIgOC45NTkgMTEuMDM5IDguMTE4IDEwIDguMTE4IEwgNi4yMzUgOC4xMTggQyA1LjE5NCA4LjExOCA0LjM1MiA4Ljk1OSA0LjM1MiAxMCBMIDQuMzUyIDEzLjc2NiBNIDguMTE3IDEzLjc2NiBDIDYuNjY4IDEzLjc2NiA1Ljc2MiAxMi4xOTUgNi40ODcgMTAuOTQyIEMgNi44MjIgMTAuMzU4IDcuNDQzIDEwIDguMTE3IDEwIEMgOS41NjcgMTAgMTAuNDcyIDExLjU2OSA5Ljc0NyAxMi44MjQgQyA5LjQxMSAxMy40MDYgOC43ODkgMTMuNzY2IDguMTE3IDEzLjc2NiBNIDcuMTc2IDkuMDU5IEwgOS4wNTggOS4wNTkgTCA5LjA1OCA1LjI5NCBDIDkuMDU4IDQuNTY5IDguMjczIDQuMTE2IDcuNjQ3IDQuNDc5IEMgNy4zNTUgNC42NDYgNy4xNzYgNC45NTcgNy4xNzYgNS4yOTQgTCA3LjE3NiA5LjA1OSBaIE0gMTAuOTQxIDEwLjk0MiBMIDEwLjk0MSAxMi44MjQgTCAxNC43MDYgMTIuODI0IEMgMTUuNDMxIDEyLjgyNCAxNS44ODMgMTIuMDM5IDE1LjUyMSAxMS40MTIgQyAxNS4zNTIgMTEuMTIxIDE1LjA0MSAxMC45NDIgMTQuNzA2IDEwLjk0MiBMIDEwLjk0MSAxMC45NDIgWiIgc3R5bGU9ImZpbGw6IHJnYigyNTUsIDI1NSwgMjU1KTsiPjwvcGF0aD4KPC9zdmc+",
             blocks: [
+                {
+                    opcode: 'menu_vector',
+                    text: '[VECTOR]',
+                    hideFromPalette: true,
+                    arguments: {
+                        VECTOR: {
+                            menu: 'vector',
+                            shape: BlockShape.LEAF,
+                            check: ["Vector"]
+                        }
+                    },
+                    ...Vector.Block
+                },
                 {
                     opcode: 'newVector',
                     text: 'new vector x: [X] y: [Y]',
@@ -341,8 +355,44 @@ class Extension {
                         }
                     ]
                 },
+                vector: {
+                    acceptReporters: false,
+                    items: [{
+                            text: 'zero',
+                            value: '0,0'
+                        },
+                        {
+                            text: 'one',
+                            value: '1,1'
+                        },
+                        {
+                            text: 'inf',
+                            value: 'Infinity, Infinity'
+                        },
+                        {
+                            text: 'left',
+                            value: '-1,0'
+                        },
+                        {
+                            text: 'right',
+                            value: '1,0'
+                        },
+                        {
+                            text: 'up',
+                            value: '0,1'
+                        },
+                        {
+                            text: 'down',
+                            value: '0,-1'
+                        },
+                    ]
+                },
             }
         };
+    }
+
+    menu_vector(args ) {
+        return VectorType.toVector(args.VECTOR)
     }
 
     newVector(args) {
