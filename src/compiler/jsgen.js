@@ -808,6 +808,12 @@ class JSGenerator {
         }
         case 'op.join':
             return new TypedInput(`(${this.descendInput(node.left).asString()} + ${this.descendInput(node.right).asString()})`, TYPE_STRING);
+        case "op.expandjoin": {
+            for (var i = 0; i < node.strings.length; i++) {
+                node.strings[i] = this.descendInput(node.strings[i]).asString();
+            }
+            return new TypedInput('(' + node.strings.join('+') + ')', TYPE_STRING);
+        }
         case 'op.length':
             return new TypedInput(`${this.descendInput(node.string).asString()}.length`, TYPE_NUMBER);
         case 'op.less': {
