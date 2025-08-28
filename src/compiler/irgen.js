@@ -453,6 +453,17 @@ class ScriptTreeGenerator {
                 left: this.descendInputOfBlock(block, 'STRING1'),
                 right: this.descendInputOfBlock(block, 'STRING2')
             };
+        case "operators_expandablejoininputs": {
+            const strings = [];
+            for (const input of Object.values(block.inputs)) {
+                if (input.block == null) delete block.inputs[input.name];
+                else strings.push(this.descendInputOfBlock(block, input.name));
+            }
+            return {
+                kind: "op.expandjoin",
+                strings
+            };
+        }
         case 'operator_length':
             return {
                 kind: 'op.length',
