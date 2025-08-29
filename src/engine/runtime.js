@@ -2453,20 +2453,12 @@ class Runtime extends EventEmitter {
             this.threadMap.set(thread.getId(), thread);
         }
 
-        // pm: Don't append a traceback to monitor threads.
-        if (!opts?.updateMonitor) {
-            thread.traceback = new Set(opts?.parent_thread?.traceback ?? []).add({
-                    target: thread.target.id,
-                    block_id: thread.topBlock
-                });
-        }
-
         // tw: compile new threads. Do not attempt to compile monitor threads.
         if (!(opts && opts.updateMonitor) && this.compilerOptions.enabled) {
             thread.tryCompile();
         }
 
-        this.emit(Runtime.THREAD_STARTED, thread);
+        this.emit(Runtime.THREAD_STARTED, thread, opts);
         return thread;
     }
 

@@ -162,6 +162,14 @@ class jgDebuggingBlocks {
         this.commandSet = {};
         this.commandExplanations = {};
 
+        runtime.on("THREAD_STARTED", (thread, options) => {
+            if (options?.updateMonitor) return;
+            thread.traceback = new Set(options?.parent_thread?.traceback ?? []).add({
+                target: thread.target.id,
+                block_id: thread.topBlock,
+            });
+        });
+
         this.isScratchBlocksReady = typeof ScratchBlocks === "object";
         this.ScratchBlocks = ScratchBlocks;
         this.runtime.vm.on("workspaceUpdate", () => {
