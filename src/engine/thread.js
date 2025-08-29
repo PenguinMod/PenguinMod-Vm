@@ -218,11 +218,17 @@ class Thread {
         this.compatibilityStackFrame = null;
 
         /**
-         * Thread vars: for allowing a compiled version of the 
+         * Thread vars: for allowing a compiled version of the
          * LilyMakesThings Thread Variables extension
          * @type {Object}
          */
         this.variables = Object.create(null);
+
+        /**
+         * Set containing parental history of this thread.
+         * @type {Set}
+         */
+        this.traceback = new Set();
     }
 
     /**
@@ -263,7 +269,7 @@ class Thread {
 
     /**
      * Thread status for a paused thread.
-     * Thread is in this state when it has been told to pause and needs to pause 
+     * Thread is in this state when it has been told to pause and needs to pause
      * any new yields from the compiler
      * @const
      */
@@ -544,7 +550,7 @@ class Thread {
         for (const procedureCode of Object.keys(result.procedures)) {
             this.procedures[procedureCode] = result.procedures[procedureCode](this);
         }
-        
+
         this.generator = result.startingFunction(this)();
 
         this.executableHat = result.executableHat;

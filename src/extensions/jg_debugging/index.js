@@ -162,27 +162,6 @@ class jgDebuggingBlocks {
         this.commandSet = {};
         this.commandExplanations = {};
 
-        runtime.on('HATS_STARTED', (opcode, fields, target, threads, caller_thread) => {
-            if (threads.length === 0) return;
-            console.debug(opcode, fields, target, threads, caller_thread);
-
-            const starting_stack = (() => {
-                if (!caller_thread) return new Set();
-                if (caller_thread.traceback) return caller_thread.traceback;
-
-                const guess_traceback_entry = this._createStackTraceEntryFromThread(caller_thread);
-                return new Set().add(guess_traceback_entry);
-            })();
-
-            for (let thread of threads) {
-                const stack_point = this._createStackTraceEntryFromThread(thread);;
-
-                const stack = new Set(starting_stack);
-                stack.add(stack_point);
-                thread.traceback = stack;
-            }
-        });
-
         this.isScratchBlocksReady = typeof ScratchBlocks === "object";
         this.ScratchBlocks = ScratchBlocks;
         this.runtime.vm.on("workspaceUpdate", () => {
@@ -408,9 +387,18 @@ class jgDebuggingBlocks {
         this._addLog(text, "color: yellow;");
     }
     error(args, util) {
-        const traceback = util.thread.traceback
-                ?? new Set().add(this._createStackTraceEntryFromThread(util.thread));
-                // Assume we haven't yet touched this thread.
+        const traceback = new Set(util.thread.traceback);
+        const current_trace_stack = {
+            target: util.target.id,
+            block_id: util.thread.peekStack()
+        };
+        const latest_trace = [...traceback][traceback.size - 1];
+        // Do not add again if it's already in the traceback.
+        if (
+            latest_trace.block_id !== current_trace_stack.block_id &&
+            latest_trace.target   !== current_trace_stack.target
+        )
+            traceback.add(current_trace_stack);
 
         const text = xmlEscape(Cast.toString(args.INFO));
         const log = `Error: ${text}\n` +
@@ -436,13 +424,6 @@ class jgDebuggingBlocks {
             final_traceback.push(trace_text);
         }
         return final_traceback.join("\n");
-    }
-
-    _createStackTraceEntryFromThread(thread) {
-        return {
-            target: thread.target.id,
-            block_id: thread.topBlock,
-        };
     }
 
     _jumpToTargetAndBlock(target_id, block_id) {

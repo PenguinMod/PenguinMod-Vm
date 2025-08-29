@@ -2442,6 +2442,7 @@ class Runtime extends EventEmitter {
         thread.target = target;
         thread.stackClick = Boolean(opts && opts.stackClick);
         thread.updateMonitor = Boolean(opts && opts.updateMonitor);
+
         thread.blockContainer = thread.updateMonitor ?
             this.monitorBlocks :
             ((opts && opts.targetBlockLocation) || target.blocks);
@@ -2450,6 +2451,14 @@ class Runtime extends EventEmitter {
         this.threads.push(thread);
         if (!thread.stackClick && !thread.updateMonitor) {
             this.threadMap.set(thread.getId(), thread);
+        }
+
+        // pm: Don't append a traceback to monitor threads.
+        if (!opts?.updateMonitor) {
+            thread.traceback = new Set(opts?.parent_thread?.traceback ?? []).add({
+                    target: thread.target.id,
+                    block_id: thread.topBlock
+                });
         }
 
         // tw: compile new threads. Do not attempt to compile monitor threads.
@@ -2690,7 +2699,9 @@ class Runtime extends EventEmitter {
                 }
             }
             // Start the thread with this top block.
-            newThreads.push(this._pushThread(topBlockId, target));
+            newThreads.push(this._pushThread(topBlockId, target, {
+                parent_thread: optParentThread
+            }));
         }, optTarget);
         // For compatibility with Scratch 2, edge triggered hats need to be processed before
         // threads are stepped. See ScratchRuntime.as for original implementation
@@ -2709,6 +2720,8 @@ class Runtime extends EventEmitter {
                 execute(this.sequencer, thread);
                 thread.goToNextBlock();
             }
+
+
         });
         this.emit(Runtime.HATS_STARTED,
             requestedHatOpcode, optMatchFields, optTarget, newThreads, optParentThread
