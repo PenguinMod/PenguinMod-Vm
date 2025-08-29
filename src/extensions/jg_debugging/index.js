@@ -453,41 +453,8 @@ class jgDebuggingBlocks {
 
         if (!block_id || !this.isScratchBlocksReady) return;
 
-        console.log("b")
-
         const workspace = this.ScratchBlocks.getMainWorkspace();
-        const block = workspace.getBlockById(block_id);
-
-        const root = block.getRootBlock();
-
-        let base = block;
-        while (base.getOutputShape() && base.getSurroundParent()) {
-            base = base.getSurroundParent();
-        }
-
-        const offsetx = 32;
-        const offsety = 32;
-
-        const epos = base.getRelativeToSurfaceXY();
-        const rpos = root.getRelativeToSurfaceXY();
-        const scale = workspace.scale;
-        const x = rpos.x * scale;
-        const y = epos.y * scale;
-        const xx = block.width + x;
-        const yy = block.height + y;
-        const s = workspace.getMetrics();
-
-        if (
-            x < s.viewLeft + this.offsetX - 4 ||
-            xx > s.viewLeft + s.viewWidth ||
-            y < s.viewTop + this.offsetY - 4 ||
-            yy > s.viewTop + s.viewHeight
-        ) {
-            const sx = x - s.contentLeft - this.offsetX;
-            const sy = y - s.contentTop - this.offsetY;
-            workspace.scrollbar.set(sx, sy);
-        }
-        this.ScratchBlocks?.hideChaff();
+        workspace.centerOnBlock(block_id);
     }
 
     breakpoint() {
