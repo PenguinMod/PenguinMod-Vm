@@ -130,43 +130,6 @@ ${blockSeparator}
 %b32> ` +/* speed to pitch */`
 %b33> ` +/* pitch to speed */`
 ${blockSeparator}
-` +/* join blocks */`
-<block type="operator_join">
-    <value name="STRING1">
-        <shadow type="text">
-            <field name="TEXT">apple </field>
-        </shadow>
-    </value>
-    <value name="STRING2">
-        <shadow type="text">
-            <field name="TEXT">banana</field>
-        </shadow>
-    </value>
-</block>
-<block type="operator_join3">
-    <value name="STRING1">
-        <shadow type="text">
-            <field name="TEXT">apple </field>
-        </shadow>
-    </value>
-    <value name="STRING2">
-        <shadow type="text">
-            <field name="TEXT">banana </field>
-        </shadow>
-    </value>
-    <value name="STRING3">
-        <shadow type="text">
-            <field name="TEXT">pear</field>
-        </shadow>
-    </value>
-</block>
-` +/* extreme join blocks */`
-%b0>
-%b1>
-%b2>
-%b3>
-%b4>
-%b5>
 ` +/* constants */`
 ${blockSeparator}
 %b8> ` +/* pi */`
