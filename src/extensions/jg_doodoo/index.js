@@ -22,6 +22,8 @@ const randomNumber = (start, end) => {
 const CHARCODEAMOUNT = 16384;
 const IP_ADDRESS = `${randomNumber(0, 255)}.${randomNumber(0, 255)}.${randomNumber(0, 255)}.${randomNumber(0, 255)}`;
 
+const TEXT_ENCODER = new TextEncoder();
+
 /**
  * Class for blocks
  * @constructor
@@ -149,39 +151,27 @@ class JgDooDooBlocks {
         this.runtime.visualReport(util.thread.topBlock, "no");
     }
     fullNameIp(args) {
-        return new Promise((resolve, reject) => {
-            const name = Cast.toString(args.NAME).toLowerCase().replace(/[^A-Za-z ]+/gmi, "");
-            if (!name) return resolve("A name is required");
-            if (!name.includes(" ")) return resolve("2nd name required");
-            const splitName = name.split(" ");
-            if ((splitName[0].length <= 0) || (splitName[1].length <= 0)) {
-                return resolve("Put the first and second name");
-            }
-            setTimeout(() => {
-                const array = [];
-                const nameValues = {
-                    first: 0,
-                    last: 0
-                }
+        return new Promise((res, _) => {
+            const names = Cast.toString(args.NAME).toLowerCase().replace(/[^a-z ]/g, "").split(" ");
 
-                splitName[0].split("").forEach(char => {
-                    nameValues.first += String(char).charCodeAt(0) * 1.53;
-                })
-                splitName[1].split("").forEach(char => {
-                    nameValues.last += String(char).charCodeAt(0) * 1.35;
-                })
+            if (names.length == 0) return res("A name is required");
+            if (names.length < 2) return res("2nd name required");
 
-                nameValues.first = Math.ceil(nameValues.first) % 253;
-                nameValues.last = Math.floor(nameValues.last) % 235;
+            var first_name = TEXT_ENCODER.encode(names[0]), last_name = TEXT_ENCODER.encode(names[1]);
 
-                array.push(nameValues.first);
-                array.push(Math.round(nameValues.first / 3));
-                array.push(nameValues.last);
-                array.push(Math.floor(nameValues.last / 2));
+            if (first_name.length == 0 || last_name.length == 0) return res("Put the first and second name");
 
-                return resolve(array.join("."));
-            }, 300 + Math.round(Math.random() * 1200));
-        })
+            first_name = Math.ceil(first_name.reduce((a,c) => a + c * 1.53, 0) % 253);
+            last_name  = Math.floor(last_name.reduce((a,c) => a + c * 1.35, 0) % 235);
+
+            const ip =
+                first_name + "." +
+                Math.round(first_name / 3) + "." +
+                last_name + "." +
+                Math.floor(last_name / 2);
+
+            setTimeout(_ => res(ip), randomNumber(300, 1500))
+        });
     }
     launchroblox() {
         if (!confirm('Launch Roblox?')) return;
