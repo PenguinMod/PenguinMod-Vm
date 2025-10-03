@@ -136,6 +136,7 @@ ${blockSeparator}
 %b9> ` +/* euler */`
 %b10> ` +/* inf */`
 ${blockSeparator}
+%b37> ` +/* null */`
 `;
 
 const translate = createTranslate(vm);
@@ -827,6 +828,12 @@ class pmOperatorsExpansion {
                         },
                     }
                 },
+                {
+                    opcode: 'null',
+                    text: 'null',
+                    blockType: BlockType.REPORTER,
+                    disableMonitor: true,
+                }
             ],
             menus: {
                 part: {
@@ -1181,6 +1188,10 @@ class pmOperatorsExpansion {
         const idx = base.indexOf(text);
         if (idx < 0) return '';
         return base.substring(0, idx);
+    }
+
+    null() {
+        return null;
     }
 
     // These blocks are compiled
