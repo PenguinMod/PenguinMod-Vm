@@ -340,7 +340,7 @@ class Extension {
             ],
             menus: {
                 roundingFunctions: {
-                    acceptReporters: false,
+                    acceptReporters: true,
                     items: [
                         {
                             text: 'round',
@@ -462,9 +462,11 @@ class Extension {
                 return new VectorType(Math.floor(v.x), Math.floor(v.y))
             case 'ceil':
                 return new VectorType(Math.ceil(v.x), Math.ceil(v.y))
+            case 'round':
+                return new VectorType(Math.round(v.x), Math.round(v.y))
         }
 
-        return new VectorType(Math.round(v.x), Math.round(v.y))
+        return new VectorType(0, 0)
     }
     
     getPos({}, util) {
