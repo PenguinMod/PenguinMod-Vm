@@ -466,7 +466,7 @@ class Extension {
                 return new VectorType(Math.round(v.x), Math.round(v.y))
         }
 
-        return v;
+        return v
     }
     
     getPos({}, util) {
