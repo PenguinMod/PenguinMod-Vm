@@ -1977,84 +1977,31 @@ class ScriptTreeGenerator {
                 val: this.descendInputOfBlock(block, 'STRING'),
                 thread: true
             };
-        case 'tempVars_setVariable':
-            return {
-                kind: 'tempVars.set',
-                var: this.descendInputOfBlock(block, 'name'),
-                val: this.descendInputOfBlock(block, 'value')
-            };
-        
         case 'lmsTempVars2_changeRuntimeVariable':
-            const name = this.descendInputOfBlock(block, 'VAR');
             return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name,
-                        runtime: true
-                    },
-                    right: this.descendInputOfBlock(block, 'NUM')
-                },
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'VAR'),
+                val: this.descendInputOfBlock(block, 'NUM'),
                 runtime: true
             };
-        case 'lmsTempVars2_changeThreadVariable': {
-            const name = this.descendInputOfBlock(block, 'VAR');
+        case 'lmsTempVars2_changeThreadVariable': 
             return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name,
-                        thread: true
-                    },
-                    right: this.descendInputOfBlock(block, 'NUM')
-                },
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'VAR'),
+                val: this.descendInputOfBlock(block, 'NUM'),
                 thread: true
             };
-        }
-        case 'tempVars_changeVariable': {
-            const name = this.descendInputOfBlock(block, 'name');
-            return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name
-                    },
-                    right: this.descendInputOfBlock(block, 'value')
-                }
-            };
-        }
-
         case 'lmsTempVars2_deleteRuntimeVariable':
             return {
                 kind: 'tempVars.delete',
                 var: this.descendInputOfBlock(block, 'VAR'),
                 runtime: true
             };
-        case 'tempVars_deleteVariable':
-            return {
-                kind: 'tempVars.delete',
-                var: this.descendInputOfBlock(block, 'name')
-            };
-
         case 'lmsTempVars2_deleteAllRuntimeVariables':
             return {
                 kind: 'tempVars.deleteAll',
                 runtime: true
             };
-        case 'tempVars_deleteAllVariables':
-            return {
-                kind: 'tempVars.deleteAll'
-            };
-
         case 'lmsTempVars2_forEachThreadVariable':
             return {
                 kind: 'tempVars.forEach',
@@ -2062,6 +2009,27 @@ class ScriptTreeGenerator {
                 loops: this.descendInputOfBlock(block, 'NUM'),
                 do: this.descendSubstack(block, 'SUBSTACK'),
                 thread: true
+            };
+        case 'tempVars_setVariable':
+            return {
+                kind: 'tempVars.set',
+                var: this.descendInputOfBlock(block, 'name'),
+                val: this.descendInputOfBlock(block, 'value')
+            };
+        case 'tempVars_changeVariable': {
+            return {
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'name'),
+                val: this.descendInputOfBlock(block, 'value')
+            };
+        case 'tempVars_deleteVariable':
+            return {
+                kind: 'tempVars.delete',
+                var: this.descendInputOfBlock(block, 'name')
+            };
+        case 'tempVars_deleteAllVariables':
+            return {
+                kind: 'tempVars.deleteAll'
             };
         case 'tempVars_forEachTempVar':
             this.analyzeLoop();
@@ -2075,7 +2043,6 @@ class ScriptTreeGenerator {
             return {
                 kind: 'control.dualBlock'
             };
-
         default: {
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
             if (opcodeFunction) {
