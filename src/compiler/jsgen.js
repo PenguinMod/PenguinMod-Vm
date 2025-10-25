@@ -1878,56 +1878,52 @@ class JSGenerator {
         }
 
         case 'tempVars.set': {
-            const name = this.descendInput(node.var);
-            const val = this.descendInput(node.val);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asUnknown();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `${hostObj}[${name.asString()}] = ${val.asUnknown()};\n`
-                : `set(${hostObj}, ${name.asString()}, ${val.asUnknown()});\n`;
+                ? `${hostObj}[${name}] = ${val};\n`
+                : `set(${hostObj}, ${name}, ${val});\n`;
+            break;
+        }
+        case 'tempVars.change': {
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
+            this.source += this.isOptimized
+                ? `${hostObj}[${name}] = Number(${hostObj}[${name}]) + ${val};\n`
+                : `set(${hostObj}, ${name}, Number(get(${hostObj}, ${name})) + ${val});\n`;
             break;
         }
         case 'tempVars.delete': {
-            const name = this.descendInput(node.var);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `delete ${hostObj}[${name.asString()}];\n`
-                : `remove(${hostObj}, ${name.asString()});\n`;
+                ? `delete ${hostObj}[${name}];\n`
+                : `remove(${hostObj}, ${name});\n`;
             break;
         }
         case 'tempVars.deleteAll': {
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
             this.source += `${hostObj} = Object.create(null);\n`;
             break;
         }
         case 'tempVars.forEach': {
-            const name = this.descendInput(node.var);
-            const loops = this.descendInput(node.loops);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const loops = this.descendInput(node.loops).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             const rootVar = this.localVariables.next();
             const keyVar = this.localVariables.next();
-            const index = this.isOptimized
-                ? `${hostObj}[${name.asString()}]`
-                : `${rootVar}[${keyVar}]`;
-            if (!this.isOptimized)
-                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name.asString()}); `;
+            const index = this.isOptimized ? `${hostObj}[${name}]` : `${rootVar}[${keyVar}]`;
+            if (!this.isOptimized) {
+                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name}); `;
+            }
             this.source += `${index} = 0; `;
-            this.source += `while (${index} < ${loops.asNumber()}) { `;
+            this.source += `while (${index} < ${loops}) { `;
             this.source += `${index}++;\n`;
             this.descendStack(node.do, new Frame(true, 'tempVars.forEach'));
             if (this.script.yields) this.yieldLoop();
