@@ -1016,6 +1016,7 @@ class ScriptTreeGenerator {
                 };
             }
 
+            if (this.debug) log.warn(`IR: Unknown input: ${block.opcode}`, block);
             throw new Error(`IR: Unknown input: ${block.opcode}`);
         }
         }
@@ -2062,6 +2063,7 @@ class ScriptTreeGenerator {
                 }
             }
 
+            if (this.debug) log.warn(`IR: Unknown stacked block: ${block.opcode}`, block);
             throw new Error(`IR: Unknown stacked block: ${block.opcode}`);
         }
         }
