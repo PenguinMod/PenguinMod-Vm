@@ -2379,10 +2379,10 @@ class ScriptTreeGenerator {
                 if (this.thread.stackClick && !isProcHat && !entryBlockObj.next) {
                     try {
                         const inputNode = this.descendInput(entryBlockObj);
-                        this.script.stack = {
+                        this.script.stack = [{
                             kind: 'visualReport',
                             input: inputNode
-                        };
+                        }];
                         doneAsInput = true;
                     } catch (e) {
                         // Ignore
