@@ -2063,20 +2063,6 @@ class ScriptTreeGenerator {
                 }
             }
 
-            // When this thread was triggered by a stack click, attempt to compile as an input.
-            // TODO: perhaps this should be moved to generate()?
-            if (this.thread.stackClick) {
-                try {
-                    const inputNode = this.descendInput(block);
-                    return {
-                        kind: 'visualReport',
-                        input: inputNode
-                    };
-                } catch (e) {
-                    // Ignore
-                }
-            }
-
             log.warn(`IR: Unknown stacked block: ${block.opcode}`, block);
             throw new Error(`IR: Unknown stacked block: ${block.opcode}`);
         }
@@ -2373,23 +2359,36 @@ class ScriptTreeGenerator {
         // We do need to evaluate empty hats
         const hatInfo = this.runtime._hats[topBlock.opcode];
         const isHat = !!hatInfo;
+        const isProcHat = topBlock.opcode === 'procedures_definition' || topBlock.opcode === 'procedures_definition_return';
         if (isHat) {
             this.script.stack = this.walkHat(topBlock);
         } else {
             // We don't evaluate the procedures_definition top block as it never does anything
             // We also don't want it to be treated like a hat block
             let entryBlock;
-            if (
-                topBlock.opcode === 'procedures_definition'
-                || topBlock.opcode === 'procedures_definition_return'
-            ) {
+            if (isProcHat) {
                 entryBlock = topBlock.next;
             } else {
                 entryBlock = topBlockId;
             }
 
             if (entryBlock) {
-                this.script.stack = this.walkStack(entryBlock);
+                const entryBlockObj = this.getBlockById(entryBlock);
+
+                // When this thread was triggered by a stack click, attempt to compile as an input.
+                if (this.thread.stackClick && !isProcHat && !entryBlockObj.next) {
+                    try {
+                        const inputNode = this.descendInput(entryBlockObj);
+                        this.script.stack = {
+                            kind: 'visualReport',
+                            input: inputNode
+                        };
+                        doneAsInput = true;
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+                this.script.stack ??= this.walkStack(entryBlock);
             }
         }
 
