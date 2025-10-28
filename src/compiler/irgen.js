@@ -2383,7 +2383,6 @@ class ScriptTreeGenerator {
                             kind: 'visualReport',
                             input: inputNode
                         }];
-                        doneAsInput = true;
                     } catch (e) {
                         // Ignore
                     }
