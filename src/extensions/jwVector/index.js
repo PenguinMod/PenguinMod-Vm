@@ -287,9 +287,21 @@ class Extension {
                 {
                     opcode: 'round',
                     text: '[ROUNDING] of [VECTOR]',
+                    hideFromPalette: true,
                     arguments: {
                         ROUNDING: {
                             menu: 'roundingFunctions',
+                        },
+                        VECTOR: Vector.Argument
+                    },
+                    ...Vector.Block
+                },
+                {
+                    opcode: 'roundNew',
+                    text: '[ROUNDING] of [VECTOR]',
+                    arguments: {
+                        ROUNDING: {
+                            menu: 'roundingFunctionsAcceptReporters',
                         },
                         VECTOR: Vector.Argument
                     },
@@ -339,7 +351,7 @@ class Extension {
             ],
             menus: {
                 roundingFunctions: {
-                    acceptReporters: true,
+                    acceptReporters: false,
                     items: [
                         {
                             text: 'round',
@@ -347,6 +359,23 @@ class Extension {
                         },
                         {
                             text: 'ceil', // might as well go full in on the inconsistencies since we are already doing "round of"
+                            value: 'ceil'
+                        },
+                        {
+                            text: 'floor',
+                            value: 'floor'
+                        }
+                    ]
+                },
+                roundingFunctionsAcceptReporters: { // needs to be separate to not break old projects
+                    acceptReporters: true,
+                    items: [
+                        {
+                            text: 'round',
+                            value: 'round'
+                        },
+                        {
+                            text: 'ceil',
                             value: 'ceil'
                         },
                         {
@@ -466,6 +495,10 @@ class Extension {
         }
 
         return v
+    }
+
+    roundNew(args) {
+        return this.round(args)
     }
     
     getPos({}, util) {
