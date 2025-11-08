@@ -562,10 +562,11 @@ class VirtualMachine extends EventEmitter {
     _projectZip = new JSZip();
 
     /**
+     * @param {boolean?} beautiful If the json should be beautified or not
      * @returns {JSZip} JSZip zip object representing the sb3.
      */
-    _saveProjectZip () {
-        const projectJson = this.toJSON();
+    _saveProjectZip (beautiful) {
+        const projectJson = this.toJSON(null, {}, beautiful);
 
         // TODO want to eventually move zip creation out of here, and perhaps
         // into scratch-storage
@@ -730,9 +731,9 @@ class VirtualMachine extends EventEmitter {
      * @param {*} serializationOptions Options to pass to the serializer
      * @return {string} Serialized state of the runtime.
      */
-    toJSON (optTargetId, serializationOptions) {
+    toJSON (optTargetId, serializationOptions, beautiful) {
         const sb3 = require('./serialization/sb3');
-        return StringUtil.stringify(sb3.serialize(this.runtime, optTargetId, serializationOptions));
+        return StringUtil.stringify(sb3.serialize(this.runtime, optTargetId, serializationOptions), beautiful);
     }
 
     // TODO do we still need this function? Keeping it here so as not to introduce

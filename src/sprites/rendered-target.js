@@ -68,7 +68,10 @@ class RenderedTarget extends Target {
             saturation: 0,
             // we add 1 since 0x000000 = 0, effects set to 0 will not even be enabled in the shader 
             // (so we can never tint to black if we didnt add 1)
-            tintColor: 0xffffff + 1 
+            tintColor: 0xffffff + 1,
+            // underscores because of how the set effect and get effect blocks handle the effect name
+            horizontal_shear: 0,
+            vertical_shear: 0
         };
 
         /**
@@ -355,24 +358,6 @@ class RenderedTarget extends Target {
         }
         if (this.onTargetMoved) {
             this.onTargetMoved(this, oldX, oldY, force);
-        }
-        this.runtime.requestTargetsUpdate(this);
-    }
-
-    setTransform (transform) {
-        if (!Array.isArray(transform) || transform.length !== 2) 
-            throw new TypeError('Expected an Array of length 2 for the transform input');
-        if (this.isStage) {
-            return;
-        }
-        this.transform = [transform[0], transform[1]];
-        if (this.renderer) {
-            const {direction: renderedDirection, scale} = this._getRenderedDirectionAndScale();
-            this.renderer.updateDrawableDirectionScale(this.drawableID, renderedDirection, scale, this.transform);
-            if (this.visible) {
-                this.emitVisualChange();
-                this.runtime.requestRedraw();
-            }
         }
         this.runtime.requestTargetsUpdate(this);
     }

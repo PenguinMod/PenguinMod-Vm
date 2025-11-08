@@ -167,6 +167,8 @@ const defaultBuiltinExtensions = {
     jwDate: () => require("../extensions/jwDate"),
     // scoped variables
     jwScope: () => require("../extensions/jwScope"),
+    // NEW xml extension
+    jwXML: () => require("../extensions/jwXML"),
 
     // jw: They'll think its made by jwklong >:)
     // (but it's not (yet (maybe (probably not (but its made by ianyourgod)))))

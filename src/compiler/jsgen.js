@@ -670,11 +670,12 @@ class JSGenerator {
 
         case 'pmEventsExpansion.broadcastFunction':
             // we need to do function otherwise this block would be stupidly long
+            const msgName = this.descendInput(node.broadcast).asString();
             let source = '(yield* (function*() {';
-            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName} );\n`;
             source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
             const threads = this.localVariables.next();
-            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             const threadVar = this.localVariables.next();
             source += `for (const ${threadVar} of ${threads}) { ${threadVar}.__evex_recievedDataa = '' };\n`;
             source += `yield* waitThreads(${threads});\n`;
@@ -702,11 +703,12 @@ class JSGenerator {
             return new TypedInput(source, TYPE_STRING);
         case 'pmEventsExpansion.broadcastFunctionArgs': {
             // we need to do function otherwise this block would be stupidly long
+            const msgName = this.descendInput(node.broadcast).asString();
             let source = '(yield* (function*() {';
             const threads = this.localVariables.next();
-            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName} );\n`;
             source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             const threadVar = this.localVariables.next();
             source += `for (const ${threadVar} of ${threads}) { ${threadVar}.__evex_recievedDataa = ${this.descendInput(node.args).asString()} };\n`;
             source += `yield* waitThreads(${threads});\n`;
@@ -1476,18 +1478,22 @@ class JSGenerator {
             this.source += 'yield;\n';
             this.isInHat = false;
             break;
-        case 'event.broadcast':
-            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+        case 'event.broadcast': {
+            const msgName = this.descendInput(node.broadcast).asString();
+            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName});\n`;
             this.source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            this.source += `startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            this.source += `startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             this.resetVariableInputs();
             break;
-        case 'event.broadcastAndWait':
-            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+        }
+        case 'event.broadcastAndWait': {
+            const msgName = this.descendInput(node.broadcast).asString();
+            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName});\n`;
             this.source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            this.source += `yield* waitThreads(startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} }));\n`;
+            this.source += `yield* waitThreads(startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} }));\n`;
             this.yielded();
             break;
+        }
         case 'list.forEach': {
             const list = this.referenceVariable(node.list);
             const set = this.descendVariable(node.variable);
@@ -1878,56 +1884,52 @@ class JSGenerator {
         }
 
         case 'tempVars.set': {
-            const name = this.descendInput(node.var);
-            const val = this.descendInput(node.val);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asUnknown();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `${hostObj}[${name.asString()}] = ${val.asUnknown()};\n`
-                : `set(${hostObj}, ${name.asString()}, ${val.asUnknown()});\n`;
+                ? `${hostObj}[${name}] = ${val};\n`
+                : `set(${hostObj}, ${name}, ${val});\n`;
+            break;
+        }
+        case 'tempVars.change': {
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
+            this.source += this.isOptimized
+                ? `${hostObj}[${name}] = Number(${hostObj}[${name}]) + ${val};\n`
+                : `set(${hostObj}, ${name}, Number(get(${hostObj}, ${name})) + ${val});\n`;
             break;
         }
         case 'tempVars.delete': {
-            const name = this.descendInput(node.var);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `delete ${hostObj}[${name.asString()}];\n`
-                : `remove(${hostObj}, ${name.asString()});\n`;
+                ? `delete ${hostObj}[${name}];\n`
+                : `remove(${hostObj}, ${name});\n`;
             break;
         }
         case 'tempVars.deleteAll': {
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
             this.source += `${hostObj} = Object.create(null);\n`;
             break;
         }
         case 'tempVars.forEach': {
-            const name = this.descendInput(node.var);
-            const loops = this.descendInput(node.loops);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const loops = this.descendInput(node.loops).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             const rootVar = this.localVariables.next();
             const keyVar = this.localVariables.next();
-            const index = this.isOptimized
-                ? `${hostObj}[${name.asString()}]`
-                : `${rootVar}[${keyVar}]`;
-            if (!this.isOptimized)
-                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name.asString()}); `;
+            const index = this.isOptimized ? `${hostObj}[${name}]` : `${rootVar}[${keyVar}]`;
+            if (!this.isOptimized) {
+                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name}); `;
+            }
             this.source += `${index} = 0; `;
-            this.source += `while (${index} < ${loops.asNumber()}) { `;
+            this.source += `while (${index} < ${loops}) { `;
             this.source += `${index}++;\n`;
             this.descendStack(node.do, new Frame(true, 'tempVars.forEach'));
             if (this.script.yields) this.yieldLoop();

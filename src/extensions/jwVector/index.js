@@ -334,7 +334,6 @@ class Extension {
                     opcode: 'getMouse',
                     text: 'mouse position',
                     extensions: ["colours_sensing"],
-                    filter: [TargetType.SPRITE],
                     ...Vector.Block
                 },
             ],

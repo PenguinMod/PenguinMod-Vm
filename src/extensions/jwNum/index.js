@@ -271,7 +271,7 @@ class Extension {
                 },
                 {
                     opcode: 'reverseArrow',
-                    text: '[A] reverse arrow [B] [C]',
+                    text: '[C] reverse arrow [B] [A]',
                     arguments: {
                         A: jwNum.Argument,
                         B: jwNum.Argument,

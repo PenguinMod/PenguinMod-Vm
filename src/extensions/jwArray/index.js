@@ -7,15 +7,6 @@ let arrayLimit = 2 ** 32 - 1
 
 // credit to sharpool because i stole the for each code from his extension haha im soo evil
 
-let isScratchBlocksReady = typeof ScratchBlocks === 'object';
-if (isScratchBlocksReady) {
-    // yes, this is just the square notch shape, but I want it to strictly check for array blocks
-    ScratchBlocks.BlockSvg.registerCustomNotch(
-        'jwArrayBuilder', 
-        `l 2 0 c 1 0 2 1 2 2 l 0 4 c 0 1 1 2 2 2 h 24 c 1 0 2 -1 2 -2 l 0 -4 c 0 -1 1 -2 2 -2 l 2 0`
-    );
-}
-
 /**
 * @param {number} x
 * @returns {string}
@@ -127,8 +118,8 @@ class ArrayType {
         return `Array<${formatNumber(this.array.length)}>`
     }
 
-    toString() {
-        return JSON.stringify(this.toJSON())
+    toString(pretty = false) {
+        return JSON.stringify(this.toJSON(), null, pretty ? "\t" : null)
     }
     toJSON() {
         return this.array.map(v => {
@@ -181,12 +172,13 @@ const jwArray = {
         blockType: BlockType.REPORTER,
         blockShape: BlockShape.SQUARE,
         forceOutputType: "Array",
-        allowDropAnywhere: true,
+        //allowDropAnywhere: true,
         disableMonitor: true
     },
     Argument: {
         shape: BlockShape.SQUARE,
         exemptFromNormalization: true,
+        check: ["Array"],
         compilerInfo: {
             jwArrayUnmodified: true
         }
@@ -433,6 +425,22 @@ class Extension {
                     }
                 },
                 {
+                    opcode: 'items',
+                    text: 'items [X] to [Y] in [ARRAY]',
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 3
+                        }
+                    },
+                    ...jwArray.Block
+                },
+                {
                     opcode: 'index',
                     text: 'index of [VALUE] in [ARRAY]',
                     blockType: BlockType.REPORTER,
@@ -533,19 +541,12 @@ class Extension {
                     },
                     ...jwArray.Block
                 },
+                "---",
                 {
-                    opcode: 'items',
-                    text: 'items [X] to [Y] in [ARRAY]',
+                    opcode: 'reverse',
+                    text: 'reverse [ARRAY]',
                     arguments: {
-                        ARRAY: jwArray.Argument,
-                        X: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 1
-                        },
-                        Y: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 3
-                        }
+                        ARRAY: jwArray.Argument
                     },
                     ...jwArray.Block
                 },
@@ -577,15 +578,6 @@ class Extension {
                     },
                     ...jwArray.Block
                 },
-                "---",
-                {
-                    opcode: 'reverse',
-                    text: 'reverse [ARRAY]',
-                    arguments: {
-                        ARRAY: jwArray.Argument
-                    },
-                    ...jwArray.Block
-                },
                 {
                     opcode: 'flat',
                     text: 'flat [ARRAY] with depth [DEPTH]',
@@ -597,6 +589,39 @@ class Extension {
                         }
                     },
                     ...jwArray.Block
+                },
+                "---",
+                {
+                    opcode: 'toString',
+                    text: 'stringify [ARRAY] [FORMAT]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        FORMAT: {
+                            menu: "stringifyFormat",
+                            defaultValue: "compact"
+                        }
+                    }
+                },
+                {
+                    opcode: 'join',
+                    text: 'join [ARRAY] with [DIVIDER]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        DIVIDER: {
+                            type: ArgumentType.STRING,
+                            defaultValue: ""
+                        }
+                    }
+                },
+                {
+                    opcode: 'sum',
+                    text: 'sum of [ARRAY]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument
+                    }
                 },
                 "---",
                 {
@@ -652,6 +677,13 @@ class Extension {
                     acceptReporters: false,
                     items: "getLists",
                 },
+                stringifyFormat: {
+                    acceptReporters: false,
+                    items: [
+                        "compact",
+                        "pretty"
+                    ]
+                }
             }
         };
     }
@@ -894,6 +926,25 @@ class Extension {
         DEPTH = Cast.toNumber(DEPTH)
 
         return ARRAY.flat(DEPTH)
+    }
+
+    toString({ARRAY, FORMAT}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        
+        return ARRAY.toString(FORMAT === "pretty")
+    }
+
+    join({ARRAY, DIVIDER}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        DIVIDER = Cast.toString(DIVIDER)
+
+        return ARRAY.array.map(v => Cast.toString(v)).join(DIVIDER)
+    }
+
+    sum({ARRAY}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+
+        return ARRAY.array.reduce((o, v) => o + Cast.toNumber(v), 0)
     }
 
     forEachI({}, util) {
