@@ -98,7 +98,7 @@ class ArrayType {
                 case "object":
                     if (x === null) return "null"
                     if (typeof x.jwArrayHandler == "function") {
-                        return x.jwArrayHandler()
+                        return x.jwArrayHandler(false, "array")
                     }
                     return "Object"
                 case "undefined":
@@ -114,7 +114,7 @@ class ArrayType {
         return "?"
     }
 
-    jwArrayHandler() {
+    jwArrayHandler(expectsPlainString, context) {
         return `Array<${formatNumber(this.array.length)}>`
     }
 

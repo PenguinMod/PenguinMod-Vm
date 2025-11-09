@@ -42,7 +42,7 @@ class VectorType {
         return new VectorType(0, 0)
     }
 
-    jwArrayHandler() {
+    jwArrayHandler(expectsPlainString, context) {
         return 'Vector'
     }
 

@@ -30,7 +30,7 @@ class DateType {
         return new DateType()
     }
 
-    jwArrayHandler() {
+    jwArrayHandler(expectsPlainString, context) {
         return this.date.toLocaleDateString()
     }
 
