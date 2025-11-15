@@ -437,7 +437,8 @@ class pmMotionExpansion {
         target.setXY(homeState.x, homeState.y);
         target.setSize(homeState.size);
         target.setStretch(...homeState.stretch);
-        target.setTransform(homeState.transform);
+        target.transform[0] = homeState.transform[0];
+        target.transform[1] = homeState.transform[1];
         target.setDirection(homeState.direction);
         target.setRotationStyle(homeState.rotationStyle);
         target.setVisible(homeState.visible);

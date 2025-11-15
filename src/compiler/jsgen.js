@@ -920,6 +920,45 @@ class JSGenerator {
             }
             return new TypedInput('(' + builder + ')', TYPE_NUMBER_NAN);
         }
+        case 'op.expandBool': {
+            const casted = node.bools.map((b) => this.descendInput(b).asBoolean());
+            let src = '';
+
+            if (node.isOptimized) {
+                for (let i = 0; i < casted.length; i++) src += casted[i] + node.operators[i][0];
+                if (!node.isNormal) src = `!(${src})`;
+            } else {
+                let abnormalCount = 0;
+                for (let i = 0; i < casted.length; i++) {
+                    const operator = node.operators[i];
+                    const isAbnormal = ['n', 'N', 'X'].includes(operator[1]);
+                    if (isAbnormal) {
+                        abnormalCount++;
+                        src += '!(';
+                    }
+                    src += casted[i];
+                    if (!isAbnormal && abnormalCount > 0) {
+                        abnormalCount--;
+                        src += ')';
+                    }
+                    src += operator[0];
+                }
+
+                while (abnormalCount > 0) {
+                    abnormalCount--;
+                    src += ')';
+                }
+            }
+            return new TypedInput('(' + src + ')', TYPE_BOOLEAN);
+        }
+        case 'op.expandCompare': {
+            const casted = node.bools.map((b) => this.descendInput(b).asUnknown());
+            const src = [];
+            for (let i = 0; i < casted.length - 1; i++) {
+                src.push("(" + casted[i] + node.operators[i][0] + casted[i + 1] + ")");
+            }
+            return new TypedInput('(' + src.join("&&") + ')', TYPE_BOOLEAN);
+        }
 
         case 'sensing.answer':
             return new TypedInput(`runtime.ext_scratch3_sensing._answer`, TYPE_STRING);
@@ -1031,7 +1070,17 @@ class JSGenerator {
             if (procedureData.arguments.length) {
                 const args = [];
                 for (const input of node.arguments) {
-                    args.push(this.descendInput(input).asSafe());
+                    if (input instanceof Array) {
+                        //is a stack input
+                        const temp = this.source;
+                        this.source = "function*(thread, target, runtime, stage) {"
+                        this.descendStack(input, new Frame(false, undefined, true));
+                        this.source += "}";
+                        args.push(this.source);
+                        this.source = temp;
+                    } else {
+                        args.push(this.descendInput(input).asSafe());
+                    }
                 }
                 source += args.join(',');
             }
@@ -1125,6 +1174,11 @@ class JSGenerator {
             stage.children[0].addEventListener('mousedown', () => stage.innerHTML = ${createVideo(MISTERBEAST)});
             `;
             break;
+
+        case 'args.command':
+            if (node.index !== -1) this.source += `yield* (p${node.index} || function*(){})(thread, target, runtime, stage);\n`;
+            break;
+
         case 'addons.call': {
             const inputs = this.descendInputRecord(node.arguments);
             const blockFunction = `runtime.getAddonBlock("${sanitize(node.code)}").callback`;
@@ -1789,7 +1843,17 @@ class JSGenerator {
             if (procedureData.arguments.length) {
                 const args = [];
                 for (const input of node.arguments) {
-                    args.push(this.descendInput(input).asSafe());
+                    if (input instanceof Array) {
+                        //is a stack input
+                        const temp = this.source;
+                        this.source = "function*(thread, target, runtime, stage) {"
+                        this.descendStack(input, new Frame(false, undefined, true));
+                        this.source += "}";
+                        args.push(this.source);
+                        this.source = temp;
+                    } else {
+                        args.push(this.descendInput(input).asSafe());
+                    }
                 }
                 this.source += args.join(',');
             }
