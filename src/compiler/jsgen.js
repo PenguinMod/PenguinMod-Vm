@@ -179,6 +179,10 @@ class ConstantInput {
             // todo: handle NaN?
             return this.constantValue;
         }
+        // handle bad nulls
+        if (this.constantValue == null) {
+            return 'null';
+        }
         const numberValue = +this.constantValue;
         if (numberValue.toString() === this.constantValue) {
             return this.constantValue;
@@ -619,9 +623,9 @@ class JSGenerator {
             return new TypedInput(`${this.referenceVariable(node.list)}.value.length`, TYPE_NUMBER);
 
         case 'list.filteritem':
-            return new TypedInput('runtime.ext_scratch3_data._listFilterItem', TYPE_UNKNOWN);
+            return new TypedInput('(thread._listFilterItem ?? [""])[(thread._listFilterItem ?? [""]).length - 1]', TYPE_UNKNOWN);
         case 'list.filterindex':
-            return new TypedInput('runtime.ext_scratch3_data._listFilterIndex', TYPE_UNKNOWN);
+            return new TypedInput('(thread._listFilterIndex ?? [0])[(thread._listFilterIndex ?? [0]).length - 1]', TYPE_NUMBER);
 
         case 'looks.size':
             return new TypedInput('target.size', TYPE_NUMBER);
@@ -666,11 +670,12 @@ class JSGenerator {
 
         case 'pmEventsExpansion.broadcastFunction':
             // we need to do function otherwise this block would be stupidly long
+            const msgName = this.descendInput(node.broadcast).asString();
             let source = '(yield* (function*() {';
-            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName} );\n`;
             source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
             const threads = this.localVariables.next();
-            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             const threadVar = this.localVariables.next();
             source += `for (const ${threadVar} of ${threads}) { ${threadVar}.__evex_recievedDataa = '' };\n`;
             source += `yield* waitThreads(${threads});\n`;
@@ -698,11 +703,12 @@ class JSGenerator {
             return new TypedInput(source, TYPE_STRING);
         case 'pmEventsExpansion.broadcastFunctionArgs': {
             // we need to do function otherwise this block would be stupidly long
+            const msgName = this.descendInput(node.broadcast).asString();
             let source = '(yield* (function*() {';
             const threads = this.localVariables.next();
-            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+            source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName} );\n`;
             source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            source += `var ${threads} = startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             const threadVar = this.localVariables.next();
             source += `for (const ${threadVar} of ${threads}) { ${threadVar}.__evex_recievedDataa = ${this.descendInput(node.args).asString()} };\n`;
             source += `yield* waitThreads(${threads});\n`;
@@ -808,6 +814,12 @@ class JSGenerator {
         }
         case 'op.join':
             return new TypedInput(`(${this.descendInput(node.left).asString()} + ${this.descendInput(node.right).asString()})`, TYPE_STRING);
+        case "op.expandjoin": {
+            for (var i = 0; i < node.strings.length; i++) {
+                node.strings[i] = this.descendInput(node.strings[i]).asString();
+            }
+            return new TypedInput('(' + node.strings.join('+') + ')', TYPE_STRING);
+        }
         case 'op.length':
             return new TypedInput(`${this.descendInput(node.string).asString()}.length`, TYPE_NUMBER);
         case 'op.less': {
@@ -883,6 +895,70 @@ class JSGenerator {
             return new TypedInput(`tan(${this.descendInput(node.value).asNumber()})`, TYPE_NUMBER_NAN);
         case 'op.10^':
             return new TypedInput(`(10 ** ${this.descendInput(node.value).asNumber()})`, TYPE_NUMBER);
+        case 'op.expandmath': {
+            const operations = node.operations;
+            let builder = '';
+            let powWrap = 0;
+            for (var i = 0; i < operations.length; i++) {
+                const op = operations[i];
+                const prevOp = operations[i - 1];
+                const opType = op[1];
+
+                if (opType === "^") {
+                    builder += 'Math.pow(';
+                    builder += this.descendInput(op[0]).asNumber();
+                    builder += ',';
+                    powWrap++;
+                } else {
+                    builder += this.descendInput(op[0]).asNumber();
+                    while (powWrap > 0) {
+                        builder += ')';
+                        powWrap--;
+                    }
+                    if (opType) builder += opType;
+                }
+            }
+            return new TypedInput('(' + builder + ')', TYPE_NUMBER_NAN);
+        }
+        case 'op.expandBool': {
+            const casted = node.bools.map((b) => this.descendInput(b).asBoolean());
+            let src = '';
+
+            if (node.isOptimized) {
+                for (let i = 0; i < casted.length; i++) src += casted[i] + node.operators[i][0];
+                if (!node.isNormal) src = `!(${src})`;
+            } else {
+                let abnormalCount = 0;
+                for (let i = 0; i < casted.length; i++) {
+                    const operator = node.operators[i];
+                    const isAbnormal = ['n', 'N', 'X'].includes(operator[1]);
+                    if (isAbnormal) {
+                        abnormalCount++;
+                        src += '!(';
+                    }
+                    src += casted[i];
+                    if (!isAbnormal && abnormalCount > 0) {
+                        abnormalCount--;
+                        src += ')';
+                    }
+                    src += operator[0];
+                }
+
+                while (abnormalCount > 0) {
+                    abnormalCount--;
+                    src += ')';
+                }
+            }
+            return new TypedInput('(' + src + ')', TYPE_BOOLEAN);
+        }
+        case 'op.expandCompare': {
+            const casted = node.bools.map((b) => this.descendInput(b).asUnknown());
+            const src = [];
+            for (let i = 0; i < casted.length - 1; i++) {
+                src.push("(" + casted[i] + node.operators[i][0] + casted[i + 1] + ")");
+            }
+            return new TypedInput('(' + src.join("&&") + ')', TYPE_BOOLEAN);
+        }
 
         case 'sensing.answer':
             return new TypedInput(`runtime.ext_scratch3_sensing._answer`, TYPE_STRING);
@@ -994,7 +1070,20 @@ class JSGenerator {
             if (procedureData.arguments.length) {
                 const args = [];
                 for (const input of node.arguments) {
-                    args.push(this.descendInput(input).asSafe());
+                    if (input instanceof Array) {
+                        //is a stack input
+                        const temp = this.source;
+                        this.source = "function*(thread, target, runtime, stage) {"
+                        const temp2 = this.isWarp;
+                        this.isWarp = procedureData.isWarp;
+                        this.descendStack(input, new Frame(false, undefined, true));
+                        this.isWarp = temp2;
+                        this.source += "}";
+                        args.push(this.source);
+                        this.source = temp;
+                    } else {
+                        args.push(this.descendInput(input).asSafe());
+                    }
                 }
                 source += args.join(',');
             }
@@ -1088,6 +1177,15 @@ class JSGenerator {
             stage.children[0].addEventListener('mousedown', () => stage.innerHTML = ${createVideo(MISTERBEAST)});
             `;
             break;
+
+        case 'args.command':
+            if (node.index !== -1) {
+                let outputVariable = this.localVariables.next();
+                this.source += `let ${outputVariable} = yield* (p${node.index} || function*(){})(thread, target, runtime, stage);\n`;
+                this.source += `if (${outputVariable} !== undefined) { return ${outputVariable}; };\n`
+            }
+            break;
+
         case 'addons.call': {
             const inputs = this.descendInputRecord(node.arguments);
             const blockFunction = `runtime.getAddonBlock("${sanitize(node.code)}").callback`;
@@ -1105,9 +1203,11 @@ class JSGenerator {
                 this.source += `${this.generateCompatibilityLayerCall(node, isLastInLoop)};\n`;
             } else if (blockType === BlockType.CONDITIONAL || blockType === BlockType.LOOP) {
                 const branchVariable = this.localVariables.next();
+                const label = "compatLoopLabel" + branchVariable;
                 this.source += `const ${branchVariable} = createBranchInfo(${blockType === BlockType.LOOP});\n`;
-                this.source += `while (${branchVariable}.branch = +(${this.generateCompatibilityLayerCall(node, false, branchVariable)})) {\n`;
+                this.source += `${label}: while (${branchVariable}.branch = +(${this.generateCompatibilityLayerCall(node, false, branchVariable)})) {\n`;
                 this.source += `switch (${branchVariable}.branch) {\n`;
+                this.compatBranchInfo = { node, branchVar: branchVariable, label };
                 for (let i = 0; i < node.substacks.length; i++) {
                     this.source += `case ${i + 1}: {\n`;
                     this.descendStack(node.substacks[i], new Frame(false));
@@ -1119,6 +1219,7 @@ class JSGenerator {
                 this.source += `if (!${branchVariable}.isLoop) break;\n`;
                 this.yieldLoop();
                 this.source += '}\n'; // close while
+                this.compatBranchInfo = undefined;
             } else {
                 throw new Error(`Unknown block type: ${blockType}`);
             }
@@ -1207,20 +1308,32 @@ class JSGenerator {
             }
             this.source += `break;\n`;
             break;
-        case 'control.exitLoop':
-            if (!this.currentFrame.importantData.containedByLoop) {
-                this.source += `throw 'All "escape loop" blocks must be inside of a looping block.';\n`;
-                break;
+        case 'control.exitLoop': {
+            const inLoop = this.currentFrame.importantData.containedByLoop;
+            if (inLoop) this.source += `break;\n`;
+            else {
+                // this could be an uncompiled loop block
+                if (this.compatBranchInfo) {
+                    this.source += `break ${this.compatBranchInfo.label};\n`;
+                } else {
+                    this.source += `yield* executeInCompatibilityLayer({}, runtime.getOpcodeFunction("control_exitLoop"), false, false, "${node.id}", null);\n`;
+                }
             }
-            this.source += `break;\n`;
             break;
-        case 'control.continueLoop':
-            if (!this.currentFrame.importantData.containedByLoop) {
-                this.source += `throw 'All "continue loop" blocks must be inside of a looping block.';\n`;
-                break;
+        }
+        case 'control.continueLoop': {
+            const inLoop = this.currentFrame.importantData.containedByLoop;
+            if (inLoop) this.source += `continue;\n`;
+            else {
+                // this could be an uncompiled loop block
+                if (this.compatBranchInfo) {
+                    this.source += `continue ${this.compatBranchInfo.label};\n`;
+                } else {
+                    this.source += `yield* executeInCompatibilityLayer({}, runtime.getOpcodeFunction("control_exitLoop"), false, false, "${node.id}", null);\n`;
+                }
             }
-            this.source += `continue;\n`;
             break;
+        }
         case 'control.if':
             this.source += `if (${this.descendInput(node.condition).asBoolean()}) {\n`;
             this.descendStack(node.whenTrue, new Frame(false, 'control.if'));
@@ -1232,6 +1345,30 @@ class JSGenerator {
             }
             this.source += `}\n`;
             break;
+        case 'control.expandableIf': {
+            const branches = node.branches;
+            for (let i = 0; i < branches.length; i++) {
+                const branch = branches[i];
+                const isFirst = i === 0, isLast = i + 1 === branches.length;
+                const isElse = branch[0].value === null;
+
+                if (isFirst) this.source += `if `;
+                else if (isLast && isElse) this.source += `else `;
+                else this.source += `else if `;
+
+                if (branch === null) {
+                    if (isLast && isElse) this.source += `{}\n`;
+                    else this.source += `(false) {}\n`;
+                } else {
+                    if (isElse) this.source += `{\n`;
+                    else this.source += `(${this.descendInput(branch[0]).asBoolean()}) {\n`;
+
+                    if (branch[1][0]) this.descendStack(branch[1], new Frame(false, 'control.if'));
+                    this.source += `} `;
+                }
+            }
+            break;
+        }
         case 'control.trycatch':
             this.source += `try {\n`;
             this.descendStack(node.try, new Frame(false, 'control.trycatch'));
@@ -1413,18 +1550,22 @@ class JSGenerator {
             this.source += 'yield;\n';
             this.isInHat = false;
             break;
-        case 'event.broadcast':
-            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+        case 'event.broadcast': {
+            const msgName = this.descendInput(node.broadcast).asString();
+            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName});\n`;
             this.source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            this.source += `startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} });\n`;
+            this.source += `startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} });\n`;
             this.resetVariableInputs();
             break;
-        case 'event.broadcastAndWait':
-            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${this.descendInput(node.broadcast).asString()} );\n`;
+        }
+        case 'event.broadcastAndWait': {
+            const msgName = this.descendInput(node.broadcast).asString();
+            this.source += `var broadcastVar = runtime.getTargetForStage().lookupBroadcastMsg("", ${msgName});\n`;
             this.source += `if (broadcastVar) broadcastVar.isSent = true;\n`;
-            this.source += `yield* waitThreads(startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${this.descendInput(node.broadcast).asString()} }));\n`;
+            this.source += `yield* waitThreads(startHats("event_whenbroadcastreceived", { BROADCAST_OPTION: ${msgName} }));\n`;
             this.yielded();
             break;
+        }
         case 'list.forEach': {
             const list = this.referenceVariable(node.list);
             const set = this.descendVariable(node.variable);
@@ -1495,13 +1636,23 @@ class JSGenerator {
             break;
 
         case 'list.filter':
-            this.source += `${this.referenceVariable(node.list)}.value = ${this.referenceVariable(node.list)}.value.filter(function* (item, index) {`;
-            this.source += `    runtime.ext_scratch3_data._listFilterItem = item;\n`;
-            this.source += `    runtime.ext_scratch3_data._listFilterIndex = index + 1;\n`;
-            this.source += `    return ${this.descendInput(node.bool).asBoolean()};\n`;
-            this.source += `})`;
-            this.source += `runtime.ext_scratch3_data._listFilterItem = "";\n`;
-            this.source += `runtime.ext_scratch3_data._listFilterIndex = 0;\n`;
+            const filterOutput = this.localVariables.next();
+            this.source += `var ${filterOutput} = [];\n`
+            const cloneList = this.localVariables.next();
+            this.source += `var ${cloneList} = [...${this.referenceVariable(node.list)}.value];\n`
+            this.source += `thread._listFilterItem ??= [];\n`;
+            this.source += `thread._listFilterIndex ??= [];\n`;
+            this.source += `thread._listFilterItem.push("");\n`;
+            this.source += `thread._listFilterIndex.push(0);\n`;
+            let lastIndex = `thread._listFilterIndex[thread._listFilterIndex.length-1]`
+            let lastItem = `thread._listFilterItem[thread._listFilterItem.length-1]`
+            this.source += `for (${lastIndex} = 1; ${lastIndex} <= ${cloneList}.length; ${lastIndex}++) {\n`
+            this.source += `    ${lastItem} = ${cloneList}[${lastIndex} - 1];\n`;
+            this.source += `    if (${this.descendInput(node.bool).asBoolean()}) ${filterOutput}.push(${lastItem});\n`;
+            this.source += `};\n`;
+            this.source += `${this.referenceVariable(node.list)}.value = ${filterOutput};\n`;
+            this.source += `thread._listFilterItem.pop();\n`;
+            this.source += `thread._listFilterIndex.pop();\n`;
             break;
 
         case 'looks.backwardLayers':
@@ -1699,6 +1850,8 @@ class JSGenerator {
                 // Direct recursion yields.
                 this.yieldNotWarp();
             }
+            let outputVariable = this.localVariables.next();
+            this.source += `let ${outputVariable} = `;
             if (procedureData.yields) {
                 this.source += 'yield* ';
                 if (!this.script.yields) {
@@ -1710,11 +1863,29 @@ class JSGenerator {
             if (procedureData.arguments.length) {
                 const args = [];
                 for (const input of node.arguments) {
-                    args.push(this.descendInput(input).asSafe());
+                    if (input instanceof Array) {
+                        //is a stack input
+                        const temp = this.source;
+                        this.source = "function*(thread, target, runtime, stage) {"
+                        const temp2 = this.isWarp;
+                        this.isWarp = procedureData.isWarp;
+                        this.descendStack(input, new Frame(false, undefined, true));
+                        this.isWarp = temp2;
+                        this.source += "}";
+                        args.push(this.source);
+                        this.source = temp;
+                    } else {
+                        args.push(this.descendInput(input).asSafe());
+                    }
                 }
                 this.source += args.join(',');
             }
             this.source += `);\n`;
+            const thisProcedureData = this.ir.procedures[this.script.procedureVariant];
+            if (thisProcedureData && !thisProcedureData.returns) {
+                this.source += `if (${outputVariable} !== undefined) { return ${outputVariable}; };\n`
+            }
+
             if (node.type === 'hat') {
                 throw new Error('Custom hat blocks are not supported');
             }
@@ -1805,59 +1976,55 @@ class JSGenerator {
         }
 
         case 'tempVars.set': {
-            const name = this.descendInput(node.var);
-            const val = this.descendInput(node.val);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asUnknown();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `${hostObj}[${name.asString()}] = ${val.asUnknown()};\n`
-                : `set(${hostObj}, ${name.asString()}, ${val.asUnknown()});\n`;
+                ? `${hostObj}[${name}] = ${val};\n`
+                : `set(${hostObj}, ${name}, ${val});\n`;
+            break;
+        }
+        case 'tempVars.change': {
+            const name = this.descendInput(node.var).asString();
+            const val = this.descendInput(node.val).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
+            this.source += this.isOptimized
+                ? `${hostObj}[${name}] = Number(${hostObj}[${name}]) + ${val};\n`
+                : `set(${hostObj}, ${name}, Number(get(${hostObj}, ${name})) + ${val});\n`;
             break;
         }
         case 'tempVars.delete': {
-            const name = this.descendInput(node.var);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             this.source += this.isOptimized
-                ? `delete ${hostObj}[${name.asString()}];\n`
-                : `remove(${hostObj}, ${name.asString()});\n`;
+                ? `delete ${hostObj}[${name}];\n`
+                : `remove(${hostObj}, ${name});\n`;
             break;
         }
         case 'tempVars.deleteAll': {
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
             this.source += `${hostObj} = Object.create(null);\n`;
             break;
         }
         case 'tempVars.forEach': {
-            const name = this.descendInput(node.var);
-            const loops = this.descendInput(node.loops);
-            const hostObj = node.runtime
-                ? 'runtime.variables'
-                : node.thread
-                    ? 'thread.variables'
-                    : 'tempVars';
+            const name = this.descendInput(node.var).asString();
+            const loops = this.descendInput(node.loops).asNumber();
+            const hostObj = node.runtime ? 'runtime.variables' : node.thread ? 'thread.variables' : 'tempVars';
+
             const rootVar = this.localVariables.next();
             const keyVar = this.localVariables.next();
-            const index = this.isOptimized
-                ? `${hostObj}[${name.asString()}]`
-                : `${rootVar}[${keyVar}]`;
-            if (!this.isOptimized)
-                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name.asString()}); `;
+            const index = this.isOptimized ? `${hostObj}[${name}]` : `${rootVar}[${keyVar}]`;
+            if (!this.isOptimized) {
+                this.source += `const [${rootVar},${keyVar}] = _resolveKeyPath(${hostObj}, ${name}); `;
+            }
             this.source += `${index} = 0; `;
-            this.source += `while (${index} < ${loops.asNumber()}) { `;
+            this.source += `while (${index} < ${loops}) { `;
             this.source += `${index}++;\n`;
             this.descendStack(node.do, new Frame(true, 'tempVars.forEach'));
-            this.yieldLoop();
+            if (this.script.yields) this.yieldLoop();
             this.source += '}\n';
             break;
         }

@@ -25,12 +25,12 @@ class pmLiveTests {
     }
 
     setVerticalTransform (args, {target}) {
-        const percent = Cast.toNumber(args.PERCENT) / 100;
+        const percent = Cast.toNumber(args.PERCENT);
         target.setTransform([percent, target.transform[1]]);
     }
 
     setHorizontalTransform (args, {target}) {
-        const percent = Cast.toNumber(args.PERCENT) / 100;
+        const percent = Cast.toNumber(args.PERCENT);
         target.setTransform([target.transform[0], percent]);
     }
 }

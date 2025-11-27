@@ -1001,6 +1001,7 @@ class JgRuntimeBlocks {
                         "offscreen sprites",
                         "remove miscellaneous limits",
                         "disable offscreen rendering",
+                        "disable direction clamping",
                         "interpolation",
                         "warp timer"
                     ]
@@ -1133,6 +1134,7 @@ class JgRuntimeBlocks {
         case "offscreen sprites": return this.runtime.setRuntimeOptions({ fencing: !enabled });
         case "remove miscellaneous limits": return this.runtime.setRuntimeOptions({ miscLimits: !enabled });
         case "disable offscreen rendering": return this.runtime.setRuntimeOptions({ disableOffscreenRendering: enabled });
+        case "disable direction clamping": return this.runtime.setRuntimeOptions({ disableDirectionClamping: enabled });
         case "interpolation": return vm.setInterpolation(enabled);
         case "warp timer": return this.runtime.setCompilerOptions({ warpTimer: enabled });
         }
@@ -1144,6 +1146,7 @@ class JgRuntimeBlocks {
         case "offscreen sprites": return !this.runtime.runtimeOptions.fencing;
         case "remove miscellaneous limits": return !this.runtime.runtimeOptions.miscLimits;
         case "disable offscreen rendering": return this.runtime.runtimeOptions.disableOffscreenRendering;
+        case "disable direction clamping": return this.runtime.runtimeOptions.disableDirectionClamping;
         case "interpolation": return this.runtime.interpolationEnabled;
         case "warp timer": return this.runtime.compilerOptions.warpTimer;
         default: return false;

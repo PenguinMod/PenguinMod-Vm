@@ -1,6 +1,5 @@
 const ArgumentType = require("../../extension-support/argument-type");
 const BlockType = require("../../extension-support/block-type");
-const DOMPurify = require("dompurify");
 const Cast = require("../../util/cast");
 const Color = require("../../util/color");
 
@@ -27,6 +26,7 @@ const delay = (ms) => {
 class sharkpoolPrinting {
     constructor(runtime) {
         this.runtime = runtime;
+        this.DOMPurify = runtime.renderer.exports.SVGRenderer.DOMPurify;
 
         // Text Tools
         this.letterInfo = {
@@ -441,7 +441,7 @@ class sharkpoolPrinting {
                 break;
             }
             case 'html': {
-                element.html = DOMPurify.sanitize(content);
+                element.html = this.DOMPurify.sanitize(content);
                 break;
             }
         }

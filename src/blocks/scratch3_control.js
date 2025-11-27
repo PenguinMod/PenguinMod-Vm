@@ -54,6 +54,8 @@ class Scratch3ControlBlocks {
             control_clear_counter: this.clearCounter,
             control_all_at_once: this.allAtOnce,
             control_backToGreenFlag: this.backToGreenFlag,
+            control_exitLoop: this.exitLoop,
+            control_continueLoop: this.continueLoop,
             control_if_return_else_return: this.if_return_else_return,
             control_javascript_command: this.runJavascript
         };
@@ -339,6 +341,48 @@ class Scratch3ControlBlocks {
         util.thread.peekStackFrame().warpMode = false;
         util.startBranch(1, false);
         util.thread.peekStackFrame().warpMode = true;
+    }
+
+    // used by compiler
+    exitLoop(args, util) {
+        this._editOuterLoop('escape', util, args);
+    }
+    continueLoop(args, util) {
+        this._editOuterLoop('continue', util, args);
+    }
+    _getLoopBlock(thread) {
+        // climp up stack to get outer loop
+        const stackFrames = thread.stackFrames, frameCount = stackFrames.length;
+        let loopBlock = null;
+        for (let i = frameCount - 1; i >= 0; i--) {
+            if (i < 0) break;
+            if (!stackFrames[i].isLoop) continue;
+            loopBlock = stackFrames[i].op.id;
+            break;
+        }
+        return loopBlock;
+    }
+    _editOuterLoop(type, util, optData) {
+        const thread = util.thread;
+        const wasCompiled = thread.isCompiled;
+        thread.isCompiled = false; // Failsafe
+
+        const outerLoop = optData.loopBlock?.id ?? this._getLoopBlock(thread);
+        if (!outerLoop) {
+            throw `All "${type} loop" blocks must be inside of a looping block.`;
+            return;
+        }
+
+        const afterLoop = thread.blockContainer.getBlock(outerLoop).next;
+        if (type === 'escape') {
+            while(thread.stack.at(-1) !== outerLoop) thread.popStack();
+            thread.popStack();
+            if (afterLoop) thread.pushStack(afterLoop);
+        } else {
+            while (thread.stack[0] && thread.stack.at(-1) !== outerLoop) thread.popStack();
+            thread.status = thread.constructor.STATUS_YIELD;
+        }
+        thread.isCompiled = wasCompiled;
     }
 }
 

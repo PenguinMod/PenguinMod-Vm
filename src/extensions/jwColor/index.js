@@ -147,6 +147,14 @@ class ColorType {
     toHex() {
         return this.toDecimal().toString(16).padStart(6, "0")
     }
+
+    toJSON() {
+        return {
+            hue: this.h,
+            saturation: this.s,
+            value: this.v
+        }
+    }
 }
 
 const Color = {
@@ -409,7 +417,7 @@ class Extension {
             case "HSV":
                 let hueDifference = Math.abs(A.h - B.h)
                 if (hueDifference > 180) {
-                    return new Color.Type(A.h * (1-I) - (360 - hueDifference) * I, A.s * (1-I) + B.s * I, A.v * (1-I) + B.v * I)
+                    return new Color.Type(A.h * (1-I) - (360 - B.h) * I, A.s * (1-I) + B.s * I, A.v * (1-I) + B.v * I)
                 } else {
                     return new Color.Type(A.h * (1-I) + B.h * I, A.s * (1-I) + B.s * I, A.v * (1-I) + B.v * I)
                 }

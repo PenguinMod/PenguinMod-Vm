@@ -1,6 +1,8 @@
 name: Remote Dispatch Action Initiator
 #test
-on: [push]
+on:
+  push:
+    branches: ["develop"]
 
 jobs:
   ping-pong:

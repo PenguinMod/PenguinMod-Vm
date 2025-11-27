@@ -139,6 +139,7 @@ class jwProto {
                         description: 'Placeholder for a value.'
                     }),
                     disableMonitor: true,
+                    allowDropAnywhere: true,
                     blockType: BlockType.REPORTER
                 },
                 {

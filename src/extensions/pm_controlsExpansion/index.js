@@ -15,8 +15,6 @@ const blocks = `
         </shadow>
     </value>
 </block>
-%block0>
-%block1>
 <block type="control_inline_stack_output">
     <value name="SUBSTACK">
         <block type="procedures_return">
@@ -46,6 +44,19 @@ ${blockSeparator}
     </value>
 </block>
 <block type="control_clear_counter"/>
+${blockSeparator}
+<block type="control_if">
+    <value name="CONDITION">
+        <shadow type="checkbox" />
+    </value>
+</block>
+<block type="control_if_else">
+    <value name="CONDITION">
+        <shadow type="checkbox" />
+    </value>
+</block>
+%block0>
+%block1>
 `;
 
 /**
@@ -167,6 +178,7 @@ class pmControlsExpansion {
                         DATA: {
                             type: ArgumentType.STRING,
                             defaultValue: "abc",
+                            exemptFromNormalization: true
                         },
                         ICON: {
                             type: ArgumentType.IMAGE,
@@ -178,6 +190,7 @@ class pmControlsExpansion {
                     opcode: 'asNewBroadcastArgBlock',
                     text: 'thread data',
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     disableMonitor: true
                 },
             ]
@@ -274,7 +287,7 @@ class pmControlsExpansion {
         }
     }
     asNewBroadcastArgs(args, util) {
-        const data = Cast.toString(args.DATA);
+        const data = args.DATA;
         if (util.thread.target.blocks.getBranch(util.thread.peekStack(), 0)) {
             const thread = util.sequencer.runtime._pushThread(
                 util.thread.target.blocks.getBranch(util.thread.peekStack(), 0),

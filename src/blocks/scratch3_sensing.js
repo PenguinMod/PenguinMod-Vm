@@ -211,11 +211,12 @@ class Scratch3SensingBlocks {
         return (/[A-Z]/g).test(args.text);
     }
 
-    getDirectionToFrom (args) {
+    getDirectionToFrom (args, util) {
         const dx = args.x2 - args.x1;
         const dy = args.y2 - args.y1;
-        const direction = MathUtil.wrapClamp(90 - MathUtil.radToDeg(Math.atan2(dy, dx)), -179, 180);
-        return direction;
+        return util.runtime.runtimeOptions.disableDirectionClamping ?
+            90 - MathUtil.radToDeg(Math.atan2(dy, dx)) :
+            MathUtil.wrapClamp(90 - MathUtil.radToDeg(Math.atan2(dy, dx)), -179, 180);
     }
 
     getDistanceToFrom (args) {

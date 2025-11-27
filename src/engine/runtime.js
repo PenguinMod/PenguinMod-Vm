@@ -505,7 +505,8 @@ class Runtime extends EventEmitter {
             miscLimits: true,
             fencing: true,
             dangerousOptimizations: false,
-            disableOffscreenRendering: false
+            disableOffscreenRendering: false,
+            disableDirectionClamping: false
         };
 
         this.compilerOptions = {
@@ -1165,6 +1166,30 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for sprite renaming.
+     * @const {string}
+     */
+    static get SPRITE_RENAMED () {
+        return 'SPRITE_RENAMED'
+    }
+
+    /**
+     * Event name for costume renaming.
+     * @const {string}
+     */
+    static get COSTUME_RENAMED () {
+        return 'COSTUME_RENAMED'
+    }
+
+    /**
+     * Event name for sound renaming.
+     * @const {string}
+     */
+    static get SOUND_RENAMED () {
+        return 'SOUND_RENAMED'
+    }
+
+    /**
      * How rapidly we try to step threads by default, in ms.
      */
     static get THREAD_STEP_INTERVAL () {
@@ -1402,7 +1427,7 @@ class Runtime extends EventEmitter {
         const extIdx = this._blockInfo.findIndex(ext => ext.id === extensionId);
         const info = this._blockInfo[extIdx];
         this._blockInfo.splice(extIdx, 1);
-        this.emit(Runtime.EXTENSION_REMOVED);
+        this.emit(Runtime.EXTENSION_REMOVED, extensionId);
         // cleanup blocks
         for (const target of this.targets) {
             for (const blockId in target.blocks._blocks) {
@@ -1820,6 +1845,19 @@ class Runtime extends EventEmitter {
             blockJSON.output = blockInfo.forceOutputType;
         }
 
+        const mutationHandler = blockInfo.mutations;
+        if (
+            typeof mutationHandler === 'object' &&
+            typeof mutationHandler.serialize === 'function' &&
+            typeof mutationHandler.deserialize === 'function'
+        ) {
+            blockJSON.mutations = {
+                serialize: mutationHandler.serialize,
+                deserialize: mutationHandler.deserialize,
+                init: typeof mutationHandler.init === 'function' ? mutationHandler.init : undefined
+            };
+        }
+
         const mutation = blockInfo.isDynamic
             ? `<mutation blockInfo="${xmlEscape.escapeAttribute(JSON.stringify(blockInfo))}"/>`
             : '';
@@ -2079,6 +2117,10 @@ class Runtime extends EventEmitter {
             if (shadowType === 'polygon') {
                 // eslint-disable-next-line max-len
                 context.inputList.push(`<mutation expanded="false" points="${argInfo.nodes}" color="${context.blockJSON.colour}" midle="[0,0]" scale="${argInfo.defaultSize || 30}"/>`);
+            }
+
+            if (shadowType === 'matrix') {
+                context.inputList.push(`<mutation width="${argInfo.matrixWidth || 5}" height="${argInfo.matrixHeight || 5}"/>`)
             }
 
             // A <field> displays a dynamic value: a user-editable text field, a drop-down menu, etc.
@@ -3751,14 +3793,14 @@ class Runtime extends EventEmitter {
                         const item = variable.value[idx];
                         if (item.customType) {
                             const {deserialize} = this.serializers[item.typeId];
-                            variable.value[idx] = deserialize(item.serialized, target);
+                            variable.value[idx] = deserialize(item.serialized, target, variable);
                         }
                     }
                 }
                 if (variable.value?.customType) {
                     const customData = variable.value;
                     const {deserialize} = this.serializers[customData.typeId];
-                    variable.value = deserialize(customData.serialized, target);
+                    variable.value = deserialize(customData.serialized, target, variable);
                 }
             }
         }

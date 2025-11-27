@@ -7,6 +7,9 @@ const Cast = require("../../util/cast");
 let isScratchBlocksReady = typeof ScratchBlocks === "object";
 const codeEditorHandlers = new Map();
 
+// we cant have nice things
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 async function runCode(x) {
   return await Object.getPrototypeOf(async function() {}).constructor(x)();
 }
@@ -19,8 +22,6 @@ function initBlockTools() {
     }
   });
 
-  // we cant have nice things
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   const recyclableDiv = document.createElement("div");
   recyclableDiv.setAttribute("style", `display: flex; justify-content: center; padding-top: 10px; width: 250px; height: 200px;`);
 
@@ -33,11 +34,13 @@ function initBlockTools() {
     recyclableDiv,
     (field) => {
       /* on init */
-      const input = field.inputSource.firstChild;
+      const inputObject = field.inputSource;
+      const input = inputObject.firstChild;
       const srcBlock = field.sourceBlock_;
-      const dragCheck = srcBlock.svgGroup_.classList.contains("blocklyDragging") ? "none" : "all";
+      const parent = srcBlock.parentBlock_;
+      const dragCheck = parent.isInFlyout || srcBlock.svgGroup_.classList.contains("blocklyDragging") ? "none" : "all";
 
-      field.inputSource.setAttribute("pointer-events", "none");
+      inputObject.setAttribute("pointer-events", "none");
       input.style.height = "210px";
       const iframe = document.createElement("iframe");
       iframe.setAttribute("style", `pointer-events: ${dragCheck}; background: #272822; border-radius: 10px; border: none; ${isSafari ? "" : "width: 100%;"} height: calc(100% - 20px);`);
@@ -90,14 +93,63 @@ function initBlockTools() {
       // listen for code updates
       codeEditorHandlers.set(srcBlock.id, (value) => field.setValue(value));
 
+      const resizeHandle = document.createElement("div");
+      resizeHandle.setAttribute("style", `pointer-events: ${dragCheck}; position: absolute; right: 5px; bottom: 15px; width: 12px; height: 12px; background: #ffffff40; cursor: se-resize; border-radius: 0px 0 50px 0;`);
+      input.appendChild(resizeHandle);
+
+      let isResizing = false;
+      let startX, startY, startW, startH;
+      resizeHandle.addEventListener("mousedown", (e) => {
+        if (parent.isInFlyout) return;
+        e.preventDefault();
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = input.offsetWidth;
+        startH = input.offsetHeight;
+        ScratchBlocks.mainWorkspace.allowDragging = false;
+        parent.setMovable(false);
+
+        function onMouseMove(ev) {
+          if (!isResizing) return;
+          iframe.style.pointerEvents = "none";
+          const newW = Math.max(150, startW + (ev.clientX - startX));
+          const newH = Math.max(100, startH + (ev.clientY - startY));
+          input.style.width = `${newW}px`;
+          input.style.height = `${newH}px`;
+          resizeHandle.style.left = `${newW - 20}px`;
+          resizeHandle.style.top = `${newH - 40}px`;
+          inputObject.setAttribute("width", newW);
+          inputObject.setAttribute("height", newH);
+          field.size_.width = newW;
+          field.size_.height = newH - 10;
+          if (srcBlock?.render) srcBlock.render();
+        }
+
+        function onMouseUp() {
+          isResizing = false;
+          ScratchBlocks.mainWorkspace.allowDragging = true;
+          parent.setMovable(true);
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+
       // monkey patch this function since MutationObservers will lag
       // this patch allows dragging blocks to not act weird with mouse touching
-      const parent = srcBlock.parentBlock_;
-      const ogSetAtt = parent.svgGroup_.setAttribute
+      const ogSetAtt = parent.svgGroup_.setAttribute;
       parent.svgGroup_.setAttribute = (...args) => {
         if (args[0] === "class") {
-          if (args[1].includes("blocklyDragging")) iframe.style.pointerEvents = "none";
-          else iframe.style.pointerEvents = "all";
+          if (parent.isInFlyout || args[1].includes("blocklyDragging")) {
+            iframe.style.pointerEvents = "none";
+            resizeHandle.style.pointerEvents = "none";
+          } else {
+            iframe.style.pointerEvents = "all";
+            resizeHandle.style.pointerEvents = "all";
+          }
         }
         ogSetAtt.call(parent.svgGroup_, ...args);
       }
@@ -171,7 +223,7 @@ class SPjavascriptV2 {
           opcode: "jsCommand",
           text: "run [CODE]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: isScratchBlocksReady,
+          hideFromPalette: isScratchBlocksReady && !isSafari,
           arguments: {
             CODE: { type: ArgumentType.STRING, defaultValue: `alert("Hello!")` }
           }
@@ -182,7 +234,7 @@ class SPjavascriptV2 {
           blockType: BlockType.REPORTER,
           disableMonitor: true,
           allowDropAnywhere: true,
-          hideFromPalette: isScratchBlocksReady,
+          hideFromPalette: isScratchBlocksReady && !isSafari,
           arguments: {
             CODE: {
               type: ArgumentType.STRING,
@@ -195,7 +247,7 @@ class SPjavascriptV2 {
           text: "run [CODE]",
           blockType: BlockType.BOOLEAN,
           disableMonitor: true,
-          hideFromPalette: isScratchBlocksReady,
+          hideFromPalette: isScratchBlocksReady && !isSafari,
           arguments: {
             CODE: {
               type: ArgumentType.STRING,
@@ -208,7 +260,7 @@ class SPjavascriptV2 {
           opcode: "jsCommandBinded",
           text: "run [CODE] with data [ARGS]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: !isScratchBlocksReady,
+          hideFromPalette: isSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -224,7 +276,7 @@ class SPjavascriptV2 {
           blockType: BlockType.REPORTER,
           disableMonitor: true,
           allowDropAnywhere: true,
-          hideFromPalette: !isScratchBlocksReady,
+          hideFromPalette: isSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -239,7 +291,7 @@ class SPjavascriptV2 {
           text: "run [CODE] with data [ARGS]",
           blockType: BlockType.BOOLEAN,
           disableMonitor: true,
-          hideFromPalette: !isScratchBlocksReady,
+          hideFromPalette: isSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -254,7 +306,7 @@ class SPjavascriptV2 {
           opcode: "defineGlobalFunc",
           text: "create global function named [NAME] with code [CODE]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: !isScratchBlocksReady && !this.isEditorUnsandboxed,
+          hideFromPalette: (isSafari || !isScratchBlocksReady) && !this.isEditorUnsandboxed,
           arguments: {
             NAME: {
               type: ArgumentType.STRING, defaultValue: "myFunction"
@@ -266,7 +318,7 @@ class SPjavascriptV2 {
           opcode: "defineScratchCode",
           text: "create local function named [NAME] with code [CODE]",
           blockType: BlockType.CONDITIONAL,
-          hideFromPalette: !this.isEditorUnsandboxed,
+          hideFromPalette: true,
           arguments: {
             NAME: { type: ArgumentType.STRING },
             CODE: { fillIn: "argumentReport" }
@@ -274,6 +326,7 @@ class SPjavascriptV2 {
         },
         {
           blockType: BlockType.XML,
+          hideFromPalette: !this.isEditorUnsandboxed,
           xml: `
             <block type="SPjavascriptV2_defineScratchCode">
               <value name="NAME"><shadow type="text"><field name="TEXT">myFunction</field></shadow></value>
@@ -413,8 +466,9 @@ class SPjavascriptV2 {
       return result;
     }
     // we are sandboxed
+    const codeRunner = `Object.getPrototypeOf(async function() {}).constructor(\`${(binders + code).replaceAll("`", "\\`")}\`)()`;
     return new Promise((resolve) => {
-      SandboxRunner.execute(binders + code).then(result => {
+      SandboxRunner.execute(codeRunner).then(result => {
         // result is { value: any, success: boolean }
         // in PM, we always ignore errors
         return resolve(result.value);

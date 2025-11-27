@@ -48,16 +48,17 @@ class StringUtil {
      * This is only needed when stringifying an object for saving.
      *
      * @param {!object} obj - The object to serialize
+     * @param {boolean?} beautiful If the output should be beautiful
      * @return {!string} The JSON.stringified string with Infinity/NaN replaced with 0
      */
-    static stringify (obj) {
+    static stringify (obj, beautiful) {
         return JSON.stringify(obj, (_key, value) => {
             if (typeof value === 'number' &&
                (value === Infinity || value === -Infinity || isNaN(value))){
                 return 0;
             }
             return value;
-        });
+        }, beautiful ? 4 : 0);
     }
     /**
      * A function to replace unsafe characters (not allowed in XML) with safe ones. This is used

@@ -138,6 +138,9 @@ class Scratch3TextBlocks {
             name: 'Animated Text',
             blockIconURI: blockIconURI,
             menuIconURI: menuIconURI,
+            color1: '#9966ff',
+            color2: '#8a5ce6',
+            color3: '#7a52cc',
             blocks: [{
                 opcode: 'setText',
                 text: formatMessage({
@@ -589,6 +592,7 @@ class Scratch3TextBlocks {
 
         textState.animating = false;
         const costume = target.getCostumes()[target.currentCostume];
+        if (!costume) return;
         this.runtime.renderer.updateDrawableSkinId(target.drawableID, costume.skinId); // Yield until the next tick.
     }
     stopAll () {

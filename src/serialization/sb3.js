@@ -131,6 +131,22 @@ const uniteReplacments = {
 const ExtensionPatches = {
     "griffpatch": {id: 'griffpatch', url: 'https://extensions.turbowarp.org/box2d.js'},
     // "cloudlink": {id: 'cloudlink', url: 'https://extensions.turbowarp.org/cloudlink.js'},
+    // maybe this patch should be moved outside of something called **Extension**Patches but i dont know
+    "operators": (_, object) => { // fix expandable join using the wrong prefix
+        let blocks = object.blocks;
+        const blockIDs = Object.keys(blocks);
+
+        for (let block, idx = 0; idx < blockIDs.length; idx++) {
+            block = blocks[blockIDs[idx]];
+            if (typeof block !== 'object' || Array.isArray(block)) continue;
+            
+            if (block.opcode === "operators_expandablejoininputs") {
+                block.opcode = "operator_expandablejoininputs";
+            }
+            blocks[blockIDs[idx]] = block;
+        }
+        object.blocks = blocks;
+    },
     "jwUnite": (extensions, object, runtime) => {
         extensions.extensionIDs.delete("jwUnite");
         let blocks = object.blocks;
@@ -609,8 +625,12 @@ const makeSafeForJSON = (runtime, value) => {
         let copy = null;
         for (let i = 0; i < value.length; i++) {
             if (value[i].customId) {
-                const {serialize} = runtime.serializers[value[i].customId];
-                value[i] = serialize(value[i]);
+                if (!copy) {
+                    // Only copy the list when needed
+                    copy = value.slice();
+                }
+                const {serialize} = runtime.serializers[copy[i].customId];
+                copy[i] = serialize(copy[i]);
             }
             if (!isVariableValueSafeForJSON(value[i])) {
                 if (!copy) {
@@ -1339,9 +1359,10 @@ const convertProcedureCompat = function (blockJSON, blocks) {
  * @param {JSZip} zip Sb3 file describing this project (to load assets from)
  * @param {object} assets - Promises for assets of this scratch object grouped
  *   into costumes and sounds
+ * @param {boolean} fromSingleSprite - If true import certain data and merge to existing runtime.
  * @return {!Promise.<Target>} Promise for the target created (stage or sprite), or null for unsupported objects.
  */
-const parseScratchObject = function (object, runtime, extensions, zip, assets) {
+const parseScratchObject = function (object, runtime, extensions, zip, assets, fromSingleSprite) {
     if (!object.hasOwnProperty('name')) {
         // Watcher/monitor - skip this object until those are implemented in VM.
         // @todo
@@ -1377,6 +1398,21 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
         for (const blockId in object.blocks) {
             if (!object.blocks.hasOwnProperty(blockId)) continue;
             const blockJSON = object.blocks[blockId];
+
+            // special imports
+            if (fromSingleSprite && runtime._stageTarget) {
+                const stage = runtime._stageTarget;
+
+                if (blockJSON.opcode === 'event_broadcast_menu') {
+                    // add missing broadcasts
+                    const msgInfo = blockJSON.fields.BROADCAST_OPTION;
+                    if (!stage.lookupBroadcastMsg('', msgInfo.value)) {
+                        stage.createVariable(msgInfo.id, msgInfo.value, 'broadcast_msg', false);
+                    } 
+                }
+            }
+
+            // flag for conversion
             if (runtime.origin === 'TurboWarp') {
                 if (blockJSON.opcode === 'procedures_call' || blockJSON.opcode === 'procedures_return') {
                     _converterCache.push(blockJSON);
@@ -1755,9 +1791,11 @@ const deserialize = function (json, runtime, zip, isSingleSprite) {
         // Force this promise to wait for the next loop in the js tick. Let
         // storage have some time to send off asset requests.
         .then(assets => Promise.resolve(assets))
-        .then(assets => Promise.all(targetObjects
-            .map((target, index) =>
-                parseScratchObject(target, runtime, extensions, zip, assets[index]))))
+        .then(assets => Promise.all(targetObjects.map((target, index) =>
+            parseScratchObject(
+                target, runtime, extensions, zip, assets[index], isSingleSprite
+            ))
+        ))
         .then(targets => targets // Re-sort targets back into original sprite-pane ordering
             .map((t, i) => {
                 // Add layer order property to deserialized targets.

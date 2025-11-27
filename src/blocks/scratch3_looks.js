@@ -133,7 +133,7 @@ class Scratch3LooksBlocks {
     _resetBubbles (target) {
         const state = this._getBubbleState(target);
         this.SAY_BUBBLE_LIMIT = this.SAY_BUBBLE_LIMITdefault;
-        state.props = this.defaultBubble;
+        state.props = structuredClone(this.defaultBubble);
     }
 
     /**
@@ -144,7 +144,7 @@ class Scratch3LooksBlocks {
      */
     _setBubbleProperty (target, props, value) {
         const object = this._getBubbleState(target);
-        if (!object.props) object.props = this.defaultBubble;
+        if (!object.props) object.props = structuredClone(this.defaultBubble);
         props.forEach((prop, index) => {
             if (prop.startsWith('COLORS')) {
                 object.props.COLORS[prop.split('.')[1]] = value[index];
@@ -439,14 +439,16 @@ class Scratch3LooksBlocks {
     }
 
     stretchSet (args, util) {
-        util.target.setStretch(args.X, args.Y);
+        util.target.setStretch(
+            Cast.toNumber(args.X), Cast.toNumber(args.Y)
+        );
     }
 
     changeStretch(args, util) {
         let [x, y] = util.target._getRenderedDirectionAndScale().stretch;
-        let new_x = x + Cast.toNumber(args.X)
-        let new_y = y + Cast.toNumber(args.Y)
-        util.target.setStretch(new_x, new_y)
+        let new_x = x + Cast.toNumber(args.X);
+        let new_y = y + Cast.toNumber(args.Y);
+        util.target.setStretch(new_x, new_y);
     }
 
     setFont (args, util) {

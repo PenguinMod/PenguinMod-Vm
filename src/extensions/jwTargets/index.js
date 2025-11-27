@@ -14,6 +14,16 @@ function span(text) {
     return el
 }
 
+const escapeHTML = unsafe => {
+    return unsafe
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;")
+};
+
+
 class jwTargetType {
     customId = "jwTargets"
 
@@ -31,7 +41,7 @@ class jwTargetType {
 
     jwArrayHandler() {
         try {
-            return `Target<${this.target.sprite.name}>`
+            return escapeHTML(`Target<${this.target.sprite.name}>`)
         } catch {
             return `Target`
         }
@@ -83,11 +93,13 @@ const Target = {
     Type: jwTargetType,
     Block: {
         blockType: BlockType.REPORTER,
+        blockShape: BlockShape.OCTAGONAL,
         forceOutputType: "Target",
         disableMonitor: true
     },
     Argument: {
-        check: ["Target"]
+        check: ["Target"],
+        shape: BlockShape.OCTAGONAL
     }
 }
 
@@ -99,6 +111,23 @@ let jwArray = {
 
 class Extension {
     constructor() {
+        vm.runtime.on("SPRITE_RENAMED", (change) => {
+          if (!vm.editingTarget) return;
+
+          let hasRefreshReason = false;
+          for (const block of Object.values(vm.editingTarget.blocks._blocks)) {
+            if (block.opcode === 'jwTargets_menu_sprite') {
+              const field = block.fields.sprite;
+              if (field.value === change.old) {
+                field.value = change.new;
+                if (block.parent) hasRefreshReason = true;
+              }
+            }
+          }
+
+          if (hasRefreshReason) vm.runtime.requestBlocksUpdate();
+        });
+
         vm.jwTargets = Target
         vm.runtime.registerSerializer(
             "jwTargets", 
@@ -261,6 +290,14 @@ class Extension {
                     },
                     ...Target.Block
                 },
+                {
+                    opcode: 'deleteClone',
+                    text: 'delete clone [TARGET]',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        TARGET: Target.Argument
+                    }
+                },
                 '---',
                 {
                     opcode: 'all',
@@ -326,7 +363,9 @@ class Extension {
                         "stretch y",
                         "costume #",
                         "costume name",
-                        "visible"
+                        "visible",
+                        "layer",
+                        "volume"
                     ]
                 },
                 targetPropertySet: {
@@ -340,7 +379,9 @@ class Extension {
                         "stretch y",
                         "costume #",
                         "costume name",
-                        "visible"
+                        "visible",
+                        "layer",
+                        "volume"
                     ]
                 },
                 touchingObject: [
@@ -400,6 +441,8 @@ class Extension {
             case "costume #": return TARGET.target.currentCostume + 1
             case "costume name": return TARGET.target.getCurrentCostume().name
             case "visible": return TARGET.target.visible
+            case "layer": return TARGET.target.getLayerOrder()
+            case "volume": return TARGET.target.volume
         }
 
         return ""
@@ -439,6 +482,12 @@ class Extension {
                 break
             case "visible":
                 TARGET.target.setVisible(Cast.toBoolean(VALUE))
+                break
+            case "layer":
+                vm.runtime.ext_scratch3_looks.setSpriteLayer({NUM: VALUE}, {target: TARGET.target})
+                break
+            case "volume":
+                vm.runtime.ext_scratch3_sound._updateVolume(Cast.toNumber(VALUE), TARGET.target)
                 break
         }
     }
@@ -506,6 +555,15 @@ class Extension {
         }
 
         return new Target.Type(clone ? clone.id : "")
+    }
+
+    deleteClone({TARGET}) {
+        TARGET = Target.Type.toTarget(TARGET)
+        if (!TARGET.target) return
+        if (TARGET.target.isOriginal) return
+
+        vm.runtime.stopForTarget(TARGET.target)
+        vm.runtime.disposeTarget(TARGET.target)
     }
 
     all() {

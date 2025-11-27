@@ -3,7 +3,7 @@ const BlockShape = require('../../extension-support/block-shape')
 const ArgumentType = require('../../extension-support/argument-type')
 const Cast = require('../../util/cast')
 
-let arrayLimit = 2 ** 32
+let arrayLimit = 2 ** 32 - 1
 
 // credit to sharpool because i stole the for each code from his extension haha im soo evil
 
@@ -30,7 +30,7 @@ const escapeHTML = unsafe => {
 };
 
 function clampIndex(x) {
-    return Math.min(Math.max(x, 0), arrayLimit)
+    return Math.min(Math.max(Math.floor(x), 0), arrayLimit)
 }
 
 function span(text) {
@@ -43,22 +43,17 @@ function span(text) {
     return el
 }
 
-function waitForThread(thread) {
-    return new Promise((resolve, reject) => {
-        if (thread.status == 4) {
-            resolve()
-            return
-        }
-
-        let handler = t => {
-            if (t === thread) {
-                resolve()
-                vm.runtime.off('THREAD_FINISHED', handler)
-            }
-        }
-
-        vm.runtime.on('THREAD_FINISHED', handler)
-    })
+function isObject(x) {
+    const fnToString = Function.prototype.toString
+    const classRegex = /^class\s/
+    if (typeof x === "function") {
+        return !classRegex.test(fnToString.call(x))
+    }
+    if (x !== null && typeof x === "object") {
+        const ctor = x.constructor
+        return !(typeof ctor === "function" && classRegex.test(fnToString.call(ctor)))
+    }
+    return false
 }
 
 class ArrayType {
@@ -66,17 +61,23 @@ class ArrayType {
 
     array = []
 
-    constructor(array = []) {
-        this.array = array.map(v => {
+    constructor(array = [], safe = false) {
+        this.array = safe ? array : array.map(v => {
             if (v instanceof Array) return new ArrayType([...v])
             return v
         })
     }
 
     static toArray(x) {
-        if (x instanceof ArrayType) return new ArrayType([...x.array])
+        if (x instanceof ArrayType) return new ArrayType([...x.array], true)
         if (x instanceof Array) return new ArrayType([...x])
-        if (x === "" || x === null || x === undefined) return new ArrayType()
+        if (x === "" || x === null || x === undefined) return new ArrayType([], true)
+        if (typeof x == "object" && typeof x.toJSON == "function") {
+            let parsed = x.toJSON()
+            if (parsed instanceof Array) return new ArrayType(parsed)
+            if (isObject(parsed)) return new ArrayType(Object.values(parsed))
+            return new ArrayType([parsed])
+        }
         try {
             let parsed = JSON.parse(x)
             if (parsed instanceof Array) return new ArrayType(parsed)
@@ -86,6 +87,8 @@ class ArrayType {
 
     static forArray(x) {
         if (x instanceof ArrayType) return new ArrayType([...x.array])
+        if (x instanceof Array) return new ArrayType([...x])
+        if (vm.dogeiscutObject && isObject(x)) return new vm.dogeiscutObject.Type({...x})
         return x
     }
 
@@ -115,12 +118,12 @@ class ArrayType {
         return `Array<${formatNumber(this.array.length)}>`
     }
 
-    toString() {
-        return JSON.stringify(this.toJSON())
+    toString(pretty = false) {
+        return JSON.stringify(this.toJSON(), null, pretty ? "\t" : null)
     }
     toJSON() {
         return this.array.map(v => {
-            if (typeof v == "object") {
+            if (typeof v == "object" && v !== null) {
                 if (v.toJSON && typeof v.toJSON == "function") return v.toJSON()
                 if (v.toString && typeof v.toString == "function") return v.toString()
                 return JSON.stringify(v)
@@ -155,7 +158,7 @@ class ArrayType {
         return new ArrayType(this.array.reduce((o, v) => {
             if (v instanceof ArrayType) return [...o, ...v.flat(depth - 1).array]
             return [...o, v]
-        }, []))
+        }, []), true)
     }
 
     get length() {
@@ -169,11 +172,36 @@ const jwArray = {
         blockType: BlockType.REPORTER,
         blockShape: BlockShape.SQUARE,
         forceOutputType: "Array",
+        //allowDropAnywhere: true,
         disableMonitor: true
     },
     Argument: {
         shape: BlockShape.SQUARE,
-        check: ["Array"]
+        exemptFromNormalization: true,
+        check: ["Array"],
+        compilerInfo: {
+            jwArrayUnmodified: true
+        }
+    },
+    compilerModification: function* (func, node) {
+        node = {...node}
+        function* recurse(x) {
+            for (let [i, v] of Object.entries(x)) {
+                if (v instanceof jwArray.Type) {
+                    const array = v.array
+                    let output = []
+                    for (let v of array) {
+                        x[i] = v
+                        output.push(yield* jwArray.compilerModification(func, node))
+                    }
+                    return jwArray.Type.toArray(output)
+                } else if (v instanceof Array) {
+                    return yield* recurse(v)
+                }
+            }
+            return yield* func(node)
+        }
+        return yield* recurse(node)
     }
 }
 
@@ -197,9 +225,84 @@ class Extension {
                     return vm.runtime.serializers[w.typeId].deserialize(w.serialized)
                 }
                 return w
-            }))
+            }), true)
         );
         vm.runtime.registerCompiledExtensionBlocks('jwArray', this.getCompileInfo());
+
+        if (vm.flags && vm.flags.jwArrayCompilerModifications == true) {
+            const goodThing = v => typeof v == "object" && v !== null && !(v instanceof Array) && v.kind && typeof v.kind == "string" && !(v.compilerInfo && v.compilerInfo.jwArrayUnmodified)
+
+            function recurse(v, t, path = []) {
+                if (v instanceof Array) return recurseArray(v, t, path)
+                return recurseObject(v, t, path)
+            }
+            function recurseObject(v, t, path) {
+                const descendInput = (...x) => {
+                    try {
+                        return vm.exports.JSGenerator.prototype.descendInput.call(t, ...x).asUnknown()
+                    } catch (e) {}
+                }
+                
+                const descends = Object.fromEntries(Object.entries(v).filter(x => typeof x[1] === "object" && x[1] !== null).map(x => [x[0], goodThing(x[1]) && descendInput(x[1])]))
+                return [
+                    "{" + Object.entries(v).filter(x => typeof x[1] === "object" && x[1] !== null).map(x => {
+                        let insideValue
+                        if (descends[x[0]]) {
+                            insideValue = descends[x[0]]
+                        } else if (!goodThing(x[1])) {
+                            let out = recurse(x[1], t, [...path, x[0]])
+                            insideValue = out[0]
+                            v[x[0]] = out[1]
+                        }
+                        return `${JSON.stringify(x[0])}: ${insideValue}`
+                    }).join(", ") + "}",
+                    Object.fromEntries(Object.entries(v).map(x => [x[0], descends[x[0]] ? ["node", ...path, x[0]].join(".") : x[1]]))
+                ]
+            }
+            function recurseArray(v, t, path) {
+                const descendInput = (...x) => {
+                    try {
+                        return vm.exports.JSGenerator.prototype.descendInput.call(t, ...x).asUnknown()
+                    } catch (e) {}
+                }
+                const goods = v.filter(x => goodThing(x))
+                const descends = Object.fromEntries(goods.map((x, i) => [i, descendInput(x)]))
+                //im not gonna make this recurse because i cant be bothered and nothing does this yet
+                return [
+                    "[" + goods.map((x, i) => descends[i] ?? "null").join(", ") + "]",
+                    goods.map((x, i) => descends[i] ? ["node", ...path].join(".") + `[${i}]` : x)
+                ]
+            }
+
+            const oldDescendInput = vm.exports.JSGenerator.prototype.descendInput
+            vm.exports.JSGenerator.prototype.descendInput = function(node, visualReport) {
+                const TypedInput = vm.exports.JSGenerator.getExtensionImports().TypedInput
+
+                if (typeof node == 'string' && node.startsWith("node.")) return new TypedInput(node, vm.exports.JSGenerator.getExtensionImports().TYPE_UNKNOWN)
+                if (node.compilerInfo && node.compilerInfo.jwArrayUnmodified === true) return oldDescendInput.call(this, node, visualReport)
+
+                let out = recurse(structuredClone(node), this)
+                let nodeArg = out[0]
+
+                let output = oldDescendInput.call(this, out[1], visualReport)
+                return (output instanceof TypedInput) ? new TypedInput(`(yield* vm.jwArray.compilerModification(function*(node){return ${output.source}}, ${nodeArg}))`, output.type) : output
+            }
+
+            const oldDescendStackedBlock = vm.exports.JSGenerator.prototype.descendStackedBlock
+            vm.exports.JSGenerator.prototype.descendStackedBlock = function(node) {
+                if (node.kind === "visualReport") return oldDescendStackedBlock.call(this, node)
+                if (node.compilerInfo && node.compilerInfo.jwArrayUnmodified === true) return oldDescendStackedBlock.call(this, node)
+
+                const oldSource = this.source
+                this.source = ""
+
+                let out = recurse(structuredClone(node), this)
+                let nodeArg = out[0]
+
+                oldDescendStackedBlock.call(this, out[1])
+                this.source = oldSource + `yield* vm.jwArray.compilerModification(function*(node){${this.source}}, ${nodeArg});\n`
+            }
+        }
     }
 
     getInfo() {
@@ -243,7 +346,10 @@ class Extension {
                         INPUT: {
                             type: ArgumentType.STRING,
                             defaultValue: '["a", "b", "c"]',
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
                     },
                     ...jwArray.Block
@@ -265,10 +371,20 @@ class Extension {
                 "---",
                 {
                     opcode: 'builder',
-                    text: 'array builder',
-                    branches: [{
-                        accepts: 'jwArrayBuilder'
-                    }],
+                    text: 'array builder [SHADOW]',
+                    branches: [{}],
+                    arguments: {
+                        SHADOW: {
+                            fillIn: 'builderCurrent'
+                        }
+                    },
+                    ...jwArray.Block
+                },
+                {
+                    opcode: 'builderCurrent',
+                    text: 'current array',
+                    hideFromPalette: true,
+                    canDragDuplicate: true,
                     ...jwArray.Block
                 },
                 {
@@ -279,10 +395,20 @@ class Extension {
                         VALUE: {
                             type: ArgumentType.STRING,
                             defaultValue: "foo",
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
-                    },
-                    notchAccepts: 'jwArrayBuilder'
+                    }
+                },
+                {
+                    opcode: 'builderSet',
+                    text: 'set builder to [ARRAY]',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        ARRAY: jwArray.Argument
+                    }
                 },
                 "---",
                 {
@@ -299,6 +425,22 @@ class Extension {
                     }
                 },
                 {
+                    opcode: 'items',
+                    text: 'items [X] to [Y] in [ARRAY]',
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 3
+                        }
+                    },
+                    ...jwArray.Block
+                },
+                {
                     opcode: 'index',
                     text: 'index of [VALUE] in [ARRAY]',
                     blockType: BlockType.REPORTER,
@@ -307,7 +449,10 @@ class Extension {
                         VALUE: {
                             type: ArgumentType.STRING,
                             defaultValue: "foo",
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
                     }
                 },
@@ -319,7 +464,10 @@ class Extension {
                         ARRAY: jwArray.Argument,
                         VALUE: {
                             type: ArgumentType.STRING,
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
                     }
                 },
@@ -344,7 +492,10 @@ class Extension {
                         VALUE: {
                             type: ArgumentType.STRING,
                             defaultValue: "foo",
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
                     },
                     ...jwArray.Block
@@ -357,7 +508,10 @@ class Extension {
                         VALUE: {
                             type: ArgumentType.STRING,
                             defaultValue: "foo",
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
                     },
                     ...jwArray.Block
@@ -379,8 +533,20 @@ class Extension {
                         VALUE: {
                             type: ArgumentType.STRING,
                             defaultValue: "foo",
-                            exemptFromNormalization: true
+                            exemptFromNormalization: true,
+                            compilerInfo: {
+                                jwArrayUnmodified: true
+                            }
                         }
+                    },
+                    ...jwArray.Block
+                },
+                "---",
+                {
+                    opcode: 'reverse',
+                    text: 'reverse [ARRAY]',
+                    arguments: {
+                        ARRAY: jwArray.Argument
                     },
                     ...jwArray.Block
                 },
@@ -400,12 +566,15 @@ class Extension {
                     },
                     ...jwArray.Block
                 },
-                "---",
                 {
-                    opcode: 'reverse',
-                    text: 'reverse [ARRAY]',
+                    opcode: 'repeat',
+                    text: 'repeat [ARRAY] [TIMES] times',
                     arguments: {
-                        ARRAY: jwArray.Argument
+                        ARRAY: jwArray.Argument,
+                        TIMES: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 2
+                        }
                     },
                     ...jwArray.Block
                 },
@@ -420,6 +589,39 @@ class Extension {
                         }
                     },
                     ...jwArray.Block
+                },
+                "---",
+                {
+                    opcode: 'toString',
+                    text: 'stringify [ARRAY] [FORMAT]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        FORMAT: {
+                            menu: "stringifyFormat",
+                            defaultValue: "compact"
+                        }
+                    }
+                },
+                {
+                    opcode: 'join',
+                    text: 'join [ARRAY] with [DIVIDER]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        DIVIDER: {
+                            type: ArgumentType.STRING,
+                            defaultValue: ""
+                        }
+                    }
+                },
+                {
+                    opcode: 'sum',
+                    text: 'sum of [ARRAY]',
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ARRAY: jwArray.Argument
+                    }
                 },
                 "---",
                 {
@@ -451,18 +653,37 @@ class Extension {
                         }
                     }
                 },
-                /*{
-                    opcode: 'forEachBreak',
-                    text: 'break',
-                    blockType: BlockType.COMMAND,
-                    isTerminal: true
-                }*/
+                {
+                    opcode: 'basicSort',
+                    text: 'sort [ARRAY] [I] [V] > [VALUE]',
+                    arguments: {
+                        ARRAY: jwArray.Argument,
+                        I: {
+                            fillIn: 'forEachI'
+                        },
+                        V: {
+                            fillIn: 'forEachV'
+                        },
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
+                        }
+                    },
+                    ...jwArray.Block
+                }
             ],
             menus: {
                 list: {
                     acceptReporters: false,
                     items: "getLists",
                 },
+                stringifyFormat: {
+                    acceptReporters: false,
+                    items: [
+                        "compact",
+                        "pretty"
+                    ]
+                }
             }
         };
     }
@@ -470,18 +691,80 @@ class Extension {
     getCompileInfo() {
         return {
             ir: {
-                builder: (generator, block) => ({
-                    kind: 'input',
-                    substack: generator.descendSubstack(block, 'SUBSTACK')
-                }),
+                builder: (generator, block) => {
+                    generator.script.yields = true
+                    return {
+                        kind: 'input',
+                        substack: generator.descendSubstack(block, 'SUBSTACK')
+                    }
+                },
+                forEach: (generator, block) => {
+                    generator.script.yields = true
+                    return {
+                        kind: 'stack',
+                        substack: generator.descendSubstack(block, 'SUBSTACK'),
+                        array: generator.descendInputOfBlock(block, 'ARRAY'),
+                    }
+                },
+                basicSort: (generator, block) => {
+                    generator.script.yields = true
+                    return {
+                        kind: 'input',
+                        array: generator.descendInputOfBlock(block, 'ARRAY'),
+                        value: generator.descendInputOfBlock(block, 'VALUE'),
+                    }
+                }
             },
             js: {
                 builder: (node, compiler, imports) => {
                     const originalSource = compiler.source;
-                    compiler.source = '(yield* (function*() {';
-                    compiler.source += `runtime.ext_jwArray.builderIndex.push([]);`
+                    compiler.source = 'vm.jwArray.Type.toArray(yield* (function*() {';
+                    compiler.source += `thread._jwArrayBuilderIndex ??= [];`
+                    compiler.source += `thread._jwArrayBuilderIndex.push([]);`
                     compiler.descendStack(node.substack, new imports.Frame(false, undefined, true));
-                    compiler.source += `return new runtime.vm.jwArray.Type(runtime.ext_jwArray.builderIndex.pop());`
+                    compiler.source += `return thread._jwArrayBuilderIndex.pop();`
+                    compiler.source += '})())';
+                    // save edited
+                    const stackSource = compiler.source;
+                    compiler.source = originalSource;
+                    return new imports.TypedInput(stackSource, imports.TYPE_UNKNOWN);
+                },
+                forEach: (node, compiler, imports) => {
+                    compiler.source += `thread._jwArrayForEach ??= [];\n`
+                    const forIndex = compiler.localVariables.next();
+                    compiler.source += `let ${forIndex} = thread._jwArrayForEach.push([]) - 1;\n`
+                    const index = compiler.localVariables.next();
+                    const array = compiler.localVariables.next();
+                    compiler.source += `let ${array} = vm.jwArray.Type.toArray(${compiler.descendInput(node.array).asUnknown()}).array;\n`
+                    const output = compiler.localVariables.next();
+                    compiler.source += `let ${output} = yield* (function* () {for (let ${index} in ${array}) {\n`
+                    compiler.source += `thread._jwArrayForEach[${forIndex}] = [Number(${index}) + 1, ${array}[${index}]];\n`
+                    compiler.descendStack(node.substack, new imports.Frame(true, undefined, true));
+                    compiler.yieldLoop()
+                    compiler.source += '}})();\n'
+                    compiler.source += `thread._jwArrayForEach.pop();\n`
+                    compiler.source += `if (${output} !== undefined) {\n`
+                    compiler.source += `return ${output};\n`
+                    compiler.source += `};\n`
+                },
+                basicSort: (node, compiler, imports) => {
+                    const originalSource = compiler.source;
+                    compiler.source = '(yield* (function*() {';
+                    compiler.source += `thread._jwArrayForEach ??= [];\n`
+                    const forIndex = compiler.localVariables.next();
+                    compiler.source += `let ${forIndex} = thread._jwArrayForEach.push([]) - 1;\n`
+                    const og = compiler.localVariables.next();
+                    const out = compiler.localVariables.next();
+                    compiler.source += `let ${og} = vm.jwArray.Type.toArray(${compiler.descendInput(node.array).asUnknown()}).array;\n`
+                    compiler.source += `let ${out} = [];\n`
+                    const i = compiler.localVariables.next();
+                    compiler.source += `for (let ${i} = 0; ${i} < ${og}.length; ${i}++) {\n`
+                    compiler.source += `thread._jwArrayForEach[${forIndex}] = [${i} + 1, ${og}[${i}]];\n`
+                    compiler.source += `${out}.push([${i}, ${compiler.descendInput(node.value).asNumber()}]);\n`
+                    compiler.source += `};\n`
+                    compiler.source += `thread._jwArrayForEach.pop();\n`
+                    compiler.source += `${out}.sort((a, b) => a[1] - b[1]);\n`
+                    compiler.source += `return new vm.jwArray.Type(${out}.map(v => ${og}[v[0]]));\n`
                     compiler.source += '})())';
                     // save edited
                     const stackSource = compiler.source;
@@ -503,13 +786,13 @@ class Extension {
     }
 
     blank() {
-        return new jwArray.Type()
+        return new jwArray.Type([], true)
     }
 
     blankLength({LENGTH}) {
         LENGTH = clampIndex(Cast.toNumber(LENGTH))
 
-        return new jwArray.Type(Array(LENGTH).fill(undefined))
+        return new jwArray.Type(Array(LENGTH).fill(null), true)
     }
 
     fromList({LIST}) {
@@ -524,37 +807,49 @@ class Extension {
         STRING = Cast.toString(STRING)
         DIVIDER = Cast.toString(DIVIDER)
 
-        return new jwArray.Type(STRING.split(DIVIDER))
+        return new jwArray.Type(STRING.split(DIVIDER), true)
     }
-
-    builderIndex = []
 
     builder() {
         return 'noop'
     }
 
+    builderCurrent({}, util) {
+        let bi = util.thread._jwArrayBuilderIndex ?? []
+        return bi[bi.length-1] ? new jwArray.Type(bi[bi.length-1]) : new jwArray.Type([], true)
+    }
+
     builderAppend({VALUE}, util) {
-        if (this.builderIndex.length > 0) {
-            this.builderIndex[this.builderIndex.length-1].push(VALUE)
+        let bi = util.thread._jwArrayBuilderIndex ?? []
+        if (bi[bi.length-1]) {
+            bi[bi.length-1].push(VALUE)
+        }
+    }
+
+    builderSet({ARRAY}, util) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        let bi = util.thread._jwArrayBuilderIndex ?? []
+        if (bi[bi.length-1]) {
+            bi[bi.length-1] = [...ARRAY.array]
         }
     }
 
     get({ARRAY, INDEX}) {
         ARRAY = jwArray.Type.toArray(ARRAY)
 
-        return ARRAY.array[Cast.toNumber(INDEX)-1] || ""
+        return jwArray.Type.forArray(ARRAY.array[Cast.toNumber(INDEX)-1] === undefined ? "" : ARRAY.array[Cast.toNumber(INDEX)-1])
     }
 
     index({ARRAY, VALUE}) {
         ARRAY = jwArray.Type.toArray(ARRAY)
 
-        return ARRAY.array.indexOf(VALUE) + 1
+        return ARRAY.array.map(v => Cast.toString(v)).indexOf(Cast.toString(VALUE)) + 1
     }
 
     has({ARRAY, VALUE}) {
         ARRAY = jwArray.Type.toArray(ARRAY)
 
-        return ARRAY.array.includes(VALUE)
+        return ARRAY.array.map(v => Cast.toString(v)).includes(Cast.toString(VALUE))
     }
 
     length({ARRAY}) {
@@ -568,6 +863,7 @@ class Extension {
         INDEX = Cast.toNumber(INDEX)
 
         ARRAY.array[clampIndex(Cast.toNumber(INDEX)-1)] = jwArray.Type.forArray(VALUE)
+        ARRAY.array = [...ARRAY.array] // no sparse arrays
         return ARRAY
     }
 
@@ -582,7 +878,7 @@ class Extension {
         ONE = jwArray.Type.toArray(ONE)
         TWO = jwArray.Type.toArray(TWO)
 
-        return new jwArray.Type(ONE.array.concat(TWO.array))
+        return new jwArray.Type(ONE.array.concat(TWO.array), true)
     }
 
     fill({ARRAY, VALUE}) {
@@ -592,6 +888,14 @@ class Extension {
         return ARRAY
     }
 
+    items({ARRAY, X, Y}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        X = clampIndex(Cast.toNumber(X))
+        Y = clampIndex(Cast.toNumber(Y))
+
+        return new jwArray.Type(ARRAY.array.slice(X - 1, Y), true)
+    }
+
     splice({ARRAY, INDEX, ITEMS}) {
         ARRAY = jwArray.Type.toArray(ARRAY)
         INDEX = Cast.toNumber(INDEX)
@@ -599,6 +903,14 @@ class Extension {
 
         ARRAY.array.splice(INDEX - 1, ITEMS)
         return ARRAY
+    }
+
+    repeat({ARRAY, TIMES}) {
+        TIMES = clampIndex(Cast.toNumber(TIMES))
+        if (TIMES === 0) return new jwArray.Type([], true)
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        if (TIMES === 1 || ARRAY.array.length == 0) return ARRAY
+        return new jwArray.Type(Array(TIMES).fill(ARRAY.array).flat(), true)
     }
 
     reverse({ARRAY}) {
@@ -615,33 +927,35 @@ class Extension {
         return ARRAY.flat(DEPTH)
     }
 
+    toString({ARRAY, FORMAT}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        
+        return ARRAY.toString(FORMAT === "pretty")
+    }
+
+    join({ARRAY, DIVIDER}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+        DIVIDER = Cast.toString(DIVIDER)
+
+        return ARRAY.array.map(v => Cast.toString(v)).join(DIVIDER)
+    }
+
+    sum({ARRAY}) {
+        ARRAY = jwArray.Type.toArray(ARRAY)
+
+        return ARRAY.array.reduce((o, v) => o + Cast.toNumber(v), 0)
+    }
+
     forEachI({}, util) {
-        let arr = util.thread.stackFrames[0].jwArray
-        return arr ? Cast.toNumber(arr[0]) + 1 : 0
+        return util.thread._jwArrayForEach ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][0] : 0
     }
 
     forEachV({}, util) {
-        let arr = util.thread.stackFrames[0].jwArray
-        return arr ? arr[1] : ""
+        return util.thread._jwArrayForEach ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][1] : ""
     }
 
     forEach({ARRAY}, util) {
-        ARRAY = jwArray.Type.toArray(ARRAY)
-
-        if (util.stackFrame.execute) {
-            util.stackFrame.index++;
-            const { index, entry } = util.stackFrame;
-            if (index > entry.length - 1) return;
-            util.thread.stackFrames[0].jwArray = entry[index];
-        } else {
-            const entry = Object.entries(ARRAY.array);
-            if (entry.length === 0) return;
-            util.stackFrame.entry = entry;
-            util.stackFrame.execute = true;
-            util.stackFrame.index = 0;
-            util.thread.stackFrames[0].jwArray = entry[0];
-        }
-        util.startBranch(1, true);
+        return 'noop'
     }
 
     forEachBreak({}, util) {

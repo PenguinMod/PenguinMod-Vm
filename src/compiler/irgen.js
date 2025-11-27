@@ -90,11 +90,24 @@ class ScriptTreeGenerator {
         this.variableCache = {};
 
         this.usesTimer = false;
+
+        this.debug = this.runtime.debug;
+    }
+
+    static addCompilerInfo(ir = {}, compilerInfo = {}) {
+        ir = {...ir} //clone
+        if (ir.compilerInfo) {
+            ir.compilerInfo = {...ir.compilerInfo, ...compilerInfo}
+        } else {
+            ir.compilerInfo = compilerInfo
+        }
+        return ir
     }
 
     setProcedureVariant (procedureVariant) {
         const procedureCode = parseProcedureCode(procedureVariant);
 
+        this.script.procedureVariant = procedureVariant;
         this.script.procedureCode = procedureCode;
         this.script.isProcedure = true;
         this.script.yields = false;
@@ -146,7 +159,7 @@ class ScriptTreeGenerator {
             log.warn(`IR: ${parentBlock.opcode}: missing input ${inputName}`, parentBlock);
             return {
                 kind: 'constant',
-                value: 0
+                value: null
             };
         }
         const inputId = input.block;
@@ -155,7 +168,7 @@ class ScriptTreeGenerator {
             log.warn(`IR: ${parentBlock.opcode}: could not find input ${inputName} with ID ${inputId}`);
             return {
                 kind: 'constant',
-                value: 0
+                value: null
             };
         }
 
@@ -212,6 +225,7 @@ class ScriptTreeGenerator {
                 kind: 'constant',
                 value: block.fields.TEXT.value
             };
+        case 'operator_checkboxBoolean': //im lazy!
         case 'checkbox':
             return {
                 kind: 'constant',
@@ -260,17 +274,13 @@ class ScriptTreeGenerator {
             const name = block.fields.VALUE.value;
             const index = this.script.arguments.lastIndexOf(name);
             if (index === -1) {
-                if (name.toLowerCase() === 'is compiled?' || 
-                    name.toLowerCase() === 'is turbowarp?' || 
-                    name.toLowerCase() === 'is penguinmod or turbowarp?') {
-                    return {
-                        kind: 'constant',
-                        value: true
-                    };
-                }
+                const nameCheck = name.toLowerCase();
+                const bool = nameCheck === 'is compiled?' || nameCheck === 'is penguinmod?' ||
+                    nameCheck === 'is penguinmod or turbowarp?';
+                // 'is turbowarp?' will return false since this is penguinmod, duh
                 return {
                     kind: 'constant',
-                    value: 0
+                    value: bool
                 };
             }
             return {
@@ -439,6 +449,23 @@ class ScriptTreeGenerator {
                 left: this.descendInputOfBlock(block, 'NUM1'),
                 right: this.descendInputOfBlock(block, 'NUM2')
             };
+        case 'operator_expandableMath': {
+            const menuOperators = block.mutation.menuvalues;
+            const inputs = Object.values(block.inputs);
+            const operations = [];
+            for (var i = 0; i < inputs.length; i++) {
+                const input = inputs[i];
+                if (input.block == null) delete block.inputs[input.name];
+                else operations.push([
+                  this.descendInputOfBlock(block, input.name),
+                  menuOperators[i]
+                ]);
+            }
+            return {
+                kind: 'op.expandmath',
+                operations
+            };
+        }
         case 'operator_equals':
             return {
                 kind: 'op.equals',
@@ -457,6 +484,18 @@ class ScriptTreeGenerator {
                 left: this.descendInputOfBlock(block, 'STRING1'),
                 right: this.descendInputOfBlock(block, 'STRING2')
             };
+        case "operators_expandablejoininputs":
+        case "operator_expandablejoininputs": {
+            const strings = [];
+            for (const input of Object.values(block.inputs)) {
+                if (input.block == null) delete block.inputs[input.name];
+                else strings.push(this.descendInputOfBlock(block, input.name));
+            }
+            return {
+                kind: "op.expandjoin",
+                strings
+            };
+        }
         case 'operator_length':
             return {
                 kind: 'op.length',
@@ -655,6 +694,55 @@ class ScriptTreeGenerator {
                 left: this.descendInputOfBlock(block, 'NUM1'),
                 right: this.descendInputOfBlock(block, 'NUM2')
             };
+        case 'operator_expandableBool':
+        case 'operator_expandableCompare': {
+            const mutation = block.mutation;
+            const menuvalues = mutation.menuvalues;
+            const isCompare = block.opcode.endsWith("Compare");
+
+            const toOperator = (value) => {
+                switch (value) {
+                    case 'n':
+                    case 'a': return '&&';
+                    case 'N':
+                    case 'o': return '||';
+                    case 'X':
+                    case 'x': return '!=';
+                    default: return '&&';
+                }
+            };
+
+            const toComparator = (value) => {
+                switch (value) {
+                    case 'l': return '<';
+                    case 'L': return '<=';
+                    case 'm': return '>';
+                    case 'M': return '>=';
+                    case 'e': return '==';
+                    case 'E': return '===';
+                    case 'n': return '!=';
+                    default: return '>';
+                }
+            };
+
+            const bools = [], operators = [];
+            for (let i = 1; i <= parseInt(mutation.inputcount); i++) {
+                bools.push(this.descendInputOfBlock(block, (isCompare ? 'INPUT' : 'BOOL') + i));
+                const operator = menuvalues[i - 1];
+                operators.push([
+                    isCompare ? toComparator(operator) : toOperator(operator),
+                    operator
+                ]);
+            }
+            operators[operators.length - 1] = ['', ''];
+
+            return {
+                kind: isCompare ? 'op.expandCompare' : 'op.expandBool',
+                isOptimized: mutation.optimize === 'true',
+                isNormal: !menuvalues.includes('n') && !menuvalues.includes('N') && !menuvalues.includes('X'),
+                bools, operators
+            };
+        }
 
         case 'sensing_answer':
             return {
@@ -1020,6 +1108,17 @@ class ScriptTreeGenerator {
             return {
                 kind: 'your mom'
             };
+
+        case 'argument_reporter_command': {
+            const name = block.fields.VALUE.value;
+            const index = this.script.arguments.lastIndexOf(name);
+            this.script.yields = true;
+            return {
+                kind: 'args.command',
+                index: index
+            };
+        }
+
         case 'control_switch':
             return {
                 kind: 'control.switch',
@@ -1054,11 +1153,13 @@ class ScriptTreeGenerator {
             };
         case 'control_exitLoop':
             return {
-                kind: 'control.exitLoop'
+                kind: 'control.exitLoop',
+                id: block.id
             };
         case 'control_continueLoop':
             return {
-                kind: 'control.continueLoop'
+                kind: 'control.continueLoop',
+                id: block.id
             };
         case 'control_all_at_once':
             // In Scratch 3, this block behaves like "if 1 = 1"
@@ -1117,6 +1218,36 @@ class ScriptTreeGenerator {
                 whenTrue: this.descendSubstack(block, 'SUBSTACK'),
                 whenFalse: this.descendSubstack(block, 'SUBSTACK2')
             };
+        case 'control_expandableIf': {
+            const branchCount = Number(block.mutation.branches);
+            const hasElse = block.mutation["ends-in-else"] === "true";
+            const branches = Array(branchCount).fill(null);
+
+            // run normally if no extra branches
+            if (branchCount < 3 && (branchCount === 1 ? true : hasElse)) {
+                return {
+                    kind: 'control.if',
+                    condition: this.descendInputOfBlock(block, 'BOOL1'),
+                    whenTrue: this.descendSubstack(block, 'SUBSTACK1'),
+                    whenFalse: hasElse ? this.descendSubstack(block, 'SUBSTACK2') : []
+                };
+            }
+
+            for (var i = 1; i < branchCount + 1; i++) {
+                const name = 'SUBSTACK' + i;
+                const boolName = 'BOOL' + i;
+                const boolValue = this.descendInputOfBlock(block, boolName);
+                if (boolValue.value === null) {
+                    boolValue.value = i === branchCount && hasElse ? null : false;
+                }
+                branches[i - 1] = [boolValue, this.descendSubstack(block, name)];
+            }
+
+            return {
+                kind: 'control.expandableIf',
+                branches
+            };
+        }
         case 'control_try_catch':
             return {
                 kind: 'control.trycatch',
@@ -1606,7 +1737,10 @@ class ScriptTreeGenerator {
             return {
                 kind: 'procedures.return',
                 return: this.descendInputOfBlock(block, 'return'),
-                isDefineClicked: topBlock ? topBlock.opcode.startsWith("procedures_definition") : false
+                isDefineClicked: topBlock ? topBlock.opcode === "procedures_return" || topBlock.opcode.startsWith("procedures_definition") : false,
+                compilerInfo: {
+                    jwArrayUnmodified: true
+                }
             };
         }
         case 'procedures_set': 
@@ -1905,84 +2039,31 @@ class ScriptTreeGenerator {
                 val: this.descendInputOfBlock(block, 'STRING'),
                 thread: true
             };
-        case 'tempVars_setVariable':
-            return {
-                kind: 'tempVars.set',
-                var: this.descendInputOfBlock(block, 'name'),
-                val: this.descendInputOfBlock(block, 'value')
-            };
-        
         case 'lmsTempVars2_changeRuntimeVariable':
-            const name = this.descendInputOfBlock(block, 'VAR');
             return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name,
-                        runtime: true
-                    },
-                    right: this.descendInputOfBlock(block, 'NUM')
-                },
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'VAR'),
+                val: this.descendInputOfBlock(block, 'NUM'),
                 runtime: true
             };
-        case 'lmsTempVars2_changeThreadVariable': {
-            const name = this.descendInputOfBlock(block, 'VAR');
+        case 'lmsTempVars2_changeThreadVariable': 
             return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name,
-                        thread: true
-                    },
-                    right: this.descendInputOfBlock(block, 'NUM')
-                },
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'VAR'),
+                val: this.descendInputOfBlock(block, 'NUM'),
                 thread: true
             };
-        }
-        case 'tempVars_changeVariable': {
-            const name = this.descendInputOfBlock(block, 'name');
-            return {
-                kind: 'tempVars.set',
-                var: name,
-                val: {
-                    kind: 'op.add',
-                    left: {
-                        kind: 'tempVars.get',
-                        var: name
-                    },
-                    right: this.descendInputOfBlock(block, 'value')
-                }
-            };
-        }
-
         case 'lmsTempVars2_deleteRuntimeVariable':
             return {
                 kind: 'tempVars.delete',
                 var: this.descendInputOfBlock(block, 'VAR'),
                 runtime: true
             };
-        case 'tempVars_deleteVariable':
-            return {
-                kind: 'tempVars.delete',
-                var: this.descendInputOfBlock(block, 'name')
-            };
-
         case 'lmsTempVars2_deleteAllRuntimeVariables':
             return {
                 kind: 'tempVars.deleteAll',
                 runtime: true
             };
-        case 'tempVars_deleteAllVariables':
-            return {
-                kind: 'tempVars.deleteAll'
-            };
-
         case 'lmsTempVars2_forEachThreadVariable':
             return {
                 kind: 'tempVars.forEach',
@@ -1990,6 +2071,27 @@ class ScriptTreeGenerator {
                 loops: this.descendInputOfBlock(block, 'NUM'),
                 do: this.descendSubstack(block, 'SUBSTACK'),
                 thread: true
+            };
+        case 'tempVars_setVariable':
+            return {
+                kind: 'tempVars.set',
+                var: this.descendInputOfBlock(block, 'name'),
+                val: this.descendInputOfBlock(block, 'value')
+            };
+        case 'tempVars_changeVariable':
+            return {
+                kind: 'tempVars.change',
+                var: this.descendInputOfBlock(block, 'name'),
+                val: this.descendInputOfBlock(block, 'value')
+            };
+        case 'tempVars_deleteVariable':
+            return {
+                kind: 'tempVars.delete',
+                var: this.descendInputOfBlock(block, 'name')
+            };
+        case 'tempVars_deleteAllVariables':
+            return {
+                kind: 'tempVars.deleteAll'
             };
         case 'tempVars_forEachTempVar':
             this.analyzeLoop();
@@ -2003,7 +2105,6 @@ class ScriptTreeGenerator {
             return {
                 kind: 'control.dualBlock'
             };
-
         default: {
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
             if (opcodeFunction) {
@@ -2186,6 +2287,7 @@ class ScriptTreeGenerator {
         for (const name of Object.keys(block.inputs)) {
             if (!name.startsWith('SUBSTACK')) {
                 inputs[name] = this.descendInputOfBlock(block, name);
+                if (blockInfo && blockInfo.arguments[name]) inputs[name].compilerInfo = ScriptTreeGenerator.addCompilerInfo(inputs[name], blockInfo.arguments[name].compilerInfo)
             }
         }
 
@@ -2214,7 +2316,8 @@ class ScriptTreeGenerator {
             blockType,
             inputs,
             fields,
-            substacks
+            substacks,
+            compilerInfo: (blockInfo && blockInfo.compilerInfo) || {}
         };
     }
 
@@ -2350,6 +2453,10 @@ class ScriptTreeGenerator {
             if (entryBlock) {
                 this.script.stack = this.walkStack(entryBlock);
             }
+        }
+
+        if (this.debug) {
+            log.info(`IR: ${this.target.getName()}: compiled ${this.script.procedureCode || 'script'}`, this.script.stack);
         }
 
         return this.script;
