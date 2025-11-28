@@ -406,18 +406,11 @@ class jgDebuggingBlocks {
         this._addLog(text, "color: yellow;");
     }
     error(args, util) {
-        const traceback = new Set(util.thread.traceback);
         const current_trace_stack = {
             target: util.target.id,
             block_id: util.thread.peekStack()
         };
-        const latest_trace = [...traceback][traceback.size - 1];
-        // Do not add again if it's already in the traceback.
-        if (
-            latest_trace.block_id !== current_trace_stack.block_id &&
-            latest_trace.target   !== current_trace_stack.target
-        )
-            traceback.add(current_trace_stack);
+        const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
         const text = xmlEscape(Cast.toString(args.INFO));
         const log = `Error: ${text}\n` +
@@ -436,9 +429,22 @@ class jgDebuggingBlocks {
             const target = this.runtime.targets.find(target => target.id == target_id);
             const block  = target.blocks.getBlock(block_id);
 
-            const trace_text = "\t" + target.getName() + "::" + block.opcode + "@" + block.id;
-            // TODO: Replace the block ID with a cool link to the block instead.
-            // Note: Would require redoing the console to be HTML-safe.
+
+            if (block === undefined) {
+                final_traceback.push("\tanonymous::" + block_id + "@anonymous");
+                continue;
+            }
+
+            const target_name = xmlEscape(target.getName());
+            const block_name  = block.opcode + "@" + block_id;
+
+            const block_link =
+`<a
+    style="color:#f0b"
+    href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${block_id}')"
+>${block_name}</a>`;
+
+            const trace_text = "\t" + target_name + "::" + block_link;
 
             final_traceback.push(trace_text);
         }
