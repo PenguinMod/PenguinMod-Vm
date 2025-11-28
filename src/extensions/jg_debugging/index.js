@@ -162,14 +162,6 @@ class jgDebuggingBlocks {
         this.commandSet = {};
         this.commandExplanations = {};
 
-        runtime.on("THREAD_STARTED", (thread, options) => {
-            if (options?.updateMonitor) return;
-            thread.traceback = new Set(options?.parent_thread?.traceback ?? []).add({
-                target: thread.target.id,
-                block_id: thread.topBlock,
-            });
-        });
-
         this.isScratchBlocksReady = typeof ScratchBlocks === "object";
         this.ScratchBlocks = ScratchBlocks;
         this.runtime.vm.on("workspaceUpdate", () => {
@@ -178,6 +170,25 @@ class jgDebuggingBlocks {
             if (!this.isScratchBlocksReady) return;
             this.ScratchBlocks = ScratchBlocks;
         });
+
+        runtime.on("THREAD_STARTED", (thread, options) => {
+            if (options?.updateMonitor) return;
+            thread.traceback = new Set(options?.parent_thread?.traceback ?? []);
+        });
+
+        const _jsgen_compile = vm.exports.JSGenerator.prototype.compile;
+        vm.exports.JSGenerator.prototype.compile = function() {
+            this.script.stack.push({
+                kind: 'literal',
+                literal: 'thread.traceback = jgDebugging__TracebackT;'
+            })
+            this.source += `var jgDebugging__TracebackT = new Set(thread.traceback);
+            thread.traceback = thread.traceback.add({
+                target: thread.target.id,
+                block_id: "${this.script.topBlockId}",
+            });`;
+            return _jsgen_compile.call(this);
+        };
     }
 
     /**
