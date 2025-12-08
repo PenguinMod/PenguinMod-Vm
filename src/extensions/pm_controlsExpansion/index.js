@@ -259,7 +259,7 @@ class pmControlsExpansion {
             util.startBranch(2, false);
         }
     }
-    
+
     ifElseIfElse (args, util) {
         const condition1 = Cast.toBoolean(args.CONDITION1);
         const condition2 = Cast.toBoolean(args.CONDITION2);
@@ -271,7 +271,7 @@ class pmControlsExpansion {
             util.startBranch(3, false);
         }
     }
-    
+
     restartFromTheTop() {
         return; // doesnt work in compat mode
     }
@@ -282,7 +282,7 @@ class pmControlsExpansion {
             util.sequencer.runtime._pushThread(
                 util.thread.target.blocks.getBranch(util.thread.peekStack(), 0),
                 util.target,
-                {}
+                { parentThread: util.thread }
             );
         }
     }

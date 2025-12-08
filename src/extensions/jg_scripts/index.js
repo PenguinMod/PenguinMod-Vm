@@ -196,7 +196,12 @@ class JgScriptsBlocks {
     if (!thread && index < blocks.length) {
       const thisStack = blocks[index];
       if (thisStack.target.blocks.getBlock(thisStack.stack) !== undefined) {
-        util.stackFrame.JGthread = this.runtime._pushThread(thisStack.stack, thisStack.target, { stackClick: false });
+        util.stackFrame.JGthread = this.runtime._pushThread(
+            thisStack.stack,
+            thisStack.target, {
+                stackClick: false,
+                parentThread: util.thread,
+            });
         util.stackFrame.JGthread.scriptData = data;
         util.stackFrame.JGthread.target = target;
         util.stackFrame.JGthread.tryCompile(); // update thread
@@ -225,7 +230,13 @@ class JgScriptsBlocks {
     if (!thread && index < blocks.length) {
       const thisStack = blocks[index];
       if (thisStack.target.blocks.getBlock(thisStack.stack) !== undefined) {
-        util.stackFrame.JGthread = this.runtime._pushThread(thisStack.stack, thisStack.target, { stackClick: false });
+        util.stackFrame.JGthread = this.runtime._pushThread(
+            thisStack.stack,
+            thisStack.target,
+            {
+                stackClick: false,
+                parentThread: util.thread,
+            });
         util.stackFrame.JGthread.scriptData = data;
         util.stackFrame.JGthread.target = target;
         util.stackFrame.JGthread.tryCompile(); // update thread
