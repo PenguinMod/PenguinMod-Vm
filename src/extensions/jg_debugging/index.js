@@ -181,11 +181,15 @@ class jgDebuggingBlocks {
             this.script.stack.push({
                 kind: 'literal',
                 literal: 'thread.traceback = jgDebugging__TracebackT;'
-            })
+            });
+
+            const proc_code = this.isProcedure ? `procCode: "${this.script.procedureCode}",` : "";
+
             this.source += `var jgDebugging__TracebackT = new Set(thread.traceback);
             thread.traceback = thread.traceback.add({
                 target: thread.target.id,
                 blockId: "${this.script.topBlockId}",
+                ${proc_code}
             });`;
             return _jsgen_compile.call(this);
         };
@@ -431,6 +435,7 @@ class jgDebuggingBlocks {
         for (let stack_element of initial_trace) {
             const target_id = stack_element.target;
             const blockId  = stack_element.blockId;
+            const isProcedure = stack_element.hasOwnProperty("procCode");
 
             const target = this.runtime.targets.find(target => target.id == target_id);
             const block  = target.blocks.getBlock(blockId);
@@ -442,7 +447,8 @@ class jgDebuggingBlocks {
             }
 
             const target_name = xmlEscape(target.getName());
-            const block_name  = block.opcode + "@" + blockId;
+            const block_name  =
+                (isProcedure ? stack_element.procCode : block.opcode) + "@" + blockId;
 
             const block_ref = disableHTML ? block_name :
 `<a
