@@ -173,7 +173,7 @@ class jgDebuggingBlocks {
 
         runtime.on("THREAD_STARTED", (thread, options) => {
             if (options?.updateMonitor) return;
-            thread.traceback = new Set(options?.parent_thread?.traceback ?? []);
+            thread.traceback = new Set(options?.parentThread?.traceback ?? []);
         });
 
         const _jsgen_compile = vm.exports.JSGenerator.prototype.compile;

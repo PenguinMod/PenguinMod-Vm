@@ -2734,7 +2734,7 @@ class Runtime extends EventEmitter {
             }
             // Start the thread with this top block.
             newThreads.push(this._pushThread(topBlockId, target, {
-                parent_thread: optParentThread
+                parentThread: optParentThread
             }));
         }, optTarget);
         // For compatibility with Scratch 2, edge triggered hats need to be processed before
