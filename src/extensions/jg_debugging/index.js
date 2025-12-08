@@ -178,14 +178,15 @@ class jgDebuggingBlocks {
 
         const _jsgen_compile = vm.exports.JSGenerator.prototype.compile;
         vm.exports.JSGenerator.prototype.compile = function() {
+            const old_trace = this.localVariables.next();
             this.script.stack.push({
                 kind: 'literal',
-                literal: 'thread.traceback = jgDebugging__TracebackT;'
+                literal: `thread.traceback = ${old_trace};`
             });
 
             const proc_code = this.isProcedure ? `procCode: "${this.script.procedureCode}",` : "";
 
-            this.source += `var jgDebugging__TracebackT = new Set(thread.traceback);
+            this.source += `var ${old_trace} = new Set(thread.traceback);
             thread.traceback = thread.traceback.add({
                 target: thread.target.id,
                 blockId: "${this.script.topBlockId}",
