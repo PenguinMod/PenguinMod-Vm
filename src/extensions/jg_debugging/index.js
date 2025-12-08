@@ -400,10 +400,16 @@ class jgDebuggingBlocks {
         console.log(text);
         this._addLog(text);
     }
-    warn(args) {
-        const text = xmlEscape(Cast.toString(args.INFO));
-        console.warn(text);
-        this._addLog(text, "color: yellow;");
+    warn(args, util) {
+        const current_trace_stack = {
+            target: util.target.id,
+            blockId: util.thread.peekStack()
+        };
+        const traceback = new Set(util.thread.traceback).add(current_trace_stack);
+
+        const log = "Warning: " + xmlEscape(Cast.toString(args.INFO)) + "\n";
+        this._addLog(log + this._renderTraceback(traceback, { linkColor: "#fb0" }), "color: yellow;");
+        console.error(log + this._renderTraceback(traceback, { linkColor: "#fb0", disableHTML: true }));
     }
     error(args, util) {
         const current_trace_stack = {
@@ -412,13 +418,14 @@ class jgDebuggingBlocks {
         };
         const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
-        const text = xmlEscape(Cast.toString(args.INFO));
-        const log = "Error:" + text + "\n";
+        const log = "Error: " + xmlEscape(Cast.toString(args.INFO)) + "\n";
         this._addLog(log + this._renderTraceback(traceback), "color: red;");
-        console.error(log + this._renderTraceback(traceback, true));
+        console.error(log + this._renderTraceback(traceback, { disableHTML: true }));
     }
 
-    _renderTraceback(traceback, disableHTML = false) {
+    _renderTraceback(traceback, opts={}) {
+        const disableHTML = opts?.disableHTML ?? false;
+        const linkColor = opts?.linkColor ?? "#f0b";
         let initial_trace   = Array.from(traceback).toReversed();
         let final_traceback = [];
         for (let stack_element of initial_trace) {
@@ -439,7 +446,7 @@ class jgDebuggingBlocks {
 
             const block_ref = disableHTML ? block_name :
 `<a
-    style="color:#f0b"
+    style="color:${linkColor}"
     href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${blockId}')"
 >${block_name}</a>`;
 
