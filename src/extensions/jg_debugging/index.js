@@ -185,7 +185,7 @@ class jgDebuggingBlocks {
             this.source += `var jgDebugging__TracebackT = new Set(thread.traceback);
             thread.traceback = thread.traceback.add({
                 target: thread.target.id,
-                block_id: "${this.script.topBlockId}",
+                blockId: "${this.script.topBlockId}",
             });`;
             return _jsgen_compile.call(this);
         };
@@ -408,7 +408,7 @@ class jgDebuggingBlocks {
     error(args, util) {
         const current_trace_stack = {
             target: util.target.id,
-            block_id: util.thread.peekStack()
+            blockId: util.thread.peekStack()
         };
         const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
@@ -424,24 +424,24 @@ class jgDebuggingBlocks {
         let final_traceback = [];
         for (let stack_element of initial_trace) {
             const target_id = stack_element.target;
-            const block_id  = stack_element.block_id;
+            const blockId  = stack_element.blockId;
 
             const target = this.runtime.targets.find(target => target.id == target_id);
-            const block  = target.blocks.getBlock(block_id);
+            const block  = target.blocks.getBlock(blockId);
 
 
             if (block === undefined) {
-                final_traceback.push("\tanonymous::" + block_id + "@anonymous");
+                final_traceback.push("\tanonymous::" + blockId + "@anonymous");
                 continue;
             }
 
             const target_name = xmlEscape(target.getName());
-            const block_name  = block.opcode + "@" + block_id;
+            const block_name  = block.opcode + "@" + blockId;
 
             const block_link =
 `<a
     style="color:#f0b"
-    href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${block_id}')"
+    href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${blockId}')"
 >${block_name}</a>`;
 
             const trace_text = "\t" + target_name + "::" + block_link;
@@ -451,16 +451,16 @@ class jgDebuggingBlocks {
         return final_traceback.join("\n");
     }
 
-    _jumpToTargetAndBlock(target_id, block_id) {
+    _jumpToTargetAndBlock(target_id, blockId) {
         if (target_id != this.runtime.vm.editingTarget.id) {
             this.runtime.vm.setEditingTarget(target_id);
             this.runtime.vm.refreshWorkspace();
         }
 
-        if (!block_id || !this.isScratchBlocksReady) return;
+        if (!blockId || !this.isScratchBlocksReady) return;
 
         const workspace = this.ScratchBlocks.getMainWorkspace();
-        workspace.centerOnBlock(block_id);
+        workspace.centerOnBlock(blockId);
     }
 
     breakpoint() {
