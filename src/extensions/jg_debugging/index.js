@@ -413,13 +413,12 @@ class jgDebuggingBlocks {
         const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
         const text = xmlEscape(Cast.toString(args.INFO));
-        const log = `Error: ${text}\n` +
-            this._renderTraceback(traceback);
-        console.error(log);
-        this._addLog(log, "color: red;");
+        const log = "Error:" + text + "\n";
+        this._addLog(log + this._renderTraceback(traceback), "color: red;");
+        console.error(log + this._renderTraceback(traceback, true));
     }
 
-    _renderTraceback(traceback) {
+    _renderTraceback(traceback, disableHTML = false) {
         let initial_trace   = Array.from(traceback).toReversed();
         let final_traceback = [];
         for (let stack_element of initial_trace) {
@@ -438,13 +437,13 @@ class jgDebuggingBlocks {
             const target_name = xmlEscape(target.getName());
             const block_name  = block.opcode + "@" + blockId;
 
-            const block_link =
+            const block_ref = disableHTML ? block_name :
 `<a
     style="color:#f0b"
     href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${blockId}')"
 >${block_name}</a>`;
 
-            const trace_text = "\t" + target_name + "::" + block_link;
+            const trace_text = "\t" + target_name + "::" + block_ref;
 
             final_traceback.push(trace_text);
         }
