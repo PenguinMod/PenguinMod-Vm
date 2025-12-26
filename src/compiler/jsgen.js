@@ -355,7 +355,7 @@ class Frame {
          */
         this.isLastBlock = false;
 
-        this.overrideLoop = overrideLoop
+        this.overrideLoop = overrideLoop;
 
         /**
          * General important data that needs to be carried down from other threads.

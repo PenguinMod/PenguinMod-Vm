@@ -72,7 +72,7 @@ class jgDebuggingBlocks {
             + 'position: absolute; left: 0px; top: 2rem;'
             + 'color: white; cursor: text; overflow: auto;'
             + 'background: transparent; outline: unset !important;'
-            + 'border: 0; margin: 0; padding: 0; font-family: monospace;'
+            + 'border: 0; margin: 0; padding: 1rem; font-family: monospace;'
             + 'display: flex; flex-direction: column; align-items: flex-start;'
             + 'z-index: 1000005; user-select: text;';
 
