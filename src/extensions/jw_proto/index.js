@@ -71,7 +71,6 @@ class jwProto {
                         description: 'Label for labeling.'
                     }),
                     disableMonitor: true,
-                    exemptFromNormalization: true,
                     blockType: BlockType.COMMAND,
                     arguments: {
                         LABEL: {
@@ -96,9 +95,7 @@ class jwProto {
                             type: ArgumentType.STRING,
                             defaultValue: "label"
                         },
-                        VALUE: {
-                            defaultValue: "value"
-                        }
+                        VALUE: {}
                     }
                 },
                 {
