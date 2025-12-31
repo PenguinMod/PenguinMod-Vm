@@ -71,6 +71,7 @@ class jwProto {
                         description: 'Label for labeling.'
                     }),
                     disableMonitor: true,
+                    exemptFromNormalization: true,
                     blockType: BlockType.COMMAND,
                     arguments: {
                         LABEL: {
@@ -87,14 +88,15 @@ class jwProto {
                         description: 'Label for a value.'
                     }),
                     disableMonitor: true,
+                    exemptFromNormalization: true,
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     arguments: {
                         LABEL: {
                             type: ArgumentType.STRING,
                             defaultValue: "label"
                         },
                         VALUE: {
-                            type: ArgumentType.STRING,
                             defaultValue: "value"
                         }
                     }
