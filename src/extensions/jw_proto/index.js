@@ -95,7 +95,10 @@ class jwProto {
                             type: ArgumentType.STRING,
                             defaultValue: "label"
                         },
-                        VALUE: {}
+                        VALUE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "value"
+                        }
                     }
                 },
                 {
