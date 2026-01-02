@@ -1477,6 +1477,8 @@ class JSGenerator {
             // save the original target
             const originalTarget = this.localVariables.next();
             this.source += `const ${originalTarget} = target;\n`;
+
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = target; }`;
             // pm: unknown behavior may appear so lets use try catch
             this.source += `try {\n`;
             // set target
@@ -1505,6 +1507,7 @@ class JSGenerator {
             this.source += `thread.target = ${originalTarget};\n`;
             this.source += `thread.spoofing = ${alreadySpoofing};\n`;
             this.source += `thread.spoofTarget = ${alreadySpoofTarget};\n`;
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = null; }`;
 
             this.source += `}\n`;
             this.source += `} catch (e) {\nconsole.log('as sprite function failed;', e);\n`;
@@ -1513,6 +1516,7 @@ class JSGenerator {
             this.source += `thread.target = ${originalTarget};\n`;
             this.source += `thread.spoofing = ${alreadySpoofing};\n`;
             this.source += `thread.spoofTarget = ${alreadySpoofTarget};\n`;
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = null; }`;
 
             this.source += `}\n`;
             break;

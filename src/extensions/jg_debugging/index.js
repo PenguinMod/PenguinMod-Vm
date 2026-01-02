@@ -184,13 +184,13 @@ class jgDebuggingBlocks {
                 literal: `thread.traceback = ${old_trace};`
             });
 
-            const proc_code = this.isProcedure ? `procCode: "${this.script.procedureCode}",` : "";
+            const proc_code = this.isProcedure ? `"${this.script.procedureCode}"` : "null";
 
             this.source += `var ${old_trace} = new Set(thread.traceback);
             thread.traceback = thread.traceback.add({
                 target: thread.target.id,
                 blockId: "${this.script.topBlockId}",
-                ${proc_code}
+                procCode: ${proc_code},
             });`;
             return _jsgen_compile.call(this);
         };
@@ -407,8 +407,9 @@ class jgDebuggingBlocks {
     }
     warn(args, util) {
         const current_trace_stack = {
-            target: util.target.id,
-            blockId: util.thread.peekStack()
+            target: !!util.thread.spoofing ? util.thread.spoofOrigin.id : util.target.id,
+            blockId: util.thread.peekStack(),
+            procCode: null,
         };
         const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
@@ -418,8 +419,9 @@ class jgDebuggingBlocks {
     }
     error(args, util) {
         const current_trace_stack = {
-            target: util.target.id,
-            blockId: util.thread.peekStack()
+            target: !!util.thread.spoofing ? util.thread.spoofOrigin.id : util.target.id,
+            blockId: util.thread.peekStack(),
+            procCode: null,
         };
         const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
@@ -436,7 +438,7 @@ class jgDebuggingBlocks {
         for (let stack_element of initial_trace) {
             const target_id = stack_element.target;
             const blockId  = stack_element.blockId;
-            const isProcedure = stack_element.hasOwnProperty("procCode");
+            const isProcedure = stack_element.procCode !== null;
 
             const target = this.runtime.targets.find(target => target.id == target_id);
             const block  = target.blocks.getBlock(blockId);
