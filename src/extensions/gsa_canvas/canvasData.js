@@ -10,7 +10,7 @@ class CanvasVar {
      * @param {Runtime} runtime the runtime this canvas exists inside
      * @param {string} id this canvas's id
      * @param {string} name the name of this canvas
-     * @param {[number,number]|string|Image} [img=[1, 1]] optionally the image to be loaded into this canvas
+     * @param {Array<number>|string|Image} [img=[1, 1]] optionally the image to be loaded into this canvas
      */
     constructor (runtime, id, name, img = [1, 1]) {
         this.id = id ?? uid();

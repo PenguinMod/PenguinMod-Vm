@@ -101,9 +101,10 @@ const wrapScratchXFunction = (originalFunction, argumentCount, async) => args =>
 };
 
 /**
- * @param {string} name
- * @param {ScratchXDescriptor} descriptor
- * @param {Record<string, () => unknown>} functions
+ * @param {string} name The extensions original name
+ * @param {ScratchXDescriptor} descriptor The parsed scratchx extension info
+ * @param {Record<string, Function>} functions The functions referenced by that info
+ * @returns {!ExtensionMetadata} The converted result
  */
 const convert = (name, descriptor, functions) => {
     const extensionId = generateExtensionId(name);

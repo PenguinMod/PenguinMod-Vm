@@ -133,7 +133,7 @@ const waitPromise = function*(promise) {
 /**
  * isPromise: Determine if a value is Promise-like
  * @param {unknown} promise The value to check
- * @returns {promise is PromiseLike} True if the value is Promise-like (has a .then())
+ * @returns {boolean} True if the value is Promise-like (has a .then())
  */
 
 /**
@@ -457,7 +457,7 @@ runtimeFunctions.listGet = `const listGet = (list, idx) => {
 
 /**
  * Replace a value in a list.
- * @param {import('../engine/variable')} list The list
+ * @param {!Variable} list The list
  * @param {*} idx List index, Scratch style.
  * @param {*} value The new value.
  */
@@ -472,7 +472,7 @@ runtimeFunctions.listReplace = `const listReplace = (list, idx, value) => {
 
 /**
  * Insert a value in a list.
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @param {*} idx The Scratch index in the list.
  * @param {*} value The value to insert.
  */
@@ -487,7 +487,7 @@ runtimeFunctions.listInsert = `const listInsert = (list, idx, value) => {
 
 /**
  * Delete a value from a list.
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @param {*} idx The Scratch index in the list.
  */
 runtimeFunctions.listDelete = `const listDelete = (list, idx) => {
@@ -505,7 +505,7 @@ runtimeFunctions.listDelete = `const listDelete = (list, idx) => {
 
 /**
  * Return whether a list contains a value.
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @param {*} item The value to search for.
  * @returns {boolean} True if the list contains the item
  */
@@ -524,7 +524,7 @@ runtimeFunctions.listContains = `const listContains = (list, item) => {
 
 /**
  * pm: Returns whether a list contains a value, using Array.some
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @param {*} item The value to search for.
  * @returns {boolean} True if the list contains the item
  */
@@ -534,7 +534,7 @@ runtimeFunctions.listContainsFastest = `const listContainsFastest = (list, item)
 
 /**
  * Find the 1-indexed index of an item in a list.
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @param {*} item The item to search for
  * @returns {number} The 1-indexed index of the item in the list, otherwise 0
  */
@@ -549,7 +549,7 @@ runtimeFunctions.listIndexOf = `const listIndexOf = (list, item) => {
 
 /**
  * Get the stringified form of a list.
- * @param {import('../engine/variable')} list The list.
+ * @param {!Variable} list The list.
  * @returns {string} Stringified form of the list.
  */
 runtimeFunctions.listContents = `const listContents = list => {

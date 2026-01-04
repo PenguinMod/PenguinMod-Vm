@@ -62,7 +62,7 @@ const generateCustomFontsCSS = (fonts) => {
 
 /**
  * @param {string} svgString SVG source
- * @returns {[number, number]|null} The detected rotation center of the SVG, if any.
+ * @returns {Array<number>|null} The detected rotation center of the SVG, if any.
  */
 const parseVectorMetadata = svgString => {
     // TODO: see if this is slow on large strings

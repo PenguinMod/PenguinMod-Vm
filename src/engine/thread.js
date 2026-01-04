@@ -211,7 +211,7 @@ class Thread {
          */
         this.generator = null;
         /**
-         * @type {Object.<string, import('../compiler/compile').CompiledScript>}
+         * @type {Object.<string, !CompiledScript>}
          */
         this.procedures = null;
         this.executableHat = false;
