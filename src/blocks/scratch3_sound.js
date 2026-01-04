@@ -160,7 +160,8 @@ class Scratch3SoundBlocks {
             sound_set_stop_fadeout_to: this.setStopFadeout,
             sound_play_at_seconds: this.playAtSeconds,
             sound_play_at_seconds_until_done: this.playAtSecondsAndWait,
-            sound_getSoundVolume: this.currentSoundVolume
+            sound_getSoundVolume: this.currentSoundVolume,
+            sound_currentlyPlayingSounds: this.playingSounds,
         };
     }
 
@@ -174,11 +175,15 @@ class Scratch3SoundBlocks {
                 isSpriteSpecific: true,
                 getId: (targetId, fields) => getMonitorIdForBlockWithArgs(`${targetId}_soundgetEffectValue`, fields)
             },
+            sound_currentlyPlayingSounds: {
+                isSpriteSpecific: true,
+                getId: targetId => `${targetId}_currentlyPlayingSounds`
+            }
         };
     }
 
     currentSoundVolume (args, util) {
-        
+
     }
 
     playAtSeconds (args, util) {
@@ -186,7 +191,7 @@ class Scratch3SoundBlocks {
         if (seconds < 0) {
             return;
         }
-        
+
         this._playSoundAtTimePosition({
             sound: Cast.toString(args.SOUND_MENU),
             seconds: seconds
@@ -306,7 +311,7 @@ class Scratch3SoundBlocks {
         const target = util.target;
         const sprite = target.sprite;
         if (!sprite) return;
-        
+
         const { soundId } = sprite.sounds[index];
 
         const soundBank = sprite.soundBank
@@ -531,6 +536,21 @@ class Scratch3SoundBlocks {
 
     effectsMenu (args) {
         return args.EFFECT;
+    }
+
+    playingSounds(args, util) {
+        const sprite = util.target.sprite;
+        return JSON.stringify(
+            Object.entries(sprite.soundBank.soundPlayers)
+                .filter(
+                    ([_, player]) =>
+                        player.isPlaying
+                )
+                .map(
+                    ([key, _]) =>
+                        sprite.sounds.find(({soundId}) => soundId === key).name
+                )
+        );
     }
 }
 
