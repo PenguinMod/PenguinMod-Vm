@@ -657,7 +657,8 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
-     * @type {Array<object>} Array of all assets currently in the runtime
+     * Array of all assets currently in the runtime
+     * @type {Array<object>}
      */
     get assets () {
         const costumesAndSounds = this.runtime.targets.reduce((acc, target) => (

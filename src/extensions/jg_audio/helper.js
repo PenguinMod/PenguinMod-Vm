@@ -276,7 +276,7 @@ class AudioExtensionHelper {
     constructor(runtime) {
         /**
             * The runtime that the helper will use for all functions.
-            * @type {runtime}
+            * @param {runtime}
         */
         this.runtime = runtime;
         this.audioGroups = {};
@@ -289,9 +289,9 @@ class AudioExtensionHelper {
     
     /**
         * Creates a new AudioGroup.
-        * @type {string} AudioGroup name
-        * @type {object} AudioGroup settings (optional)
-        * @type {object[]} AudioGroup sources (optional)
+        * @param {string} AudioGroup name
+        * @param {object} AudioGroup settings (optional)
+        * @param {object[]} AudioGroup sources (optional)
     */
     AddAudioGroup(name, data, sources) {
         if (data == null) data = {};
@@ -307,7 +307,7 @@ class AudioExtensionHelper {
     }
     /**
         * Deletes an AudioGroup by name.
-        * @type {string}
+        * @param {string}
     */
     DeleteAudioGroup(name) {
         const audioGroup = this.audioGroups[name];
@@ -317,7 +317,7 @@ class AudioExtensionHelper {
     }
     /**
         * Gets an AudioGroup by name.
-        * @type {string}
+        * @param {string}
     */
     GetAudioGroup(name) {
         return this.audioGroups[name];
@@ -330,7 +330,7 @@ class AudioExtensionHelper {
     }
     /**
         * Gets all AudioSources in an AudioGroup and updates them.
-        * @type {AudioGroup}
+        * @param {AudioGroup}
     */
     UpdateAudioGroupSources(audioGroup) {
         const audioSources = this.GrabAllGrabAudioSources(audioGroup);
@@ -341,7 +341,7 @@ class AudioExtensionHelper {
     }
     /**
         * Gets all AudioSources in an AudioGroup and disposes them.
-        * @type {AudioGroup}
+        * @param {AudioGroup}
     */
     DisposeAudioGroupSources(audioGroup) {
         const audioSources = this.GrabAllGrabAudioSources(audioGroup);
@@ -353,10 +353,10 @@ class AudioExtensionHelper {
 
     /**
         * Creates a new AudioSource inside of an AudioGroup.
-        * @type {AudioGroup} AudioSource parent
-        * @type {string} AudioSource name
-        * @type {string} AudioSource source (optional)
-        * @type {object} AudioSource settings (optional)
+        * @param {AudioGroup} AudioSource parent
+        * @param {string} AudioSource name
+        * @param {string} AudioSource source (optional)
+        * @param {object} AudioSource settings (optional)
     */
     AppendAudioSource(parent, name, src, settings) {
         const group = typeof parent == "string" ? this.GetAudioGroup(parent) : parent;
@@ -366,8 +366,8 @@ class AudioExtensionHelper {
     }
     /**
         * Deletes an AudioSource by name.
-        * @type {AudioGroup} AudioSource parent
-        * @type {string}
+        * @param {AudioGroup} AudioSource parent
+        * @param {string}
     */
     RemoveAudioSource(parent, name) {
         const group = typeof parent == "string" ? this.GetAudioGroup(parent) : parent;
@@ -380,8 +380,8 @@ class AudioExtensionHelper {
     }
     /**
         * Gets an AudioSource by name.
-        * @type {AudioGroup} AudioSource parent
-        * @type {string}
+        * @param {AudioGroup} AudioSource parent
+        * @param {string}
     */
     GrabAudioSource(audioGroup, name) {
         const group = typeof audioGroup == "string" ? this.GetAudioGroup(audioGroup) : audioGroup;
@@ -390,7 +390,7 @@ class AudioExtensionHelper {
     }
     /**
         * Gets all AudioSources and returns them in an array.
-        * @type {AudioGroup} AudioSource parent
+        * @param {AudioGroup} AudioSource parent
     */
     GrabAllGrabAudioSources(audioGroup) {
         const group = typeof audioGroup == "string" ? this.GetAudioGroup(audioGroup) : audioGroup;
@@ -400,8 +400,8 @@ class AudioExtensionHelper {
 
     /**
         * Finds a sound with the specified ID in the sound list.
-        * @type {Array} soundList
-        * @type {string} Sound ID
+        * @param {Array} soundList
+        * @param {string} Sound ID
     */
     FindSoundBySoundId(soundList, id) {
         for (let i = 0; i < soundList.length; i++) {
@@ -411,9 +411,9 @@ class AudioExtensionHelper {
         return null;
     }
     /**
-        * Finds a sound with the specified name in the sound list.
-        * @type {Array} soundList
-        * @type {string} Sound name
+    * Finds a sound with the specified name in the sound list.
+    * @param {Array} soundList
+    * @param {string} Sound name
     */
     FindSoundByName(soundList, name) {
         for (let i = 0; i < soundList.length; i++) {
@@ -424,7 +424,7 @@ class AudioExtensionHelper {
     }
     /**
         * Clamps numbers to stay inbetween 2 values.
-        * @type {number}
+        * @param {number}
     */
     Clamp(number, min, max) {
         return Math.min(Math.max(number, min), max);
