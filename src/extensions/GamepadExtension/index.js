@@ -23,7 +23,7 @@ const Scratch = new ExtensionApi(true);
   };
 
   /**
-   * @param {Gamepad} gamepad
+   * @param {Gamepad} gamepad The gamepad to check
    * @param {number|'any'} buttonIndex 1-indexed index
    * @returns {boolean} false if button does not exist
    */

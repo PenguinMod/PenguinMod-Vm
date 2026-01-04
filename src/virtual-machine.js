@@ -269,6 +269,7 @@ class VirtualMachine extends EventEmitter {
         /**
          * For comptatibility with TurboWarp's
          * i_will_not_ask_for_help_when_these_break export.
+         * @returns {object} The unsafe exports
          */
         this.exports.i_will_not_ask_for_help_when_these_break = () => {
             console.info(
@@ -673,7 +674,7 @@ class VirtualMachine extends EventEmitter {
 
     /**
      * @param {string} targetId Optional ID of target to export
-     * @returns {Array<{fileName: string; fileContent: Uint8Array;}} list of file descs
+     * @returns {Array<{ fileName: string, fileContent: Uint8Array }>} list of file descs
      */
     serializeAssets(targetId) {
         const costumeDescs = serializeCostumes(this.runtime, targetId);
@@ -729,6 +730,7 @@ class VirtualMachine extends EventEmitter {
      * Export project or sprite as a Scratch 3.0 JSON representation.
      * @param {string=} optTargetId - Optional id of a sprite to serialize
      * @param {*} serializationOptions Options to pass to the serializer
+     * @param {boolean} beautiful If the json should be serialized beautifully
      * @return {string} Serialized state of the runtime.
      */
     toJSON (optTargetId, serializationOptions, beautiful) {
@@ -1293,8 +1295,8 @@ class VirtualMachine extends EventEmitter {
     /**
      * TW: Get the raw binary data to use when exporting a costume to the user's local file system.
      * @param {Costume} costumeObject scratch-vm costume object
-     * @param {Boolean} determines wether to add assets like fonts or not
-     * @returns {Uint8Array}
+     * @param {boolean} optIncludeExtras wether to add assets like fonts or not
+     * @returns {Uint8Array} The raw data array for this costume
      */
     getExportedCostume (costumeObject, optIncludeExtras) {
         return exportCostume(costumeObject, optIncludeExtras);
@@ -1303,7 +1305,7 @@ class VirtualMachine extends EventEmitter {
     /**
      * TW: Get a base64 string to use when exporting a costume to the user's local file system.
      * @param {Costume} costumeObject scratch-vm costume object
-     * @param {Boolean} determines wether to add assets like fonts or not
+     * @param {boolean} optIncludeExtras wether to add assets like fonts or not
      * @returns {string} base64 string. Not a data: URI.
      */
     getExportedCostumeBase64 (costumeObject, optIncludeExtras) {
@@ -1319,6 +1321,7 @@ class VirtualMachine extends EventEmitter {
      * @param {!number} rotationCenterY y of point about which the costume rotates, relative to its upper left corner
      * @param {!number} bitmapResolution 1 for bitmaps that have 1 pixel per unit of stage,
      *     2 for double-resolution bitmaps
+     * @returns {void}
      */
     updateBitmap (costumeIndex, bitmap, rotationCenterX, rotationCenterY, bitmapResolution) {
         return this._updateBitmap(
@@ -1388,6 +1391,7 @@ class VirtualMachine extends EventEmitter {
      * @param {string} svg - new SVG for the renderer.
      * @param {number} rotationCenterX x of point about which the costume rotates, relative to its upper left corner
      * @param {number} rotationCenterY y of point about which the costume rotates, relative to its upper left corner
+     * @returns {void}
      */
     updateSvg (costumeIndex, svg, rotationCenterX, rotationCenterY) {
         return this._updateSvg(
@@ -1754,8 +1758,9 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
-     * @param {Block[]} blockObjects
-     * @returns {object}
+     * Generates serialization for only an array of blocks
+     * @param {Block[]} blockObjects The blocks to serialize
+     * @returns {object} The serialized blocks
      */
     exportStandaloneBlocks (blockObjects) {
         const sb3 = require('./serialization/sb3');

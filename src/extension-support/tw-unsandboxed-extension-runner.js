@@ -5,8 +5,8 @@ const createTranslate = require('./tw-l10n');
 
 /**
  * Parse a URL object or return null.
- * @param {string} url
- * @returns {URL|null}
+ * @param {string} url The url to parse
+ * @returns {URL|null} The parsed url
  */
 const parseURL = url => {
     try {
@@ -18,7 +18,7 @@ const parseURL = url => {
 
 /**
  * Sets up the global.Scratch API for an unsandboxed extension.
- * @param {VirtualMachine} vm
+ * @param {VirtualMachine} vm The VM that these apis should refer to
  * @returns {Promise<object[]>} Resolves with a list of extension objects when Scratch.extensions.register is called.
  */
 const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {

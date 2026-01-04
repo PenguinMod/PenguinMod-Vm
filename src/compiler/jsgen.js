@@ -386,9 +386,9 @@ class Frame {
 
 class JSGenerator {
     /**
-     * @param {IntermediateScript} script
-     * @param {IntermediateRepresentation} ir
-     * @param {Target} target
+     * @param {IntermediateScript} script The generated IR script
+     * @param {IntermediateRepresentation} ir The IR generator
+     * @param {Target} target The target to generate code for
      */
     constructor (script, ir, target) {
         this.script = script;
@@ -2040,8 +2040,8 @@ class JSGenerator {
 
     /**
      * Compile a Record of input objects into a safe JS string.
-     * @param {Record<string, unknown>} inputs
-     * @returns {string}
+     * @param {Record<string, unknown>} inputs The record to decend
+     * @returns {string} The stringified result
      */
     descendInputRecord (inputs) {
         let result = '{';

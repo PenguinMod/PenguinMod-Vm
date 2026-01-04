@@ -117,7 +117,7 @@ class Blocks {
     /**
      * Get the cached compilation result of a block.
      * @param {string} blockId ID of the top block.
-     * @returns {{success: boolean; value: any}|null} Cached success or error, or null if there is no cached value.
+     * @returns {{ success: boolean, value: any }|null} Cached success or error, or null if there is no cached value.
      */
     getCachedCompileResult (blockId) {
         if (this._cache.compiledScripts.hasOwnProperty(blockId)) {

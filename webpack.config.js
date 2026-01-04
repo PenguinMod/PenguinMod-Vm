@@ -18,7 +18,12 @@ const base = {
         rules: [{
             test: /\.js$/,
             loader: 'babel-loader',
-            include: path.resolve(__dirname, 'src'),
+            include: [
+                path.resolve(__dirname, 'src'),
+                /node_modules[\\/]scratch-[^\\/]+[\\/]src/,
+                /node_modules[\\/]pify/,
+                /node_modules[\\/]@vernier[\\/]godirect/
+            ],
             query: {
                 presets: [['@babel/preset-env']]
             }
@@ -29,6 +34,11 @@ const base = {
             options: {
                 outputPath: 'media/music/'
             }
+        },
+        {
+            test: /\.(svg|png|wav|gif|jpg|mp3|ttf|otf|ico)$/,
+            loader: 'file-loader',
+            options: { outputPath: 'static/assets/' }
         }]
     },
     plugins: []

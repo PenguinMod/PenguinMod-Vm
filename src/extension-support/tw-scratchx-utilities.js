@@ -5,8 +5,8 @@
  */
 
 /**
- * @param {string} scratchXName
- * @returns {string}
+ * @param {string} scratchXName The name the scratchx extension uses
+ * @returns {string} The name that should be used in the runtime
  */
 const generateExtensionId = scratchXName => {
     const sanitizedName = scratchXName.replace(/[^a-z0-9]/gi, '').toLowerCase();

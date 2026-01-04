@@ -23,8 +23,8 @@ jQuery.getScript = (src, callback) => {
 };
 
 /**
- * @param {Record<string, any>|undefined} obj
- * @returns {URLSearchParams}
+ * @param {Record<string, any>|undefined} obj Object to process
+ * @returns {URLSearchParams} The generated query parameters
  */
 const objectToQueryString = obj => {
     const params = new URLSearchParams();

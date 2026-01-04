@@ -42,7 +42,8 @@ class TabManager {
      * @param {string} extensionId ID of this extension.
      * @param {string} tabId ID for this tab.
      * @param {string} name Name of the editor tab.
-     * @returns {EditorTab}
+     * @param {string} uri The icon URI
+     * @returns {EditorTab} The tab interface
      */
     register (extensionId, tabId, name, uri) {
         const fullTabId = `${extensionId}_${tabId}`;

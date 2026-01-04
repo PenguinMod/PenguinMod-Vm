@@ -102,7 +102,7 @@ function hsvToDecimal(h, s, v) {
    * @param {number} time should be 0-1
    * @param {number} a value at 0
    * @param {number} b value at 1
-   * @returns {number}
+   * @returns {number} -
    */
 const interpolate = (time, a, b) => {
     // don't restrict range of time as some easing functions are expected to go outside the range

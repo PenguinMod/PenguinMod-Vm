@@ -64,7 +64,7 @@ class Jg3DVrBlocks {
     }
     /**
      * Metadata for this extension and its blocks.
-     * @returns {object}
+     * @returns {object} -
      */
     getInfo() {
         return {

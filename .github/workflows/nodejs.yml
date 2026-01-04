@@ -20,3 +20,28 @@ jobs:
           token: ${{ secrets.t }}
           event-type: update
           repository: PenguinMod/PenguinMod-Packager
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Make docs
+        run: |
+         npm install
+         npm run build
+         npm run docs
+
+      - name: Upload built-media
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-media
+          path: media
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './playground'
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

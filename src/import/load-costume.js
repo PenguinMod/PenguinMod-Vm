@@ -103,7 +103,7 @@ const canvasPool = (function () {
 
 /**
  * @param {string} src URL of image
- * @returns {Promise<HTMLImageElement>}
+ * @returns {Promise<HTMLImageElement>} -
  */
 const readAsImageElement = src => new Promise((resolve, reject) => {
     const image = new Image();
@@ -122,7 +122,7 @@ const readAsImageElement = src => new Promise((resolve, reject) => {
 
 /**
  * @param {Asset} asset scratch-storage asset
- * @returns {Promise<HTMLImageElement|ImageBitmap>}
+ * @returns {Promise<HTMLImageElement|ImageBitmap>} -
  */
 const _persistentReadImage = async asset => {
     // Sometimes, when a lot of images are loaded at once, especially in Chrome, reading an image

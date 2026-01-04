@@ -11,9 +11,9 @@ class extensionsPatch {
 
     /**
      * replaces a core extension with a external extension for the loader
-     * @param {String} id extension id
-     * @param {String} url new extension url
-     * @param {Object} extensions sb3 loader extension object
+     * @param {string} id extension id
+     * @param {string} url new extension url
+     * @param {object} extensions sb3 loader extension object
      */
     basicPatch (id, url, extensions) {
         extensions.extensionURLs.set(id, url);
@@ -21,9 +21,9 @@ class extensionsPatch {
 
     /**
      * runs the patch for an extension
-     * @param {String} id the extension to patch
-     * @param {Object} extensions the extensions object
-     * @param {Blocks} blocks all of the blocks
+     * @param {string} id the extension to patch
+     * @param {object} extensions the extensions object
+     * @param {Blocks} object all of the blocks
      */
     runExtensionPatch (id, extensions, object) {
         const patch = this.extensions[id];
@@ -41,7 +41,7 @@ class extensionsPatch {
 
     /**
      * registers extension patches to the patcher
-     * @param {Object} list a list of patches to register
+     * @param {object} list a list of patches to register
      */
     registerExtensions (list) {
         this.extensions = Object.assign(this.extensions, list);
@@ -49,8 +49,8 @@ class extensionsPatch {
 
     /**
      * gets if a patch exists for an extension
-     * @param {String} id the extension id to check
-     * @returns {Boolean} if the given extension exists
+     * @param {string} id the extension id to check
+     * @returns {boolean} if the given extension exists
      */
     patchExists (id) {
         return !!this.extensions[id];

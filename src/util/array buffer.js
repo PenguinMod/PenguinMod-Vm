@@ -41,9 +41,9 @@ class bufferUtil {
     /**
      * converts a buffer into a string of hex bytes
      * @param {ArrayBuffer} buffer the array buffer to convert
-     * @param {String|undefined} spacer what to put inbetween each byte
+     * @param {string|undefined} spacer what to put inbetween each byte
      * @param {Function|undefined} process a function to run on every item before converting it
-     * @returns {String} the string of bytes
+     * @returns {string} the string of bytes
      */
     bufferToString (buffer, spacer, process) {
         if (!spacer) spacer = ' ';

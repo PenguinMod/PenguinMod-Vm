@@ -29,7 +29,7 @@ const showFilePrompt = (accept, as) => new Promise((_resolve) => {
     //    This is important so we can make this just a reporter instead of a command+hat block.
     //    Without an interface, the script would be stalled if the prompt was just cancelled.
 
-    /** @param {string} text */
+    /** @param {string} text - */
     const callback = (text) => {
         _resolve(text);
         outer.remove();
@@ -39,7 +39,7 @@ const showFilePrompt = (accept, as) => new Promise((_resolve) => {
     let isReadingFile = false;
     let isReadingAsBuffer = false;
 
-    /** @param {File} file */
+    /** @param {File} file - */
     const readFile = (file) => {
         if (isReadingFile) {
             return;
@@ -68,7 +68,7 @@ const showFilePrompt = (accept, as) => new Promise((_resolve) => {
         }
     };
 
-    /** @param {KeyboardEvent} e */
+    /** @param {KeyboardEvent} e - */
     const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
             e.stopPropagation();
@@ -187,6 +187,7 @@ const dataURLtoBlob = (url) => {
 /**
  * @param {string} text Text to download
  * @param {string} file Name of the file
+ * @param {string} encoding The encoding format to use
  */
 const download = (text, file, encoding) => {
     let _blob;

@@ -427,7 +427,7 @@ const getExtensionIdForOpcode = function (opcode) {
 };
 
 /**
- * @param {Runtime} runtime
+ * @param {Runtime} runtime The runtime to check in
  * @returns {Array<string>} runtime -> extensionIDs
  */
 const getExtensionIDs = runtime => runtime._blockInfo
@@ -436,7 +436,7 @@ const getExtensionIDs = runtime => runtime._blockInfo
 
 /**
  * @param {Set<string>|string[]} extensionIDs Project extension IDs
- * @param {Runtime} runtime
+ * @param {Runtime} runtime The runtime to check in
  * @returns {Record<string, string>|null} extension ID -> URL map, or null if no custom extensions.
  */
 const getExtensionURLsToSave = (extensionIDs, runtime) => {
@@ -513,7 +513,7 @@ const serializeBlocks = function (blocks) {
 
 /**
  * @param {unknown} blocks Output of serializeStandaloneBlocks
- * @returns {{blocks: Block[], extensionURLs: Map<string, string>}}
+ * @returns {{blocks: Block[], extensionURLs: Map<string, string>}} The deserialized blocks. includes the extension urls included with those blocks
  */
 const deserializeStandaloneBlocks = blocks => {
     // deep clone to ensure it's safe to modify later
@@ -664,10 +664,9 @@ const makeSafeForJSON = (runtime, value) => {
 
 /**
  * Serialize the given variables object.
+ * @param {object} obj The object  to put variables in
+ * @param {!Runtime} runtime The runtime to get custom type serializers from
  * @param {object} variables The variables to be serialized.
- * @return {object} A serialized representation of the variables. They get
- * separated by type to compress the representation of each given variable and
- * reduce duplicate information.
  */
 const serializeVariables = function (obj, runtime, variables) {
     // separate out variables into types at the top level so we don't have
@@ -725,8 +724,8 @@ const serializeComments = function (comments) {
 /**
  * Serialize the given target. Only serialize properties that are necessary
  * for saving and loading this target.
+ * @param {!Runtime} runtime The runtime to get custom serializers from
  * @param {object} target The target to be serialized.
- * @param {Set} extensions A set of extensions to add extension IDs to
  * @return {object} A serialized representation of the given target.
  */
 const serializeTarget = function (runtime, target) {

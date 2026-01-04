@@ -7,8 +7,8 @@ const Color = require('./color');
 
 /**
  * Parse a URL object or return null.
- * @param {string} url
- * @returns {URL|null}
+ * @param {string} url The url to parse
+ * @returns {URL|null} The parsed url
  */
 const parseURL = url => {
     try {

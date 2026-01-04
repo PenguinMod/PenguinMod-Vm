@@ -2,6 +2,7 @@ module.exports = {
     /**
      * Parse a json into an object. if the json is invalid return an empty object
      * @param {string} json the json to parse.
+     * @returns {object} The parsed object
      */
     validateJSON: json => {
         let valid = false;
@@ -22,6 +23,7 @@ module.exports = {
     /**
      * Parse a json array into an array object. if the json is invalid return an empty array
      * @param {string} array the array to parse.
+     * @returns {Array} The parsed array
      */
     validateArray: array => {
         let valid = false;
@@ -42,6 +44,7 @@ module.exports = {
     /**
      * Convert a string to a value that is equal to it when made into a string
      * @param {string} value the the string to convert.
+     * @returns {any} The parsed result
      */
     stringToEqivalint: value => {
         // is the value a valid json? if so convert to one else do nothing
@@ -69,6 +72,7 @@ module.exports = {
     /**
      * Convert a value to a string (pretty much entirly pointless)
      * @param {any} value the value to convert.
+     * @returns {string} The stringified object
      */
     valueToString: value => {
         if (typeof value === 'object') {
@@ -82,7 +86,9 @@ module.exports = {
 
     /**
      * Check if a regex is valid or not
-     * @param {any} value the value to convert.
+     * @param {string} value the value to convert.
+     * @param {string} regrule the regexp's ruleset
+     * @returns {boolean} If the regexp is valid
      */
     validateRegex: (value, regrule) => {
         let valid = false;

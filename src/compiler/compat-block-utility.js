@@ -17,9 +17,9 @@ class CompatibilityLayerBlockUtility extends BlockUtility {
 
     /**
      * runs any given procedure
-     * @param {String} proccode the procedure to start
-     * @param {Object} args 
-     * @returns the return value of the procedure, returns undefined if statement
+     * @param {string} proccode the procedure to start
+     * @param {object} args the argument values to pass to the procedure
+     * @returns {any} the return value of the procedure, returns undefined if statement
      */
     startProcedure (proccode, args) {
         if (!args)

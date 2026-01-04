@@ -195,7 +195,7 @@ const ArgumentTypeMap = (() => {
  * and remove an existing cloud variable.
  * These are to be called whenever attempting to create or delete
  * a cloud variable.
- * @param {Object} cloudOptions
+ * @param {object} cloudOptions The options to pass to the cloud variable handler
  * @param {number} cloudOptions.limit Maximum number of cloud variables
  * @return {CloudDataManager} The functions to be used when adding or removing a
  * cloud variable.
@@ -1956,6 +1956,7 @@ class Runtime extends EventEmitter {
      * Helper for _convertPlaceholdes which handles variable dropdowns
      * which are a specialized case of block "arguments".
      * @param {object} argInfo Metadata about the variable dropdown
+     * @param {string} placeholder The placeholder name value
      * @return {object} JSON blob for a scratch-blocks variable field.
      * @private
      */
@@ -2370,7 +2371,7 @@ class Runtime extends EventEmitter {
 
     /**
      * registers a custom serializer to allow saving custom data into standard variables
-     * @param {Function} validate validates if a given chunk of data is correctly for this serializer
+     * @param {Function} id The custom type ID to register these for
      * @param {Function} serialize the function to be ran on serialized data in variables.
      * @param {Function} deserialize the function to be ran on serialized data in variables
      */
@@ -3843,7 +3844,7 @@ class Runtime extends EventEmitter {
     /**
      * gets a screen, if no screen can be found it will create one
      * @param {string} screen the screen to get
-     * @returns {Object} the screen state object
+     * @returns {object} the screen state object
      */
     getCamera(screen) {
         if (typeof this.cameraStates[screen] !== 'object') {
@@ -3859,7 +3860,7 @@ class Runtime extends EventEmitter {
     /**
      * assign new camera state options
      * @param {string} screen the screen
-     * @param {Object} state the state to apply to the screen
+     * @param {object} state the state to apply to the screen
      * @param {boolean} silent if we should emit an event because of this change
      */
     updateCamera(screen, state, silent) {

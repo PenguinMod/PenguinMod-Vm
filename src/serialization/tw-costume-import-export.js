@@ -82,7 +82,7 @@ const parseVectorMetadata = svgString => {
 
 /**
  * @param {Costume} costume scratch-vm costume object
- * @param {Boolean} optIncludeExtras determines if we add things like custom fonts to the export
+ * @param {boolean} optIncludeExtras determines if we add things like custom fonts to the export
  * @returns {Uint8Array} Binary data to export
  */
 const exportCostume = (costume, optIncludeExtras) => {

@@ -51,14 +51,14 @@ const WORKSPACE_Y_SCALE = 2.2;
 const SCRATCHX_OPCODE_SEPARATOR = /\u001f|\./;
 
 /**
- * @param {string} opcode
- * @returns {boolean}
+ * @param {string} opcode The opcode to check
+ * @returns {boolean} -
  */
 const isPossiblyScratchXBlock = opcode => SCRATCHX_OPCODE_SEPARATOR.test(opcode);
 
 /**
- * @param {string} opcode
- * @returns {string}
+ * @param {string} opcode The opcode to transform
+ * @returns {string} The transformed opcode
  */
 const mapScratchXOpcode = opcode => {
     const [extensionName, extensionMethod] = opcode.split(SCRATCHX_OPCODE_SEPARATOR);
@@ -67,8 +67,8 @@ const mapScratchXOpcode = opcode => {
 };
 
 /**
- * @param {object} block
- * @returns {object}
+ * @param {object} block The block to transform
+ * @returns {object} A partial conversion to a scratch3 block
  */
 const mapScratchXBlock = block => {
     const opcode = block[0];

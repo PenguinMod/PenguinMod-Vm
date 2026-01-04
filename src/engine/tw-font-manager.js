@@ -13,7 +13,7 @@ const log = require('../util/log');
 
 class FontManager extends EventEmitter {
     /**
-     * @param {Runtime} runtime
+     * @param {Runtime} runtime The runtime
      */
     constructor(runtime) {
         super();
@@ -31,16 +31,16 @@ class FontManager extends EventEmitter {
     }
 
     /**
-     * @param {string} family
-     * @returns {boolean}
+     * @param {string} family The family to check
+     * @returns {boolean} If the font exists
      */
     hasFont(family) {
         return !!this.fonts.find(i => i.family === family);
     }
 
     /**
-     * @param {string} family
-     * @returns {boolean}
+     * @param {string} family The family to name
+     * @returns {string} The new safe name to use
      */
     getSafeName(family) {
         family = family.replace(/[^-\w ]/g, '');
@@ -52,8 +52,9 @@ class FontManager extends EventEmitter {
     }
 
     /**
-     * @param {string} family
-     * @param {string} fallback
+     * @param {string} family The font family to add
+     * @param {string} fallback The font that should be used if it doesnt exist
+     * @emits change
      */
     addSystemFont(family, fallback) {
         if (!this.isValidFamily(family)) {
@@ -68,8 +69,8 @@ class FontManager extends EventEmitter {
     }
 
     /**
-     * @param {string} family
-     * @param {string} fallback
+     * @param {string} family The name of this font
+     * @param {string} fallback The font that should be used if it doesnt exist
      * @param {Asset} asset scratch-storage asset
      */
     addCustomFont(family, fallback, asset) {
@@ -89,7 +90,13 @@ class FontManager extends EventEmitter {
     }
 
     /**
-     * @returns {Array<{system: boolean; name: string; family: string; data: Uint8Array | null; format: string | null}>}
+     * @returns {Array<{
+     *  system: boolean,
+     *  name: string,
+     *  family: string?,
+     *  data: Uint8Array,
+     *  format: string?
+     * }>} All known fonts for this instance
      */
     getFonts() {
         return this.fonts.map(font => ({
@@ -140,6 +147,7 @@ class FontManager extends EventEmitter {
 
     /**
      * Get data to save in project.json and sb3 files.
+     * @returns {Array<{ system: string, family: string, fallback: string, md5ext: string? }>} The serialized fonts
      */
     serializeJSON() {
         if (this.fonts.length === 0) {
@@ -172,10 +180,10 @@ class FontManager extends EventEmitter {
     }
 
     /**
-     * @param {unknown} json
-     * @param {JSZip} [zip]
-     * @param {boolean} [keepExisting]
-     * @returns {Promise<void>}
+     * @param {Array<{ system: string, family: string, fallback: string, md5ext: string? }>} json The output of serializeJSON
+     * @param {JSZip} [zip] The zip that contains the project.json file, if missing then none-system fonts will not load
+     * @param {boolean} [keepExisting=false] If the current fonts should remain installed
+     * @returns {Promise<void>} Resolves once all fonts are loaded
      */
     async deserialize(json, zip, keepExisting) {
         if (!keepExisting) {

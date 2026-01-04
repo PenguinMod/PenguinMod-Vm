@@ -71,6 +71,7 @@ class Touch {
 
     /**
      * Get the X position of the finger in client coordinates.
+     * @param {number} finger The finger index that we are getting
      * @return {number} Non-clamped X position of the finger cursor.
      */
     getClientX (finger) {
@@ -81,6 +82,7 @@ class Touch {
 
     /**
      * Get the Y position of the finger in client coordinates.
+     * @param {number} finger The finger index that we are getting
      * @return {number} Non-clamped Y position of the finger cursor.
      */
     getClientY (finger) {
@@ -91,6 +93,7 @@ class Touch {
 
     /**
      * Get the X position of the finger in scratch coordinates.
+     * @param {number} finger The finger index that we are getting
      * @return {number} Clamped and integer rounded X position of the finger cursor.
      */
     getScratchX (finger) {
@@ -104,6 +107,7 @@ class Touch {
 
     /**
      * Get the Y position of the finger in scratch coordinates.
+     * @param {number} finger The finger index that we are getting
      * @return {number} Clamped and integer rounded Y position of the finger cursor.
      */
     getScratchY (finger) {
@@ -117,6 +121,7 @@ class Touch {
 
     /**
      * Get the down state of the finger.
+     * @param {number} finger The finger index that we are getting
      * @return {boolean} Is the finger down?
      */
     getIsDown (finger) {
@@ -127,6 +132,7 @@ class Touch {
 
     /**
      * pm: Get if the finger was pressed down on this tick.
+     * @param {number} finger The finger index that we are getting
      * @return {boolean} Is the finger tapping?
      */
     getIsTapped (finger) {

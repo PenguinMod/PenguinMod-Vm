@@ -118,7 +118,8 @@ class Jg3DBlocks {
     }
     /**
      * Displays a message for stack blocks.
-     * @param {BlockUtility} util 
+     * @param {BlockUtility} util The util from the calling block
+     * @param {string} message The warning message to display
      */
     stackWarning(util, message) {
         if (!util) return;

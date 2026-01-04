@@ -1,8 +1,8 @@
 /**
  * creates a string of a given length from a given content
- * @param {Number} length the goal length
- * @param {String} contents what to make the string from
- * @returns {String} a string with contents repeated length times
+ * @param {number} length the goal length
+ * @param {string} contents what to make the string from
+ * @returns {string} a string with contents repeated length times
  */
 const makeString = (length, contents) => {
     let array;
@@ -12,10 +12,10 @@ const makeString = (length, contents) => {
 
 /**
  * levels text so its always the same length
- * @param {String} text the text to level
- * @param {Number} length the length to level to
- * @param {String} sus the filler character
- * @returns {String} the leveled text
+ * @param {string} text the text to level
+ * @param {number} length the length to level to
+ * @param {string} sus the filler character
+ * @returns {string} the leveled text
  */
 const levelText = (text, length, sus) => {
     if (text.length === length) return text;

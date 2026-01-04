@@ -15,7 +15,7 @@ class canvasStorage {
     /**
      * gets a canvas with a given id
      * @param {string} id the id of the canvas to get
-     * @returns {Object} the canvas object with this id
+     * @returns {object} the canvas object with this id
      */
     getCanvas (id) {
         return this.canvases[id];
@@ -24,7 +24,7 @@ class canvasStorage {
     /**
      * deletes a canvas with a given id
      * @param {string} id the canvas id to delete
-     * @returns {Object} the deleted canvas
+     * @returns {object} the deleted canvas
      */
     deleteCanvas (id) {
         const orignal = this.canvases[id];
@@ -38,7 +38,7 @@ class canvasStorage {
      * @param {number} width the width of the canvas
      * @param {number} height the height of the canvas
      * @param {string} opt_id the id of the canvas
-     * @returns {Object} the new canvas object
+     * @returns {object} the new canvas object
      */
     newCanvas (name, width, height, opt_id) {
         width = width || this.runtime.stageWidth;
@@ -69,7 +69,8 @@ class canvasStorage {
 
     /**
      * gets or creates a canvas with name equal to 
-     * @param {String} name the name of the canvas
+     * @param {string} name the name of the canvas
+     * @returns {object} A canvas variable
      */
     getCanvasByName (name) {
         return Object.values(this.canvases).find(canvas => canvas.name === name);
@@ -77,7 +78,7 @@ class canvasStorage {
 
     /**
      * gets all canvases 
-     * @returns {Array}
+     * @returns {Array} All the canvases stored
      */
     getAllCanvases () {
         return Object.values(this.canvases);

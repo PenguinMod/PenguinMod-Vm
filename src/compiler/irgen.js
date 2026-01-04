@@ -25,7 +25,7 @@ const LIST_TYPE = 'list';
 /**
  * Create a variable codegen object.
  * @param {'target'|'stage'} scope The scope of this variable -- which object owns it.
- * @param {import('../engine/variable.js')} varObj The Scratch Variable
+ * @param {!Variable} varObj The Scratch Variable
  * @returns {*} A variable codegen object.
  */
 const createVariableData = (scope, varObj) => ({
@@ -36,9 +36,9 @@ const createVariableData = (scope, varObj) => ({
 });
 
 /**
- * @param {string} code
- * @param {boolean} warp
- * @returns {string}
+ * @param {string} code The proccode
+ * @param {boolean} warp If this is a warping proccode
+ * @returns {string} A variant string
  */
 const generateProcedureVariant = (code, warp) => {
     if (warp) {
@@ -2274,7 +2274,8 @@ class ScriptTreeGenerator {
 
     /**
      * Descend into a block that uses the compatibility layer.
-     * @param {*} block The block to use the compatibility layer for.
+     * @param {Block} block The block to use the compatibility layer for.
+     * @param {*} blockInfo An extensions block info text
      * @private
      * @returns {Node} The parsed node.
      */
@@ -2361,7 +2362,8 @@ class ScriptTreeGenerator {
     }
     
     /**
-     * @param {Block} hatBlock
+     * @param {Block} hatBlock The block to start at
+     * @returns {Node[]} An array of generated nodes
      */
     walkHat(hatBlock) {
         const nextBlock = hatBlock.next;
@@ -2414,7 +2416,7 @@ class ScriptTreeGenerator {
 
     /**
      * @param {string} topBlockId The ID of the top block of the script.
-     * @returns {IntermediateScript}
+     * @returns {IntermediateScript} The generated ir script for this hats blocks
      */
     generate (topBlockId) {
         this.blocks.populateProcedureCache();
@@ -2520,6 +2522,7 @@ class IRGenerator {
     /**
      * Recursively analyze a script and its dependencies.
      * @param {IntermediateScript} script Intermediate script.
+     * @returns {boolean} If changes have been made to the script
      */
     analyzeScript (script) {
         let madeChanges = false;

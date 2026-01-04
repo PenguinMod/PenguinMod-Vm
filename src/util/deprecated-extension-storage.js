@@ -12,6 +12,7 @@ const WARNED_EXTENSIONS = new Set();
 /**
  * Creates the actual proxy object.
  * @param {object.<string, any>} [default_content] Used by the deserializer to set the values of extensionStorage.
+ * @return {Proxy} The extension storage proxy class
  */
 const ExtensionStorage = (default_content = {}) => {
   return new Proxy(

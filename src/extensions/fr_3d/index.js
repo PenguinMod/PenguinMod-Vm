@@ -36,7 +36,7 @@ class Fr3DBlocks {
   }
     /**
      * metadata for this extension and its blocks.
-     * @returns {object}
+     * @returns {object} -
      */
     getInfo() {
         return {

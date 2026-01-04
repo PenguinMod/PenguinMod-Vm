@@ -69,7 +69,8 @@ class canvasStorage {
 
     /**
      * gets or creates a canvas with name equal to 
-     * @param {String} name the name of the canvas
+     * @param {string} name the name of the canvas
+     * @returns {object} An object variable
      */
     getCanvasByName (name) {
         return Object.values(this.canvases).find(canvas => canvas.name === name);
@@ -77,7 +78,7 @@ class canvasStorage {
 
     /**
      * gets all canvases 
-     * @returns {Array}
+     * @returns {Array} All of the objects stored
      */
     getAllCanvases () {
         return Object.values(this.canvases);

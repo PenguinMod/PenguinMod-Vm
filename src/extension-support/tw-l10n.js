@@ -1,8 +1,8 @@
 const formatMessage = require('format-message');
 
 /**
- * @param {VM|null} vm
- * @returns {object}
+ * @param {VM|null} vm A virtual machine, used only to determin the locale
+ * @returns {object} A translation handle
  */
 const createTranslate = vm => {
     const namespace = formatMessage.namespace();

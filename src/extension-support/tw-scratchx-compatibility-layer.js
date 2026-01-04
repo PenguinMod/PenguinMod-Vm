@@ -56,6 +56,7 @@ const isScratchCompatibleValue = v => typeof v === 'string' || typeof v === 'num
 /**
  * @param {string} argument ScratchX argument with leading % removed.
  * @param {unknown} defaultValue Default value, if any
+ * @returns {ExtensionArgumentMetadata} The generated argument
  */
 const parseScratchXArgument = (argument, defaultValue) => {
     const result = {};

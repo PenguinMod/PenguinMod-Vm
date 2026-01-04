@@ -55,10 +55,10 @@ const origin = window.origin;
 
 /**
  * vscode give me autofill
- * @param {MessageEvent} event 
- * @param {HTMLIFrameElement} iframe 
- * @param {Function} removeHandler 
- * @returns nothing
+ * @param {MessageEvent} event The nessage event to handle
+ * @param {HTMLIFrameElement} iframe The iframe who produced the event
+ * @param {Function} removeHandler The handle to remove that i
+ * @returns {Promise<object>} The data provided by the message
  */
 const messageHandler = (event, iframe, removeHandler) => new Promise(resolve => {
     // console.log(event.origin) // remove later
@@ -95,7 +95,7 @@ const messageHandler = (event, iframe, removeHandler) => new Promise(resolve => 
 /**
  * generates a string that can be placed into the iframe src
  * @param {string} code the code
- * @returns the code that can be placed into the eval in the iframe src
+ * @returns {string} the code that can be placed into the eval in the iframe src
  */
 const prepareCodeForEval = (code) => {
     const escaped = JSON.stringify(code);
@@ -189,7 +189,7 @@ class SandboxRunner {
             const frame = createFrame();
             /**
              * please vscode show me the autofill
-             * @param {MessageEvent} e 
+             * @param {MessageEvent} e -
              */
             const trueHandler = e => {
                 // this code is weird but we need to remove
