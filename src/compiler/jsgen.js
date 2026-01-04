@@ -2278,7 +2278,8 @@ class JSGenerator {
         script += 'console.error(err);';
         script += `runtime.emit("BLOCK_STACK_ERROR", {`;
         script += `id:"${sanitize(this.script.topBlockId)}",`;
-        script += `value:String(err)`;
+        script += `value:String(err),`;
+        script += `thread,`
         script += `});\n`;
         script += '}\n';
         if (!this.isProcedure) {

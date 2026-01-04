@@ -164,7 +164,7 @@ class jgDebuggingBlocks {
 
         this.isScratchBlocksReady = typeof ScratchBlocks === "object";
         this.ScratchBlocks = ScratchBlocks;
-        this.runtime.vm.on("workspaceUpdate", () => {
+        runtime.vm.on("workspaceUpdate", () => {
             if (this.isScratchBlocksReady) return;
             this.isScratchBlocksReady = typeof ScratchBlocks === "object";
             if (!this.isScratchBlocksReady) return;
@@ -174,6 +174,11 @@ class jgDebuggingBlocks {
         runtime.on("THREAD_STARTED", (thread, options) => {
             if (options?.updateMonitor) return;
             thread.traceback = new Set(options?.parentThread?.traceback ?? []);
+        });
+
+        runtime.on("BLOCK_STACK_ERROR", ({ value, thread }) => {
+            const log = "\"" + xmlEscape(value) + "\" thrown in script:\n";
+            this._addLog(log + this._renderTraceback(thread.traceback), "color: red;");
         });
 
         const _jsgen_compile = vm.exports.JSGenerator.prototype.compile;
