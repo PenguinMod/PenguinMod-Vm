@@ -3,6 +3,11 @@ name: Remote Dispatch Action Initiator
 on:
   push:
     branches: ["develop"]
+permissions:
+  contents: read
+  pages: write
+concurrency:
+  group: "pages"
 
 jobs:
   ping-pong:
@@ -24,6 +29,8 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Make docs
         run: |
