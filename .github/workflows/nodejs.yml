@@ -41,7 +41,7 @@ jobs:
       - name: Upload built-media
         uses: actions/upload-artifact@v4
         with:
-          name: built-media
+          name: built-media 
           path: media
 
       - name: Setup Pages
