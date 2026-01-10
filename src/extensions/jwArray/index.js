@@ -730,12 +730,12 @@ class Extension {
                     return new imports.TypedInput(stackSource, imports.TYPE_UNKNOWN);
                 },
                 forEach: (node, compiler, imports) => {
+                    const array = compiler.localVariables.next();
+                    compiler.source += `let ${array} = vm.jwArray.Type.toArray(${compiler.descendInput(node.array).asUnknown()}).array;\n`
                     compiler.source += `thread._jwArrayForEach ??= [];\n`
                     const forIndex = compiler.localVariables.next();
                     compiler.source += `let ${forIndex} = thread._jwArrayForEach.push([]) - 1;\n`
                     const index = compiler.localVariables.next();
-                    const array = compiler.localVariables.next();
-                    compiler.source += `let ${array} = vm.jwArray.Type.toArray(${compiler.descendInput(node.array).asUnknown()}).array;\n`
                     const output = compiler.localVariables.next();
                     compiler.source += `let ${output} = yield* (function* () {for (let ${index} in ${array}) {\n`
                     compiler.source += `thread._jwArrayForEach[${forIndex}] = [Number(${index}) + 1, ${array}[${index}]];\n`
