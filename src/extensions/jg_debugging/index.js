@@ -420,7 +420,7 @@ class jgDebuggingBlocks {
 
         const log = "Warning: " + xmlEscape(Cast.toString(args.INFO)) + "\n";
         this._addLog(log + this._renderTraceback(traceback, { linkColor: "#fb0" }), "color: yellow;");
-        console.error(log + this._renderTraceback(traceback, { linkColor: "#fb0", disableHTML: true }));
+        console.warn(log + this._renderTraceback(traceback, { disableHTML: true }));
     }
     error(args, util) {
         const current_trace_stack = {
