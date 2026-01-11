@@ -412,7 +412,7 @@ class jgDebuggingBlocks {
     }
     warn(args, util) {
         const current_trace_stack = {
-            target: !!util.thread.spoofing ? util.thread.spoofOrigin.id : util.target.id,
+            target: this.figure_block_target(util.thread),
             blockId: util.thread.peekStack(),
             procCode: null,
         };
@@ -424,7 +424,7 @@ class jgDebuggingBlocks {
     }
     error(args, util) {
         const current_trace_stack = {
-            target: !!util.thread.spoofing ? util.thread.spoofOrigin.id : util.target.id,
+            target: this.figure_block_target(util.thread),
             blockId: util.thread.peekStack(),
             procCode: null,
         };
@@ -434,7 +434,13 @@ class jgDebuggingBlocks {
         this._addLog(log + this._renderTraceback(traceback), "color: red;");
         console.error(log + this._renderTraceback(traceback, { disableHTML: true }));
     }
-
+    figure_block_target(thread) {
+        if (thread.spoofing)
+            return thread.spoofOrigin.id;
+        if (!!thread._jwLambdaRunning)
+            return thread._jwLambdaRunning.parentTarget.id;
+        return thread.target.id;
+    }
     _renderTraceback(traceback, opts={}) {
         const disableHTML = opts?.disableHTML ?? false;
         const linkColor = opts?.linkColor ?? "#f0b";
