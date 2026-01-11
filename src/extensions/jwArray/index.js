@@ -937,11 +937,11 @@ class Extension {
     }
 
     forEachI({}, util) {
-        return util.thread._jwArrayForEach ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][0] : 0
+        return (util.thread._jwArrayForEach && util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1]) ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][0] : 0
     }
 
     forEachV({}, util) {
-        return util.thread._jwArrayForEach ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][1] : ""
+        return (util.thread._jwArrayForEach && util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1]) ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][1] : ""
     }
 
     forEach({ARRAY}, util) {
