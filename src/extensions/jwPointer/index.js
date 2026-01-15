@@ -89,7 +89,7 @@ class PointerType {
         root.appendChild(pointer);
         if (!destroyed) {
             let value = (this.value !== null && this.value.toReporterContent) ? this.value.toReporterContent() : span(this.value);
-            if (value === null) value = span("null");
+            if (this.value === null) value = span("null");
             value.style.maxWidth = "100%";
             value.style.overflow = "auto";
             root.appendChild(value);
