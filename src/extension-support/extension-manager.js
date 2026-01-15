@@ -170,7 +170,7 @@ const defaultBuiltinExtensions = {
     // NEW xml extension
     jwXML: () => require("../extensions/jwXML"),
     // pointers
-    jwPointer: () => require("../extensions/jwPointer")
+    jwPointer: () => require("../extensions/jwPointer"),
 
     // jw: They'll think its made by jwklong >:)
     // (but it's not (yet (maybe (probably not (but its made by ianyourgod)))))
