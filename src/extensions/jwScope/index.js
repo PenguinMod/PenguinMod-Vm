@@ -199,7 +199,8 @@ class Extension {
                 {
                     opcode: "depth",
                     blockType: BlockType.REPORTER,
-                    text: "depth of scope"
+                    text: "depth of scope",
+                    disableMonitor: true
                 },
                 "---",
                 {
