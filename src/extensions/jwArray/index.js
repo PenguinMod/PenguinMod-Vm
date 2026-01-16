@@ -944,12 +944,16 @@ class Extension {
         return (util.thread._jwArrayForEach && util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1]) ? util.thread._jwArrayForEach[util.thread._jwArrayForEach.length-1][1] : ""
     }
 
-    forEach({ARRAY}, util) {
+    forEach() {
         return 'noop'
     }
 
     forEachBreak({}, util) {
         util.stackFrame.entry = []
+    }
+
+    basicSort() {
+        return 'noop'
     }
 }
 

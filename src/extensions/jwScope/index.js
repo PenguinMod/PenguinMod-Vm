@@ -54,7 +54,7 @@ const jwScope = {
             }
         }
         return false
-    }
+    },
 
     reset(array) {
         for (let i = array.length-1; i >= 0; i--) {
@@ -64,7 +64,7 @@ const jwScope = {
 
     depth(array) {
         return array.length
-    }
+    },
 
     current(array) {
         let set = new Set()
@@ -315,7 +315,15 @@ class Extension {
         return 'noop'
     }
 
+    has() {
+        return 'noop'
+    }
+
     reset() {
+        return 'noop'
+    }
+
+    depth() {
         return 'noop'
     }
 
