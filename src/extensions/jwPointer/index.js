@@ -53,7 +53,7 @@ class PointerType {
     }
 
     get value() {
-        let value = pointers.get(this.pointerID);
+        return pointers.get(this.pointerID);
         if (value === undefined) {
             return null;
         }
@@ -61,12 +61,12 @@ class PointerType {
     }
 
     set value(value) {
-        if (pointers.get(this.pointerID) === undefined) return;
+        if (!pointers.has(this.pointerID)) return;
         pointers.set(this.pointerID, value);
     }
 
     jwArrayHandler() {
-        if (this.value === undefined) return "Pointer";
+        if (!pointers.has(this.pointerID)) return "Pointer";
         if (this.value === null) return "Pointer&lt;null&gt;";
         if (this.value instanceof PointerType) return "Pointer&lt;...&gt;";
         if (this.value.jwArrayHandler) return `Pointer&lt;${this.value.jwArrayHandler()}&gt;`;
@@ -78,7 +78,7 @@ class PointerType {
     }
 
     toReporterContent() {
-        let destroyed = pointers.get(this.pointerID) === undefined;
+        let destroyed = !pointers.has(this.pointerID);
 
         let root = document.createElement('div')
         root.style.display = "flex";
@@ -115,7 +115,7 @@ class Extension {
         vm.jwPointer = Pointer
         vm.runtime.registerSerializer(
             "jwPointer", 
-            v => [v.pointerID, pointers.get(v.pointerID) !== undefined], 
+            v => [v.pointerID, pointers.has(v.pointerID)], 
             v => {
                 currentPointerID = Math.max(v[0]+1, currentPointerID);
                 return new Pointer.Type(v[0]);
@@ -283,7 +283,7 @@ class Extension {
 
     findID({ID}) {
         ID = Cast.toNumber(ID);
-        if (pointers.get(ID) === undefined) return new Pointer.Type(0);
+        if (!pointers.has(ID)) return new Pointer.Type(0);
         return Pointer.Type.toPointer(ID);
     }
 
@@ -299,7 +299,7 @@ class Extension {
 
     isDestroyed({POINTER}) {
         POINTER = Pointer.Type.toPointer(POINTER);
-        return pointers.get(POINTER.pointerID) === undefined;
+        return pointers.has(POINTER.pointerID);
     }
 
     setData({POINTER, DATA}) {
