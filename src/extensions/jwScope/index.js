@@ -62,6 +62,10 @@ const jwScope = {
         }
     },
 
+    depth(array) {
+        return array.length
+    }
+
     current(array) {
         let set = new Set()
         for (let i = 0; i < array.length; i++) {
@@ -186,11 +190,16 @@ class Extension {
                         }
                     },
                 },
-                "---",
                 {
                     opcode: "reset",
                     blockType: BlockType.COMMAND,
                     text: "reset scope"
+                },
+                "---",
+                {
+                    opcode: "depth",
+                    blockType: BlockType.REPORTER,
+                    text: "depth of scope"
                 },
                 "---",
                 {
@@ -245,6 +254,9 @@ class Extension {
                 reset: (generator, block) => ({
                     kind: 'stack'
                 }),
+                depth: (generator, block) => ({
+                    kind: 'input'
+                }),
                 current: (generator, block) => ({
                     kind: 'input'
                 }),
@@ -273,6 +285,9 @@ class Extension {
                 },
                 reset: (node, compiler, imports) => {
                     compiler.source += `vm.jwScope.reset(jwScope);\n`
+                },
+                depth: (node, compiler, imports) => {
+                    return new imports.TypedInput(`vm.jwScope.depth(jwScope)`, imports.TYPE_NUMBER)
                 },
                 current: (node, compiler, imports) => {
                     return new imports.TypedInput(!!vm.jwArray ? 'vm.jwScope.current(jwScope)' : '0', imports.TYPE_UNKNOWN)
