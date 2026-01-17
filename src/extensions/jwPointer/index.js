@@ -107,7 +107,9 @@ const Pointer = {
     },
     Argument: {
         check: ["Pointer"]
-    }
+    },
+
+    pointers
 };
 
 class Extension {
