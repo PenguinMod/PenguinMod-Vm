@@ -995,8 +995,8 @@ class ExtensionManager {
                     'broadcast': "exception"
                 };
                 const realBlockInfo = getBlockInfo(args);
-                for (const arg in realBlockInfo.arguments) {
-                    const expected = normal[realBlockInfo.arguments[arg].type];
+                for (const i in realBlockInfo.arguments) {
+                    const expected = normal[realBlockInfo.arguments[i].type];
                     if (realBlockInfo.arguments[arg].exemptFromNormalization === true) continue;
                     if (expected === 'exception') continue;
                     if (!expected) continue;
@@ -1004,12 +1004,16 @@ class ExtensionManager {
                     // if this argument is for a variable dropdown, do not type cast it
                     // as variable dropdowns report an object and not something we can or should cast
                     if (typeof menus[realBlockInfo.arguments[arg].menu]?.variableType === 'string') continue;
+
+                    const isCustomAPI = (args[arg]?.value !== undefined) && (args[arg]?.constructor?.name !== "Object");
+                    if (isCustomAPI) args[arg] = args[arg].value;
+
                     if (!(typeof args[arg] === expected)) args[arg] = this._normalize(args[arg], expected);
                 }
                 // TODO: filter args using the keys of realBlockInfo.arguments? maybe only if sandboxed?
                 const returnValue = callBlockFunc(args, util, realBlockInfo);
                 const isCustomAPI = (returnValue?.value ?? false) && (returnValue?.constructor?.name !== "Object");
-                if (!visualReport && isCustomAPI && realBlockInfo.exemptFromNormalization !== true) return returnValue.value;
+                //if (!visualReport && isCustomAPI && realBlockInfo.exemptFromNormalization !== true) return returnValue.value;
                 return returnValue;
             };
             break;
