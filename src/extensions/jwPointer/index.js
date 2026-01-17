@@ -116,7 +116,7 @@ const Pointer = {
     Type: PointerType,
     Block: {
         blockType: BlockType.REPORTER,
-        forceOutputType: "Pointer",
+        allowDropAnywhere: true,
         disableMonitor: true
     },
     Argument: {
@@ -267,6 +267,11 @@ class Extension {
                     text: "last pointer ID",
                     blockType: BlockType.REPORTER
                 },
+                {
+                    opcode: "isPointer",
+                    text: "is [input] a pointer?",
+                    blockType: BlockType.BOOLEAN
+                }
                 ...(vm.runtime.ext_jwArray ? ["---"] : []),
                 {
                     opcode: "allPointers",
@@ -342,6 +347,10 @@ class Extension {
 
     lastID() {
         return currentPointerID;
+    }
+
+    isPointer({POINTER}) {
+        return POINTER instanceof Pointer.Type
     }
 
     allPointers() {
