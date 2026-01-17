@@ -1004,11 +1004,6 @@ class ExtensionManager {
                     // if this argument is for a variable dropdown, do not type cast it
                     // as variable dropdowns report an object and not something we can or should cast
                     if (typeof menus[realBlockInfo.arguments[arg].menu]?.variableType === 'string') continue;
-
-                    const isCustomAPI = (args[arg]?.value !== undefined) && (args[arg]?.constructor?.name !== "Object");
-                    const neglectTypes = realBlockInfo.arguments[arg].neglectTypes ?? [];
-                    if (isCustomAPI && !neglectTypes.includes(args[arg].customId)) args[arg] = args[arg].value;
-
                     if (!(typeof args[arg] === expected)) args[arg] = this._normalize(args[arg], expected);
                 }
                 // TODO: filter args using the keys of realBlockInfo.arguments? maybe only if sandboxed?
