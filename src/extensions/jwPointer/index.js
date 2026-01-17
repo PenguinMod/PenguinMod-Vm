@@ -96,7 +96,7 @@ class PointerType {
             try {
                 if (this.value === null) {
                     value = span("null")
-                } else if (this.value instanceof Pointer) {
+                } else if (this.value instanceof PointerType) {
                     value = span("(Pointer)")
                 } else {
                     value = this.value.toReporterContent ? this.value.toReporterContent() : span(this.value)
