@@ -36,7 +36,12 @@ class PointerType {
     }
 
     static toPointer(x) {
+        console.debug(x)
         if (x instanceof PointerType) return x;
+
+        let num = Cast.toNumber(x);
+        if (num <= pointerLimit) return new PointerType(num);
+
         return new PointerType(0);
     }
 
@@ -74,7 +79,7 @@ class PointerType {
     }
 
     toString() {
-        return Cast.toString(this.pointerID)
+        return this.pointerID.toString();
     }
 
     toReporterContent() {
