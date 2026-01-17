@@ -271,7 +271,7 @@ class Extension {
                     opcode: "isPointer",
                     text: "is [input] a pointer?",
                     blockType: BlockType.BOOLEAN
-                }
+                },
                 ...(vm.runtime.ext_jwArray ? ["---"] : []),
                 {
                     opcode: "allPointers",
