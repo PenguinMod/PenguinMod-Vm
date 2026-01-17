@@ -995,8 +995,8 @@ class ExtensionManager {
                     'broadcast': "exception"
                 };
                 const realBlockInfo = getBlockInfo(args);
-                for (const i in realBlockInfo.arguments) {
-                    const expected = normal[realBlockInfo.arguments[i].type];
+                for (const arg in realBlockInfo.arguments) {
+                    const expected = normal[realBlockInfo.arguments[arg].type];
                     if (realBlockInfo.arguments[arg].exemptFromNormalization === true) continue;
                     if (expected === 'exception') continue;
                     if (!expected) continue;
@@ -1006,7 +1006,8 @@ class ExtensionManager {
                     if (typeof menus[realBlockInfo.arguments[arg].menu]?.variableType === 'string') continue;
 
                     const isCustomAPI = (args[arg]?.value !== undefined) && (args[arg]?.constructor?.name !== "Object");
-                    if (isCustomAPI) args[arg] = args[arg].value;
+                    const neglectTypes = realBlockInfo.arguments[arg].neglectTypes ?? [];
+                    if (isCustomAPI && !neglectTypes.includes(args[arg].customId)) args[arg] = args[arg].value;
 
                     if (!(typeof args[arg] === expected)) args[arg] = this._normalize(args[arg], expected);
                 }
