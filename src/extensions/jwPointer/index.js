@@ -53,11 +53,15 @@ class PointerType {
     }
 
     get value() {
-        return pointers.get(this.pointerID);
-        if (value === undefined) {
+        try {
+            let value = pointers.get(this.pointerID);
+            if (value === undefined) {
+                return null;
+            }
+            return value;
+        } catch (e) {
             return null;
         }
-        return value;
     }
 
     set value(value) {
@@ -74,7 +78,7 @@ class PointerType {
     }
 
     toString() {
-        return this.pointerID.toString();
+        return Cast.toString(this.value);
     }
 
     toReporterContent() {
