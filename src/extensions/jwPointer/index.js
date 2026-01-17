@@ -88,8 +88,14 @@ class PointerType {
         pointer.style.opacity = "0.5";
         root.appendChild(pointer);
         if (!destroyed) {
-            let value = (this.value !== null && this.value.toReporterContent) ? this.value.toReporterContent() : span(this.value);
-            if (this.value === null) value = span("null");
+            let value
+            try {
+                if (this.value === null) value = span("null")
+                else if (this.value instanceof Pointer) value = span("(Pointer)")
+                else this.value.toReporterContent ? this.value.toReporterContent() : span(this.value)
+            } catch (e) {
+                value = span("(Recursive)")
+            }
             value.style.maxWidth = "100%";
             value.style.overflow = "auto";
             root.appendChild(value);
