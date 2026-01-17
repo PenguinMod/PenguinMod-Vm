@@ -94,9 +94,13 @@ class PointerType {
         if (!destroyed) {
             let value
             try {
-                if (this.value === null) value = span("null")
-                else if (this.value instanceof Pointer) value = span("(Pointer)")
-                else this.value.toReporterContent ? this.value.toReporterContent() : span(this.value)
+                if (this.value === null) {
+                    value = span("null")
+                } else if (this.value instanceof Pointer) {
+                    value = span("(Pointer)")
+                } else {
+                    value = this.value.toReporterContent ? this.value.toReporterContent() : span(this.value)
+                }
             } catch (e) {
                 value = span("(Recursive)")
             }
