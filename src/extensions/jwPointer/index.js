@@ -37,10 +37,6 @@ class PointerType {
 
     static toPointer(x) {
         if (x instanceof PointerType) return x;
-
-        let num = Cast.toNumber(x);
-        if (num <= pointerLimit) return new PointerType(num);
-
         return new PointerType(0);
     }
 
@@ -190,7 +186,7 @@ class Extension {
                     arguments: {
                         ID: {
                             type: ArgumentType.NUMBER,
-                            defaultValue: 0
+                            defaultValue: 1
                         }
                     },
                     ...Pointer.Block
@@ -269,8 +265,13 @@ class Extension {
                 },
                 {
                     opcode: "isPointer",
-                    text: "is [input] a pointer?",
-                    blockType: BlockType.BOOLEAN
+                    text: "is [INPUT] a pointer?",
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        INPUT: {
+                            POINTER: Pointer.Argument
+                        }
+                    }
                 },
                 ...(vm.runtime.ext_jwArray ? ["---"] : []),
                 {
