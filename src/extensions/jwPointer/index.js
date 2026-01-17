@@ -268,9 +268,7 @@ class Extension {
                     text: "is [INPUT] a pointer?",
                     blockType: BlockType.BOOLEAN,
                     arguments: {
-                        INPUT: {
-                            POINTER: Pointer.Argument
-                        }
+                        INPUT: Pointer.Argument
                     }
                 },
                 ...(vm.runtime.ext_jwArray ? ["---"] : []),
