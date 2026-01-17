@@ -106,7 +106,8 @@ const Pointer = {
         disableMonitor: true
     },
     Argument: {
-        check: ["Pointer"]
+        check: ["Pointer"],
+        exemptFromNormalization: true
     },
 
     pointers
@@ -286,7 +287,7 @@ class Extension {
     findID({ID}) {
         ID = Cast.toNumber(ID);
         if (!pointers.has(ID)) return new Pointer.Type(0);
-        return Pointer.Type.toPointer(ID);
+        return new Pointer.Type(ID);
     }
 
     getData({POINTER}) {
