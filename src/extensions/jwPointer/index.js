@@ -118,7 +118,8 @@ const Pointer = {
     Block: {
         blockType: BlockType.REPORTER,
         allowDropAnywhere: true,
-        disableMonitor: true
+        disableMonitor: true,
+        exemptFromNormalization: true
     },
     Argument: {
         check: ["Pointer"],
