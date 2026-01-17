@@ -37,10 +37,6 @@ class PointerType {
 
     static toPointer(x) {
         if (x instanceof PointerType) return x;
-
-        let num = Cast.toNumber(x);
-        if (num <= pointerLimit) return new PointerType(num);
-
         return new PointerType(0);
     }
 
@@ -78,7 +74,7 @@ class PointerType {
     }
 
     toString() {
-        return Cast.toString(this.value);
+        return Cast.toString(this.pointerID)
     }
 
     toReporterContent() {
@@ -190,7 +186,7 @@ class Extension {
                     arguments: {
                         ID: {
                             type: ArgumentType.NUMBER,
-                            defaultValue: 0
+                            defaultValue: 1
                         }
                     },
                     ...Pointer.Block
@@ -267,6 +263,14 @@ class Extension {
                     text: "last pointer ID",
                     blockType: BlockType.REPORTER
                 },
+                {
+                    opcode: "isPointer",
+                    text: "is [INPUT] a pointer?",
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        INPUT: Pointer.Argument
+                    }
+                },
                 ...(vm.runtime.ext_jwArray ? ["---"] : []),
                 {
                     opcode: "allPointers",
@@ -342,6 +346,10 @@ class Extension {
 
     lastID() {
         return currentPointerID;
+    }
+
+    isPointer({POINTER}) {
+        return POINTER instanceof Pointer.Type
     }
 
     allPointers() {
