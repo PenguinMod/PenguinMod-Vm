@@ -117,7 +117,7 @@ const Pointer = {
     Type: PointerType,
     Block: {
         blockType: BlockType.REPORTER,
-        allowDropAnywhere: true,
+        forceOutputType: "Pointer",
         disableMonitor: true,
     },
     Argument: {
@@ -125,7 +125,6 @@ const Pointer = {
         exemptFromNormalization: true,
         neglectTypes: ["jwPointer"]
     },
-
     pointers
 };
 
