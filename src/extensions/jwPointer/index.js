@@ -109,7 +109,7 @@ class PointerType {
                 } else if (this.value instanceof PointerType) {
                     value = span("(Pointer)")
                 } else {
-                    value = this.value.toReporterContent ? this.value.toReporterContent() : span(escapeHTML(Cast.toString(value)))
+                    value = this.value.toReporterContent ? this.value.toReporterContent() : span(escapeHTML(Cast.toString(this.value)))
                 }
             } catch (e) {
                 value = span("(Recursive)")
