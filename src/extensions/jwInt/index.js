@@ -81,6 +81,9 @@ class IntType {
         mant = mant.length == 1 ? mant : (mant.substring(0, 1) + "." + mant.substring(1));
         return mant + "e+" + exp;
     }
+    
+    toMonitorContent = () => span(this.toString())
+    toReporterContent = () => span(this.toString())
 }
 
 const jwInt = {
