@@ -93,6 +93,7 @@ class JgStorageBlocks {
                         },
                         VALUE: {
                             type: ArgumentType.STRING,
+                            exemptFromNormalization: true,
                             defaultValue: "value"
                         },
                     }
