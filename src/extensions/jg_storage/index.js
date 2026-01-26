@@ -128,6 +128,7 @@ class JgStorageBlocks {
                     text: 'get uploaded project [KEY]',
                     disableMonitor: true,
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     arguments: {
                         KEY: {
                             type: ArgumentType.STRING,
@@ -146,6 +147,7 @@ class JgStorageBlocks {
                         },
                         VALUE: {
                             type: ArgumentType.STRING,
+                            exemptFromNormalization: true,
                             defaultValue: "value"
                         },
                     }
@@ -176,6 +178,7 @@ class JgStorageBlocks {
                     text: 'get local project [KEY]',
                     disableMonitor: true,
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     arguments: {
                         KEY: {
                             type: ArgumentType.STRING,
@@ -194,6 +197,7 @@ class JgStorageBlocks {
                         },
                         VALUE: {
                             type: ArgumentType.STRING,
+                            exemptFromNormalization: true,
                             defaultValue: "value"
                         },
                     }
@@ -413,14 +417,13 @@ class JgStorageBlocks {
         const key = this.getPrefix(this.getProjectId()) + Cast.toString(args.KEY);
 
         const returned = localStorage.getItem(key);
-        if (returned === null) return "";
-        return Cast.toString(returned);
+        return deserialize(returned);
     }
     setProjectValue(args) {
         const key = this.getPrefix(this.getProjectId()) + Cast.toString(args.KEY);
-        const value = Cast.toString(args.VALUE);
+        const value = args.VALUE;
 
-        return localStorage.setItem(key, value);
+        return localStorage.setItem(key, serialize(value));
     }
     deleteProjectValue(args) {
         const key = this.getPrefix(this.getProjectId()) + Cast.toString(args.KEY);
@@ -436,14 +439,13 @@ class JgStorageBlocks {
         const key = this.getPrefix(this.uniquePrefix) + Cast.toString(args.KEY);
 
         const returned = localStorage.getItem(key);
-        if (returned === null) return "";
-        return Cast.toString(returned);
+        return deserialize(returned);
     }
     setUniqueValue(args) {
         const key = this.getPrefix(this.uniquePrefix) + Cast.toString(args.KEY);
-        const value = Cast.toString(args.VALUE);
+        const value = args.VALUE;
 
-        return localStorage.setItem(key, value);
+        return localStorage.setItem(key, serialize(value));
     }
     deleteUniqueValue(args) {
         const key = this.getPrefix(this.uniquePrefix) + Cast.toString(args.KEY);
