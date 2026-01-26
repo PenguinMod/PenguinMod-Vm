@@ -3,6 +3,29 @@ const ArgumentType = require('../../extension-support/argument-type');
 const Cast = require('../../util/cast');
 const uid = require('../../util/uid');
 
+const serialize = v => {
+    if (typeof v == "object" && v != null && typeof v.customId == "string") {
+        try {
+            return JSON.stringify({
+                customType: true,
+                typeId: v.customId,
+                serialized: vm.runtime.serializers[v.customId].serialize(v)
+            });
+        } catch (e) {}
+    }
+    return JSON.stringify(Cast.toString(v));
+};
+
+const deserialize = v => {
+    try {
+        let parsed = JSON.parse(v);
+        if (typeof parsed == "object" && parsed != null && parsed.customType === true) {
+            return vm.runtime.serializers[parsed.typeId].deserialize(parsed.serialized);
+        }
+    } catch (e) {}
+    return v;
+}
+
 /**
  * Class for storage blocks
  * @constructor
@@ -363,14 +386,13 @@ class JgStorageBlocks {
         const key = this.getPrefix() + Cast.toString(args.KEY);
 
         const returned = localStorage.getItem(key);
-        if (returned === null) return "";
-        return Cast.toString(returned);
+        return deserialize(returned);
     }
     setValue(args) {
         const key = this.getPrefix() + Cast.toString(args.KEY);
         const value = Cast.toString(args.VALUE);
 
-        return localStorage.setItem(key, value);
+        return localStorage.setItem(key, serialize(value));
     }
     deleteValue(args) {
         const key = this.getPrefix() + Cast.toString(args.KEY);
