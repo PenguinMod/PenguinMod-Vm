@@ -20,8 +20,11 @@ const deserialize = v => {
     try {
         let parsed = JSON.parse(v);
         if (typeof parsed == "object" && parsed != null && parsed.customType === true) {
-            return vm.runtime.serializers[parsed.typeId].deserialize(parsed.serialized);
+            try {
+                return vm.runtime.serializers[parsed.typeId].deserialize(parsed.serialized);
+            } catch (e) {}
         }
+        return parsed;
     } catch (e) {}
     return v;
 }
