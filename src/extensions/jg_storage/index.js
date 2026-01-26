@@ -394,7 +394,7 @@ class JgStorageBlocks {
     }
     setValue(args) {
         const key = this.getPrefix() + Cast.toString(args.KEY);
-        const value = Cast.toString(args.VALUE);
+        const value = args.VALUE;
 
         return localStorage.setItem(key, serialize(value));
     }
