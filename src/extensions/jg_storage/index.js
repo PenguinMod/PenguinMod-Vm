@@ -78,6 +78,7 @@ class JgStorageBlocks {
                     text: 'get [KEY]',
                     disableMonitor: true,
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     arguments: {
                         KEY: {
                             type: ArgumentType.STRING,
