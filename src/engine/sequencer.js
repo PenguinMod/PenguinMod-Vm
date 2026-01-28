@@ -102,7 +102,6 @@ class Sequencer {
             let stoppedThread = false;
             // Attempt to run each thread one time.
             const threads = this.runtime.threads;
-            this.runtime.emit('BEFORE_TICK', threads);
             for (this.activeThreadIndex = 0; this.activeThreadIndex < threads.length; this.activeThreadIndex++) {
                 const i = this.activeThreadIndex;
                 // Check if the thread is done so it is not executed.
@@ -148,7 +147,6 @@ class Sequencer {
                     stoppedThread = true;
                 }
             }
-            this.runtime.emit('AFTER_TICK', threads);
             // We successfully ticked once. Prevents running STATUS_YIELD_TICK
             // threads on the next tick.
             ranFirstTick = true;
