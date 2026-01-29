@@ -1166,6 +1166,22 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for before the sequencer executes a tick.
+     * @const {string}
+     */
+    static get BEFORE_TICK () {
+        return 'BEFORE_TICK'
+    }
+
+    /**
+     * Event name for after the sequencer executes a tick.
+     * @const {string}
+     */
+    static get AFTER_TICK () {
+        return 'AFTER_TICK'
+    }
+
+    /**
      * Event name for sprite renaming.
      * @const {string}
      */
