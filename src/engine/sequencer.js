@@ -177,6 +177,7 @@ class Sequencer {
         }
 
         this.activeThread = null;
+        this.activeThreadIndex = null;
 
         return doneThreads;
     }
