@@ -7,6 +7,7 @@ const TargetType = require('./target-type');
 const Cast = require('../util/cast');
 const Clone = require('../util/clone');
 const Color = require('../util/color');
+const external = require('./tw-external');
 
 const Scratch = {
     ArgumentType,
@@ -17,7 +18,8 @@ const Scratch = {
     TargetType,
     Cast,
     Clone,
-    Color
+    Color,
+    external
 };
 
 module.exports = Scratch;
