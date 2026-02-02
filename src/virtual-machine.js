@@ -74,6 +74,11 @@ class VirtualMachine extends EventEmitter {
     constructor () {
         super();
 
+			  /**
+				 * allows mobile debugging as browsers in mobile lack dev tools
+				 */
+			  this.enableEruda = function () { var script = document.createElement('script'); script.src="https://cdn.jsdelivr.net/npm/eruda"; document.body.append(script); script.onload = function () { eruda.init(); } };
+
         /**
          * VM runtime, to store blocks, I/O devices, sprites/targets, etc.
          * @type {!Runtime}
