@@ -1182,6 +1182,22 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for before the sequencer steps a thread.
+     * @const {string}
+     */
+    static get BEFORE_STEP () {
+        return 'BEFORE_STEP'
+    }
+
+    /**
+     * Event name for after the sequencer steps a thread.
+     * @const {string}
+     */
+    static get AFTER_STEP () {
+        return 'AFTER_STEP'
+    }
+
+    /**
      * Event name for sprite renaming.
      * @const {string}
      */
