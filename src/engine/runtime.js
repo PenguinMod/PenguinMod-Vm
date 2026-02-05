@@ -1182,6 +1182,22 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for before the sequencer considers a thread to be stepped.
+     * @const {string}
+     */
+    static get BEFORE_THREAD_CONSIDERED () {
+        return 'BEFORE_THREAD_CONSIDERED'
+    }
+
+    /**
+     * Event name for after the sequencer considers a thread to be stepped.
+     * @const {string}
+     */
+    static get AFTER_THREAD_CONSIDERED () {
+        return 'AFTER_THREAD_CONSIDERED'
+    }
+
+    /**
      * Event name for before the sequencer steps a thread.
      * @const {string}
      */
