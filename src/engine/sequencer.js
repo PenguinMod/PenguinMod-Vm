@@ -102,9 +102,12 @@ class Sequencer {
             let stoppedThread = false;
             // Attempt to run each thread one time.
             const threads = this.runtime.threads;
-            for (this.activeThreadIndex = 0; this.activeThreadIndex < threads.length; this.activeThreadIndex++) {
+            this.runtime.emit('BEFORE_TICK', threads);
+            for (this.activeThreadIndex = 0; this.activeThreadIndex < threads.length; this.activeThreadIndex++,
+                 this.runtime.emit('AFTER_THREAD_CONSIDERED', this.activeThread)) {
                 const i = this.activeThreadIndex;
                 const activeThread = this.activeThread = threads[i];
+                this.runtime.emit('BEFORE_THREAD_CONSIDERED', activeThread);
                 // Check if the thread is done so it is not executed.
                 if (activeThread.stack.length === 0 ||
                     activeThread.status === Thread.STATUS_DONE) {
@@ -148,6 +151,7 @@ class Sequencer {
                     stoppedThread = true;
                 }
             }
+            this.runtime.emit('AFTER_TICK', threads);
             // We successfully ticked once. Prevents running STATUS_YIELD_TICK
             // threads on the next tick.
             ranFirstTick = true;
@@ -175,6 +179,7 @@ class Sequencer {
         }
 
         this.activeThread = null;
+        this.activeThreadIndex = null;
 
         return doneThreads;
     }
@@ -184,8 +189,11 @@ class Sequencer {
      * @param {!Thread} thread Thread object to step.
      */
     stepThread (thread) {
+        this.runtime.emit('BEFORE_THREAD_STEP', thread);
+        
         if (thread.isCompiled) {
             compilerExecute(thread);
+            this.runtime.emit('AFTER_THREAD_STEP', thread);
             return;
         }
 
@@ -198,6 +206,7 @@ class Sequencer {
             if (thread.stack.length === 0) {
                 thread.status = Thread.STATUS_DONE;
                 this.runtime.emit('THREAD_FINISHED', thread);
+                this.runtime.emit('AFTER_THREAD_STEP', thread);
                 return;
             }
         }
@@ -239,12 +248,15 @@ class Sequencer {
                 // A promise was returned by the primitive. Yield the thread
                 // until the promise resolves. Promise resolution should reset
                 // thread.status to Thread.STATUS_RUNNING.
+                this.runtime.emit('AFTER_THREAD_STEP', thread);
                 return;
             } else if (thread.status === Thread.STATUS_YIELD_TICK) {
                 // stepThreads will reset the thread to Thread.STATUS_RUNNING
+                this.runtime.emit('AFTER_THREAD_STEP', thread);
                 return;
             } else if (thread.status === Thread.STATUS_DONE) {
                 // Nothing more to execute.
+                this.runtime.emit('AFTER_THREAD_STEP', thread);
                 return;
             }
             // If no control flow has happened, switch to next block.
@@ -259,6 +271,7 @@ class Sequencer {
                     // No more stack to run!
                     thread.status = Thread.STATUS_DONE;
                     this.runtime.emit('THREAD_FINISHED', thread);
+                    this.runtime.emit('AFTER_THREAD_STEP', thread);
                     return;
                 }
 
@@ -274,22 +287,27 @@ class Sequencer {
                         thread.warpTimer.timeElapsed() > Sequencer.WARP_TIME) {
                         // Don't do anything to the stack, since loops need
                         // to be re-executed.
+                        this.runtime.emit('AFTER_THREAD_STEP', thread);
                         return;
                     }
                     // Don't go to the next block for this level of the stack,
                     // since loops need to be re-executed.
+                    this.runtime.emit('AFTER_THREAD_STEP', thread);
                     continue;
 
                 } else if (stackFrame.waitingReporter) {
                     // This level of the stack was waiting for a value.
                     // This means a reporter has just returned - so don't go
                     // to the next block for this level of the stack.
+                    this.runtime.emit('AFTER_THREAD_STEP', thread);
                     return;
                 }
                 // Get next block of existing block on the stack.
                 thread.goToNextBlock();
             }
         }
+
+        this.runtime.emit('AFTER_THREAD_STEP', thread);
     }
 
     /**

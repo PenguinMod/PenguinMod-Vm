@@ -1166,6 +1166,54 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event name for before the sequencer executes a tick.
+     * @const {string}
+     */
+    static get BEFORE_TICK () {
+        return 'BEFORE_TICK'
+    }
+
+    /**
+     * Event name for after the sequencer executes a tick.
+     * @const {string}
+     */
+    static get AFTER_TICK () {
+        return 'AFTER_TICK'
+    }
+
+    /**
+     * Event name for before the sequencer considers a thread to be stepped.
+     * @const {string}
+     */
+    static get BEFORE_THREAD_CONSIDERED () {
+        return 'BEFORE_THREAD_CONSIDERED'
+    }
+
+    /**
+     * Event name for after the sequencer considers a thread to be stepped.
+     * @const {string}
+     */
+    static get AFTER_THREAD_CONSIDERED () {
+        return 'AFTER_THREAD_CONSIDERED'
+    }
+
+    /**
+     * Event name for before the sequencer steps a thread.
+     * @const {string}
+     */
+    static get BEFORE_THREAD_STEP () {
+        return 'BEFORE_THREAD_STEP'
+    }
+
+    /**
+     * Event name for after the sequencer steps a thread.
+     * @const {string}
+     */
+    static get AFTER_THREAD_STEP () {
+        return 'AFTER_THREAD_STEP'
+    }
+
+    /**
      * Event name for sprite renaming.
      * @const {string}
      */
