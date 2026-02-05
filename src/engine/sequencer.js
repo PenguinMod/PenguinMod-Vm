@@ -104,10 +104,10 @@ class Sequencer {
             const threads = this.runtime.threads;
             this.runtime.emit('BEFORE_TICK', threads);
             for (this.activeThreadIndex = 0; this.activeThreadIndex < threads.length; this.activeThreadIndex++,
-                 this.runtime.emit('AFTER_STEP', this.activeThread)) {
+                 this.runtime.emit('AFTER_THREAD_STEP', this.activeThread)) {
                 const i = this.activeThreadIndex;
                 const activeThread = this.activeThread = threads[i];
-                this.runtime.emit('BEFORE_STEP', activeThread);
+                this.runtime.emit('BEFORE_THREAD_STEP', activeThread);
                 // Check if the thread is done so it is not executed.
                 if (activeThread.stack.length === 0 ||
                     activeThread.status === Thread.STATUS_DONE) {
