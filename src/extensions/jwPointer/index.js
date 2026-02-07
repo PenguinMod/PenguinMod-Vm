@@ -362,8 +362,8 @@ class Extension {
         return currentPointerID;
     }
 
-    isPointer({POINTER}) {
-        return POINTER instanceof Pointer.Type
+    isPointer({INPUT}) {
+        return INPUT instanceof Pointer.Type
     }
 
     allPointers() {
