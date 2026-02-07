@@ -283,6 +283,7 @@ class JgStorageBlocks {
                         },
                         VALUE: {
                             type: ArgumentType.STRING,
+                            exemptFromNormalization: true,
                             defaultValue: "value"
                         },
                     }
@@ -486,14 +487,14 @@ class JgStorageBlocks {
         return this.serverError;
     }
 
-    getServerValue(args) {
+    async getServerValue(args) {
         const key = Cast.toString(args.KEY);
 
-        return this.runPenguinWebRequest(`${this.currentServer}get?key=${key}${this.useGlobal ? "" : `&project=${this.getProjectId()}`}`, null, "");
+        return deserialize(await this.runPenguinWebRequest(`${this.currentServer}get?key=${key}${this.useGlobal ? "" : `&project=${this.getProjectId()}`}`, null, ""));
     }
     setServerValue(args) {
         const key = Cast.toString(args.KEY);
-        const value = Cast.toString(args.VALUE);
+        const value = serialize(args.VALUE);
 
         return this.runPenguinWebRequest(`${this.currentServer}set?key=${key}${this.useGlobal ? "" : `&project=${this.getProjectId()}`}`, {
             method: "POST",
