@@ -216,18 +216,22 @@ class Scratch3PenBlocks {
      * @private
      */
     _getPenLayerID () {
-        if (this._penSkinId < 0 && this.runtime.renderer) {
-            this._penSkinId = this.runtime.renderer.createPenSkin();
-            this._penDrawableId = this.runtime.renderer.createDrawable(StageLayering.PEN_LAYER);
-            this.runtime.renderer.updateDrawableSkinId(this._penDrawableId, this._penSkinId);
+        const renderer = this.runtime.renderer;
+        if (this._penSkinId < 0 && renderer) {
+            this._penSkinId = renderer.createPenSkin();
+            this._penDrawableId = renderer.createDrawable(StageLayering.PEN_LAYER);
+            if (renderer.markDrawableAsNoninteractive) {
+                renderer.markDrawableAsNoninteractive(this._penDrawableId);
+            }
+            renderer.updateDrawableSkinId(this._penDrawableId, this._penSkinId);
 
             this.bitmapCanvas = document.createElement('canvas');
             this.bitmapCanvas.width = this.runtime.stageWidth;
             this.bitmapCanvas.height = this.runtime.stageHeight;
-            this.bitmapSkinID = this.runtime.renderer.createBitmapSkin(this.bitmapCanvas, 1);
-            this.bitmapDrawableID = this.runtime.renderer.createDrawable(StageLayering.PEN_LAYER);
-            this.runtime.renderer.updateDrawableSkinId(this.bitmapDrawableID, this.bitmapSkinID);
-            this.runtime.renderer.updateDrawableVisible(this.bitmapDrawableID, false);
+            this.bitmapSkinID = renderer.createBitmapSkin(this.bitmapCanvas, 1);
+            this.bitmapDrawableID = renderer.createDrawable(StageLayering.PEN_LAYER);
+            renderer.updateDrawableSkinId(this.bitmapDrawableID, this.bitmapSkinID);
+            renderer.updateDrawableVisible(this.bitmapDrawableID, false);
         }
         return this._penSkinId;
     }
