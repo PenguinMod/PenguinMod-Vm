@@ -64,6 +64,7 @@ class ArrayType {
     constructor(array = [], safe = false) {
         this.array = safe ? array : array.map(v => {
             if (v instanceof Array) return new ArrayType([...v])
+            if (vm.dogeiscutObject && isObject(v)) return new vm.dogeiscutObject.Type({...v})
             return v
         })
     }
