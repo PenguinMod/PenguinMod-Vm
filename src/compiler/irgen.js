@@ -156,7 +156,7 @@ class ScriptTreeGenerator {
     descendInputOfBlock (parentBlock, inputName) {
         const input = parentBlock.inputs[inputName];
         if (!input) {
-            log.warn(`IR: ${parentBlock.opcode}: missing input ${inputName}`, parentBlock);
+            // log.warn(`IR: ${parentBlock.opcode}: missing input ${inputName}`, parentBlock);
             return {
                 kind: 'constant',
                 value: null
