@@ -133,7 +133,9 @@ class ArrayType {
         })
     }
 
-    toMonitorContent = () => span(this.toString())
+    toMonitorContent() {
+        return span(this.toString());
+    }
 
     toReporterContent() {
         let root = document.createElement('div')
