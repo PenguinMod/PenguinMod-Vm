@@ -159,6 +159,13 @@ class Thread {
          */
         this.status = 0; /* Thread.STATUS_RUNNING */
 
+        /*
+         * 0 if unpaused, otherwise the number of times pause() was called
+         * minus the number of times play() was called.
+         * @type {number}
+         */
+        this.pauseDepth = 0;
+
         /**
          * Whether the thread is killed in the middle of execution.
          * @type {boolean}
@@ -402,18 +409,31 @@ class Thread {
     }
 
     /**
-     * pause this thread
+     * Pause this thread.
+     * Pauses can be nested; if called multiple times, play() must be called that
+     * amount of times to fully unpause.
      */
     pause () {
+        if (this.status === Thread.STATUS_PAUSED) {
+            this.pausedDepth++;
+            return;
+        }
         this.originalStatus = this.status;
         this.status = Thread.STATUS_PAUSED;
         if (this.timer) this.timer.pause();
+        this.pausedDepth = 1;
     }
 
     /**
-     * unpause this thread
+     * Unpause this thread.
+     * Pauses can be nested; if pause() was called multiple times, must be called that
+     * amount of times to fully unpause.
      */
     play () {
+        this.pausedDepth--;
+        if (this.pausedDepth > 0) {
+            return;
+        }
         this.status = this.originalStatus;
         if (this.timer) this.timer.play();
     }
