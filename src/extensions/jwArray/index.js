@@ -44,16 +44,7 @@ function span(text) {
 }
 
 function isObject(x) {
-    const fnToString = Function.prototype.toString
-    const classRegex = /^class\s/
-    if (typeof x === "function") {
-        return !classRegex.test(fnToString.call(x))
-    }
-    if (x !== null && typeof x === "object") {
-        const ctor = x.constructor
-        return !(typeof ctor === "function" && classRegex.test(fnToString.call(ctor)))
-    }
-    return false
+    return x !== null && typeof x === "object" && [null, Object.prototype].includes(Object.getPrototypeOf(x));
 }
 
 class ArrayType {
