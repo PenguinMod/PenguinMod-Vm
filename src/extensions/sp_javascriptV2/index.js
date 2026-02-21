@@ -61,7 +61,6 @@ function initBlockTools() {
     }
   };
 
-
   /*
     Import autocompletion in our editors as well as add our
     own custom completor to the editor so the user can directly
@@ -120,7 +119,9 @@ function initBlockTools() {
 
     return currentValue;
   };
-  
+
+  let lastFocusedEditor;
+
   // element reused by the custom input api
   const recyclableDiv = document.createElement("div");
   recyclableDiv.setAttribute("style", `display: flex; justify-content: center; padding-top: 10px; width: 250px; height: 100px;`);
@@ -175,12 +176,33 @@ function initBlockTools() {
       const textarea = editor.container.querySelector("textarea");
       editor.container.addEventListener("mousedown", (e) => {
         textarea._lastFocusTime = e.timeStamp;
+
+        // manually unfocus when we click outside the editor
+        const unfocusListener = (e) => {
+          textarea._lastFocusTime = undefined;
+          editor.blur();
+
+          ScratchBlocks.mainWorkspace.allowDragging = true;
+          parent.setMovable(true);
+
+          window.removeEventListener("click", unfocusListener);
+        };
+        window.addEventListener("click", unfocusListener);
       });
       textarea.addEventListener("blur", (e) => {
         if (textarea._lastFocusTime - e.timeStamp < 200) {
           // blockly has forced unfocused this element
-          queueMicrotask(() => textarea.focus());
+          if (lastFocusedEditor) lastFocusedEditor._lastFocusTime = undefined;
+          queueMicrotask(() => {
+            ScratchBlocks.mainWorkspace.allowDragging = false;
+            parent.setMovable(false);
+
+            textarea.focus();
+            window.test = editor;
+          });
         }
+
+        lastFocusedEditor = textarea;
       });
 
       // allow resizing the editor
