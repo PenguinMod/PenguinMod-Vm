@@ -46,7 +46,6 @@ function initBlockTools() {
   // from various areas of Scratch
   let aceCompleteSchema = {};
   updateEditorSchema = (runtime) => {
-    console.log("schema updated");
     const vm = runtime.vm;
 
     aceCompleteSchema = {
@@ -63,16 +62,16 @@ function initBlockTools() {
     };
 
     if (typeof Scratch === "object") {
-      schema.window.push("Scratch");
-      schema["Scratch"] = Object.getOwnPropertyNames(Scratch);
+      aceCompleteSchema.window.push("Scratch");
+      aceCompleteSchema["Scratch"] = Object.getOwnPropertyNames(Scratch);
     }
     if (typeof Blockly === "object") {
-      schema.window.push("Blockly");
-      schema["Blockly"] = Object.getOwnPropertyNames(Blockly);
+      aceCompleteSchema.window.push("Blockly");
+      aceCompleteSchema["Blockly"] = Object.getOwnPropertyNames(Blockly);
     }
     if (typeof ScratchBlocks === "object") {
-      schema.window.push("ScratchBlocks");
-      schema["ScratchBlocks"] = Object.getOwnPropertyNames(ScratchBlocks);
+      aceCompleteSchema.window.push("ScratchBlocks");
+      aceCompleteSchema["ScratchBlocks"] = Object.getOwnPropertyNames(ScratchBlocks);
     }
   };
 
@@ -302,12 +301,11 @@ class SPjavascriptV2 {
     this.isInSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     this.isEditorUnsandboxed = false;
 
+    this.runtime.vm.on("EXTENSION_ADDED", () => updateEditorSchema(this.runtime));
     this.runtime.vm.on("workspaceUpdate", () => {
       if (!isScratchBlocksReady) {
         isScratchBlocksReady = typeof ScratchBlocks === "object";
         if (isScratchBlocksReady) initBlockTools();
-
-        updateEditorSchema(this.runtime);
       }
     });
 
