@@ -36,6 +36,7 @@ function initBlockTools() {
     const vm = runtime.vm;
 
     aceCompleteSchema = {
+      "data": [], // variable used when passing an array into a js data input
       "window": ["vm"],
       "vm": [
         ...Object.getOwnPropertyNames(vm),
@@ -167,6 +168,8 @@ function initBlockTools() {
       editor.session.on("change", () => field.setValue(editor.getValue()));
 
       const defaultValue = getDefaultValue(field, parent);
+      
+      console.log(defaultValue, field.getValue());
       field.setValue(defaultValue);
       editor.setValue(defaultValue);
       editor.clearSelection();
@@ -275,11 +278,6 @@ function initBlockTools() {
 }
 if (isScratchBlocksReady) initBlockTools();
 
-/** Internals */
-async function runCode(x) {
-  return await Object.getPrototypeOf(async function() {}).constructor(x)();
-}
-
 class SPjavascriptV2 {
   constructor(runtime) {
     this.runtime = runtime;
@@ -293,6 +291,8 @@ class SPjavascriptV2 {
         updateEditorSchema(this.runtime);
       }
     });
+
+    this.ASYNC_FUNC_PROTO = Object.getPrototypeOf(async function() {});
 
     this.globalFuncs = new Map();
   }
@@ -501,21 +501,33 @@ class SPjavascriptV2 {
     ].join("\n"));
   }
 
-  parseArguments(argJSON) {
+  _parseArguments(arg) {
+    if (!arg) return [];
+
     try {
-      if (argJSON.constructor?.name === "Object") return argJSON;
-      else {
-        // this is a PM custom return api value
-        argJSON = argJSON.toString();
-        if (typeof argJSON === "object" && !Array.isArray(argJSON)) return argJSON;
-        else return JSON.parse(argJSON);
+      if (typeof arg === "object") {
+        const argType = arg.constructor?.name;
+        if (argType === "Object" || argType === "Array") {
+          // raw JSON was sent, no parsing needed
+          return arg;
+        } else {
+          // PM custom return api was sent, try calling toJSON
+          if (typeof arg.toJSON === "function") {
+            return arg.toJSON();
+          }
+
+          arg = arg.toString();
+        }
       }
-    } catch(err) {
-      return {};
+
+      const parsed = JSON.parse(arg);
+      return typeof parsed === "object" ? parsed : [];
+    } catch {
+      return [];
     }
   }
 
-  isLegalFuncName(name) {
+  _isLegalFuncName(name) {
     try {
       new Function(`function ${name}(){}`);
       return true;
@@ -524,7 +536,7 @@ class SPjavascriptV2 {
     }
   }
 
-  async runCode(code, binds) {
+  async _compileCode(code, codeArgs) {
     let binders = "";
 
     /* inject global functions */
@@ -561,47 +573,58 @@ class SPjavascriptV2 {
       }
     }
 
-    /* inject arguments */
-    if (binds !== undefined) {
-      for (let [name, value] of Object.entries(binds)) {
-        // normalize values
-        switch (typeof value) {
-          case "string":
-            value = `"${value}"`;
-            break;
-          case "object":
-            value = JSON.stringify(value);
-            break;
-          default: break;
-        }
-        binders += `const ${name} = ${value};\n`;
-      }
+    /* generate arguments */
+    const isArgArray = Array.isArray(codeArgs);
+    const argEntries = Object.entries(codeArgs);
+
+    let argNames = [];
+    if (codeArgs !== undefined) {
+      if (isArgArray) argNames.push("...data");
+      else argNames.push(...argEntries.map((a) => a[0]));
     }
 
-    /* 'extensionRuntimeOptions.javascriptUnsandboxed' is used for packager */
+    const newFunc = this.ASYNC_FUNC_PROTO.constructor(...argNames, binders + code);
+
+    /* 'extensionRuntimeOptions.javascriptUnsandboxed' is used by packager */
     if (
       this.isEditorUnsandboxed ||
       this.runtime.extensionRuntimeOptions.javascriptUnsandboxed === true
     ) {
+      // unsandboxed code
       let result;
       try {
-        // eslint-disable-next-line no-eval
-        result = await runCode(binders + code);
+        if (isArgArray) {
+          // eslint-disable-next-line no-eval
+          result = await newFunc(...codeArgs);
+        } else {
+          // eslint-disable-next-line no-eval
+          result = await newFunc(...argEntries.map((a) => a[1]));
+        }
       } catch (err) {
         throw err;
       }
-      return result;
-    }
 
-    // we are sandboxed
-    const codeRunner = `Object.getPrototypeOf(async function() {}).constructor(\`${(binders + code).replaceAll("`", "\\`")}\`)()`;
-    return new Promise((resolve) => {
-      SandboxRunner.execute(codeRunner).then(result => {
-        // result is { value: any, success: boolean }
-        // in PM, we always ignore errors
-        return resolve(result.value);
+      return result;
+    } else {
+      // sandboxed code
+      let caller = "(";
+      if (!isArgArray) codeArgs = argEntries.map((a) => a[1]);
+
+      // unfortunately, this wont work on custom return types...
+      // nothing we can do in this case
+      caller += codeArgs.map(a => JSON.stringify(a)).join(",");
+      caller += ")";
+
+      const newFuncString = "await" + newFunc.toString() + caller;
+
+      return new Promise((resolve) => {
+        SandboxRunner.execute(newFuncString).then(result => {
+          // result is { value: any, success: boolean }
+          // in PM, we always ignore errors
+          return resolve(result.value);
+        });
       });
-    });
+    }
   }
 
   // block funcs
@@ -610,27 +633,27 @@ class SPjavascriptV2 {
   }
 
   async jsCommand(args) {
-    await this.runCode(Cast.toString(args.CODE));
+    await this._compileCode(Cast.toString(args.CODE));
   }
   async jsCommandBinded(args) {
-    await this.runCode(
+    await this._compileCode(
       Cast.toString(args.CODE),
-      this.parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS)
     );
   }
 
   async jsReporter(args) {
-    return await this.runCode(Cast.toString(args.CODE));
+    return await this._compileCode(Cast.toString(args.CODE));
   }
   async jsReporterBinded(args) {
-    return await this.runCode(
+    return await this._compileCode(
       Cast.toString(args.CODE),
-      this.parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS)
     );
   }
 
   async jsBoolean(args) {
-    const possiblePromise = await this.runCode(Cast.toString(args.CODE));
+    const possiblePromise = await this._compileCode(Cast.toString(args.CODE));
     /* force output a boolean */
     if (possiblePromise && typeof possiblePromise.then === "function") {
       return (async () => {
@@ -641,9 +664,9 @@ class SPjavascriptV2 {
     return Cast.toBoolean(possiblePromise);
   }
   async jsBooleanBinded(args) {
-    const possiblePromise = await this.runCode(
+    const possiblePromise = await this._compileCode(
       Cast.toString(args.CODE),
-      this.parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS)
     );
     /* force output a boolean */
     if (possiblePromise && typeof possiblePromise.then === "function") {
@@ -657,7 +680,7 @@ class SPjavascriptV2 {
 
   defineGlobalFunc(args) {
     const funcName = Cast.toString(args.NAME);
-    if (this.isLegalFuncName(funcName)) {
+    if (this._isLegalFuncName(funcName)) {
       const funcRegex = /^function\s*\([^)]*\)\s*\{[\s\S]*\}$/;
       const lambRegex = /^\([^)]*\)\s*=>\s*(\{[\s\S]*\}|[^{}][^\n]*)$/;
       const code = Cast.toString(args.CODE).trim();
@@ -670,7 +693,7 @@ class SPjavascriptV2 {
 
   defineScratchCode(args, util) {
     const funcName = Cast.toString(args.NAME);
-    if (this.isLegalFuncName(funcName)) {
+    if (this._isLegalFuncName(funcName)) {
       const branch = util.thread.blockContainer.getBranch(util.thread.peekStack(), 1);
       this.globalFuncs.set(funcName, { id: branch, origin: util.target.id, isBlockCode: true });
     } else {
