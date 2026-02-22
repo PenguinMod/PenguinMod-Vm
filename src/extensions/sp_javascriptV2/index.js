@@ -31,7 +31,7 @@ function initBlockTools() {
   };
   importAcePackages();
 
-  async waitForAce() {
+  const waitForAce = async function() {
     return new Promise((resolve) => {
       const checkInterval = setInterval(() => {
         if (loadedPackages === ACE_PACKAGES.length) {
