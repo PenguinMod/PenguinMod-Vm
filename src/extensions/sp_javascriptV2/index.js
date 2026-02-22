@@ -7,7 +7,7 @@ const Cast = require("../../util/cast");
 /** GUI */
 let isScratchBlocksReady = typeof ScratchBlocks === "object";
 
-let updateEditorSchema = (runtime) => { /* Overridden in 'initBlockTools' */ };
+let updateEditorSchema = (runtime, globalFuncs) => { /* Overridden in 'initBlockTools' */ };
 
 const SECRET_BLOCK_KEY = "needsInit-1@#4%^7*(0";
 
@@ -45,34 +45,24 @@ function initBlockTools() {
   // update the ace editor autocomplete with various items
   // from various areas of Scratch
   let aceCompleteSchema = {};
-  updateEditorSchema = (runtime) => {
+  updateEditorSchema = (runtime, globalFuncs) => {
     const vm = runtime.vm;
+
+    // add global functions into autocomplete
+    const globalFuncNames = {};
+    if (globalFuncs && globalFuncs.size > 0) {
+      const iterator = globalFuncs.keys();
+      let iteratorValue = iterator.next();
+      while (!iteratorValue.done) {
+        globalFuncNames[iteratorValue.value] = [];
+        iteratorValue = iterator.next();
+      }
+    }
 
     aceCompleteSchema = {
       "data": [], // variable used when passing an array into a js data input
-      "window": ["vm"],
-      "vm": [
-        ...Object.getOwnPropertyNames(vm),
-        ...Object.getOwnPropertyNames(vm.constructor.prototype)
-      ],
-      "runtime": [
-        ...Object.getOwnPropertyNames(runtime),
-        ...Object.getOwnPropertyNames(runtime.constructor.prototype)
-      ]
+      ...globalFuncNames
     };
-
-    if (typeof Scratch === "object") {
-      aceCompleteSchema.window.push("Scratch");
-      aceCompleteSchema["Scratch"] = Object.getOwnPropertyNames(Scratch);
-    }
-    if (typeof Blockly === "object") {
-      aceCompleteSchema.window.push("Blockly");
-      aceCompleteSchema["Blockly"] = Object.getOwnPropertyNames(Blockly);
-    }
-    if (typeof ScratchBlocks === "object") {
-      aceCompleteSchema.window.push("ScratchBlocks");
-      aceCompleteSchema["ScratchBlocks"] = Object.getOwnPropertyNames(ScratchBlocks);
-    }
   };
 
   /*
@@ -90,23 +80,38 @@ function initBlockTools() {
       // custom autocomplete
       const ScratchContextCompleter = {
         getCompletions: function(editor, session, pos, prefix, callback) {
-          const token = session.getTokenAt(pos.row, pos.column - prefix.length);
+          const line = session.getLine(pos.row).slice(0, pos.column - prefix.length);
+          const matches = line.match(/([a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*)\.$/);
+          const chain = matches ? matches[1].split(".") : [];
 
-          let parentKey = "";
-          if (token && (token.value === "." || token.type === "punctuation.operator")) {
-            var prevToken = session.getTokenAt(pos.row, pos.column - prefix.length - 1);
-            parentKey = prevToken ? prevToken.value : "";
+          let current = window;
+          for (const segment of chain) {
+            if (current && current[segment]) current = current[segment];
+            else {
+              current = null;
+              break;
+            }
           }
 
-          const list = aceCompleteSchema[parentKey] || Object.keys(aceCompleteSchema);
-          callback(null, list.map(function(word) {
-            return {
-              caption: word,
-              value: word,
-              meta: parentKey ? "child of " + parentKey : "root",
-              score: 1000
-            };
-          }));
+          let list = [];
+          if (current) {
+            list = [
+              ...Object.getOwnPropertyNames(current),
+              ...Object.getOwnPropertyNames(current.constructor.prototype)
+            ];
+          } else if (chain.length === 0 || chain[0] === "window") {
+            list.push("vm");
+            if (typeof Scratch === "object") list.push("Scratch");
+            if (typeof Blockly === "object") list.push("Blockly");
+            if (typeof ScratchBlocks === "object") list.push("ScratchBlocks");
+          }
+
+          callback(null, list.map(word => ({
+            caption: word,
+            value: word,
+            meta: chain.length ? "child of " + chain[chain.length - 1] : "root",
+            score: 1000
+          })));
         }
       };
 
@@ -192,6 +197,7 @@ function initBlockTools() {
       // so we need to override it via outside events
       const textarea = editor.container.querySelector("textarea");
       const unfocusListener = (e) => {
+        if (String(e.toElement?.className).includes("ace")) return;
         textarea._lastFocusTime = undefined;
 
         editor.blur();
@@ -207,7 +213,7 @@ function initBlockTools() {
         input.addEventListener("mouseleave", unfocusListener);
       });
       textarea.addEventListener("blur", (e) => {
-        if (e.timeStamp - textarea._lastFocusTime < 200) {
+        if (e.timeStamp - textarea._lastFocusTime < 250) {
           // blockly has forced unfocused this element
           queueMicrotask(() => {
             ScratchBlocks.mainWorkspace.allowDragging = false;
@@ -301,7 +307,7 @@ class SPjavascriptV2 {
     this.isInSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     this.isEditorUnsandboxed = false;
 
-    this.runtime.vm.on("EXTENSION_ADDED", () => updateEditorSchema(this.runtime));
+    this.runtime.vm.on("EXTENSION_ADDED", () => updateEditorSchema(this.runtime, this.globalFuncs));
     this.runtime.vm.on("workspaceUpdate", () => {
       if (!isScratchBlocksReady) {
         isScratchBlocksReady = typeof ScratchBlocks === "object";
@@ -703,6 +709,8 @@ class SPjavascriptV2 {
       const code = Cast.toString(args.CODE).trim();
       if (funcRegex.test(code) || lambRegex.test(code)) this.globalFuncs.set(funcName, { code, isBlockCode: false });
       else throw new Error("Global Code must be 'function' or 'lambda'!");
+
+      updateEditorSchema(this.runtime, this.globalFuncs);
     } else {
       throw new Error("Illegal Function Name!");
     }
@@ -713,6 +721,7 @@ class SPjavascriptV2 {
     if (this._isLegalFuncName(funcName)) {
       const branch = util.thread.blockContainer.getBranch(util.thread.peekStack(), 1);
       this.globalFuncs.set(funcName, { id: branch, origin: util.target.id, isBlockCode: true });
+      updateEditorSchema(this.runtime, this.globalFuncs);
     } else {
       throw new Error("Illegal Function Name!");
     }
@@ -724,6 +733,7 @@ class SPjavascriptV2 {
 
   deleteGlobalFunc(args) {
     this.globalFuncs.delete(Cast.toString(args.NAME));
+    updateEditorSchema(this.runtime, this.globalFuncs);
   }
 
   returnData(args, util) {
