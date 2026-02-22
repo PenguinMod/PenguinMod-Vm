@@ -5,6 +5,8 @@ const SandboxRunner = require("../../util/sandboxed-javascript-runner");
 const Cast = require("../../util/cast");
 
 /** GUI */
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 let isScratchBlocksReady = typeof ScratchBlocks === "object";
 
 let updateEditorSchema = (runtime) => { /* Overridden in 'initBlockTools' */ };
@@ -109,7 +111,7 @@ function initBlockTools() {
     if (currentValue === SECRET_BLOCK_KEY) {
       const outerType = parent.type;
       const opcode = (outerType ?? "").split("_")[1];
-      switch (outerType) {
+      switch (opcode) {
         case "jsCommandBinded": return `alert(FOO);`;
         case "jsReporterBinded": return `return STRING + Math.random()`;
         case "jsBooleanBinded": return `return Math.random() > THRESHOLD`;
@@ -168,8 +170,7 @@ function initBlockTools() {
       editor.session.on("change", () => field.setValue(editor.getValue()));
 
       const defaultValue = getDefaultValue(field, parent);
-      
-      console.log(defaultValue, field.getValue());
+
       field.setValue(defaultValue);
       editor.setValue(defaultValue);
       editor.clearSelection();
