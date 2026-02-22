@@ -5,8 +5,6 @@ const SandboxRunner = require("../../util/sandboxed-javascript-runner");
 const Cast = require("../../util/cast");
 
 /** GUI */
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
 let isScratchBlocksReady = typeof ScratchBlocks === "object";
 
 let updateEditorSchema = (runtime) => { /* Overridden in 'initBlockTools' */ };
@@ -21,20 +19,34 @@ function initBlockTools() {
     "mode-javascript.js", "theme-monokai.js"
   ];
 
+  let loadedPackages = 0;
   const importAcePackages = () => {
     for (const packageName of ACE_PACKAGES) {
       const script = document.createElement("script");
       script.src = ACE_URL + packageName;
-      script.async = false; 
+      script.async = false;
+      script.onload = () => loadedPackages++;
       document.body.appendChild(script);
     }
   };
   importAcePackages();
 
+  async waitForAce() {
+    return new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (loadedPackages === ACE_PACKAGES.length) {
+          clearInterval(checkInterval);
+          resolve(true);
+        }
+      }, 100);
+    });
+  }
+
   // update the ace editor autocomplete with various items
   // from various areas of Scratch
   let aceCompleteSchema = {};
   updateEditorSchema = (runtime) => {
+    console.log("schema updated");
     const vm = runtime.vm;
 
     aceCompleteSchema = {
@@ -137,7 +149,7 @@ function initBlockTools() {
   ScratchBlocks.FieldCustom.registerInput(
     "SPjavascriptV2-codeEditor",
     recyclableDiv,
-    (field) => {
+    async (field) => {
       /* on init */
       const inputObject = field.inputSource;
       const input = inputObject.firstChild;
@@ -150,6 +162,8 @@ function initBlockTools() {
 
       input.style.height = "110px";
       input.firstChild.id = editorId;
+
+      await waitForAce();
 
       // initialize the ace editor
       importAceAutoComplete();
@@ -277,11 +291,15 @@ function initBlockTools() {
     () => { /* no work needs to be done here */ }
   );
 }
-if (isScratchBlocksReady) initBlockTools();
+if (isScratchBlocksReady) {
+  initBlockTools();
+  if (window.vm) updateEditorSchema(window.vm.runtime);
+}
 
 class SPjavascriptV2 {
   constructor(runtime) {
     this.runtime = runtime;
+    this.isInSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     this.isEditorUnsandboxed = false;
 
     this.runtime.vm.on("workspaceUpdate", () => {
@@ -345,7 +363,7 @@ class SPjavascriptV2 {
           opcode: "jsCommand",
           text: "run [CODE]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: isScratchBlocksReady && !isSafari,
+          hideFromPalette: isScratchBlocksReady && !this.isInSafari,
           arguments: {
             CODE: { type: ArgumentType.STRING, defaultValue: `alert("Hello!")` }
           }
@@ -356,7 +374,7 @@ class SPjavascriptV2 {
           blockType: BlockType.REPORTER,
           disableMonitor: true,
           allowDropAnywhere: true,
-          hideFromPalette: isScratchBlocksReady && !isSafari,
+          hideFromPalette: isScratchBlocksReady && !this.isInSafari,
           arguments: {
             CODE: {
               type: ArgumentType.STRING,
@@ -369,7 +387,7 @@ class SPjavascriptV2 {
           text: "run [CODE]",
           blockType: BlockType.BOOLEAN,
           disableMonitor: true,
-          hideFromPalette: isScratchBlocksReady && !isSafari,
+          hideFromPalette: isScratchBlocksReady && !this.isInSafari,
           arguments: {
             CODE: {
               type: ArgumentType.STRING,
@@ -382,7 +400,7 @@ class SPjavascriptV2 {
           opcode: "jsCommandBinded",
           text: "run [CODE] with data [ARGS]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: isSafari || !isScratchBlocksReady,
+          hideFromPalette: this.isInSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -398,7 +416,7 @@ class SPjavascriptV2 {
           blockType: BlockType.REPORTER,
           disableMonitor: true,
           allowDropAnywhere: true,
-          hideFromPalette: isSafari || !isScratchBlocksReady,
+          hideFromPalette: this.isInSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -413,7 +431,7 @@ class SPjavascriptV2 {
           text: "run [CODE] with data [ARGS]",
           blockType: BlockType.BOOLEAN,
           disableMonitor: true,
-          hideFromPalette: isSafari || !isScratchBlocksReady,
+          hideFromPalette: this.isInSafari || !isScratchBlocksReady,
           arguments: {
             CODE: { fillIn: "codeInput" },
             ARGS: {
@@ -428,7 +446,7 @@ class SPjavascriptV2 {
           opcode: "defineGlobalFunc",
           text: "create global function named [NAME] with code [CODE]",
           blockType: BlockType.COMMAND,
-          hideFromPalette: (isSafari || !isScratchBlocksReady) && !this.isEditorUnsandboxed,
+          hideFromPalette: (this.isInSafari || !isScratchBlocksReady) && !this.isEditorUnsandboxed,
           arguments: {
             NAME: {
               type: ArgumentType.STRING, defaultValue: "myFunction"
@@ -719,6 +737,16 @@ class SPjavascriptV2 {
       util.yield();
     } else if (!util.stackTimerFinished()) util.yield();
     util.thread.stopThisScript();
+  }
+
+  // save state to storage
+  serialize() {
+    return {
+      isUnsandboxed: this.isEditorUnsandboxed
+    };
+  }
+  deserialize(data) {
+    if (data.isUnsandboxed) this.toggleSandbox();
   }
 }
 
