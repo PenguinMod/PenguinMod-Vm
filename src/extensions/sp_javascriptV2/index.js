@@ -120,8 +120,6 @@ function initBlockTools() {
     return currentValue;
   };
 
-  let lastFocusedEditor;
-
   // element reused by the custom input api
   const recyclableDiv = document.createElement("div");
   recyclableDiv.setAttribute("style", `display: flex; justify-content: center; padding-top: 10px; width: 250px; height: 100px;`);
@@ -145,14 +143,15 @@ function initBlockTools() {
 
       const parent = srcBlock.parentBlock_;
       const isDraggable = parent.isInFlyout || srcBlock.svgGroup_.classList.contains("blocklyDragging");
+      const editorId = "editor-" + srcBlock.id;
 
       input.style.height = "110px";
-      input.firstChild.id = "editor-" + srcBlock.id;
+      input.firstChild.id = editorId;
 
       // initialize the ace editor
       importAceAutoComplete();
 
-      const editor = ace.edit("editor-" + srcBlock.id);
+      const editor = ace.edit(editorId);
       editor.setOptions({
         fontSize: "15px",
         showPrintMargin: false,
@@ -170,39 +169,35 @@ function initBlockTools() {
       const defaultValue = getDefaultValue(field, parent);
       field.setValue(defaultValue);
       editor.setValue(defaultValue);
+      editor.clearSelection();
 
       // blockly will prevent us from focusining on our textarea
       // so we need to override it via outside events
       const textarea = editor.container.querySelector("textarea");
+      const unfocusListener = (e) => {
+        textarea._lastFocusTime = undefined;
+
+        editor.blur();
+        ScratchBlocks.mainWorkspace.allowDragging = true;
+        parent.setMovable(true);
+
+        input.removeEventListener("mouseleave", unfocusListener);
+      };
       editor.container.addEventListener("mousedown", (e) => {
         textarea._lastFocusTime = e.timeStamp;
 
-        // manually unfocus when we click outside the editor
-        const unfocusListener = (e) => {
-          textarea._lastFocusTime = undefined;
-          editor.blur();
-
-          ScratchBlocks.mainWorkspace.allowDragging = true;
-          parent.setMovable(true);
-
-          window.removeEventListener("click", unfocusListener);
-        };
-        window.addEventListener("click", unfocusListener);
+        // manually unfocus when we leave the editor
+        input.addEventListener("mouseleave", unfocusListener);
       });
       textarea.addEventListener("blur", (e) => {
-        if (textarea._lastFocusTime - e.timeStamp < 200) {
+        if (e.timeStamp - textarea._lastFocusTime < 200) {
           // blockly has forced unfocused this element
-          if (lastFocusedEditor) lastFocusedEditor._lastFocusTime = undefined;
           queueMicrotask(() => {
             ScratchBlocks.mainWorkspace.allowDragging = false;
             parent.setMovable(false);
-
-            textarea.focus();
-            window.test = editor;
+            editor.focus();
           });
         }
-
-        lastFocusedEditor = textarea;
       });
 
       // allow resizing the editor
@@ -216,13 +211,16 @@ function initBlockTools() {
         if (parent.isInFlyout) return;
 
         e.preventDefault();
+        editor.blur();
+        ScratchBlocks.mainWorkspace.allowDragging = false;
+        parent.setMovable(false);
+        input.removeEventListener("mouseleave", unfocusListener);
+
         isResizing = true;
         startX = e.clientX;
         startY = e.clientY;
         startW = input.offsetWidth;
         startH = input.offsetHeight;
-        ScratchBlocks.mainWorkspace.allowDragging = false;
-        parent.setMovable(false);
 
         function onMouseMove(ev) {
           if (!isResizing) return;
