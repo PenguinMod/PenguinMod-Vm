@@ -185,6 +185,7 @@ function initBlockTools() {
 
       editor.session.setMode("ace/mode/javascript");
       editor.setTheme("ace/theme/monokai");
+      editor.setOption("hasCssTransforms", true);
       editor.session.on("change", () => field.setValue(editor.getValue()));
 
       const defaultValue = getDefaultValue(field, parent);
