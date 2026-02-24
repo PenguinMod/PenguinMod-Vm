@@ -1624,7 +1624,8 @@ class Runtime extends EventEmitter {
                             name: menuName,
                             variableTypes: [menuInfo.variableType === 'scalar'
                                 ? Variable.SCALAR_TYPE
-                                : menuInfo.variableType]
+                                : menuInfo.variableType],
+                            variable: menuInfo.defaultName
                         } : (menuInfo.isTypeable ?
                             {
                                 type: menuInfo.isNumeric
@@ -2119,6 +2120,7 @@ class Runtime extends EventEmitter {
                         ? Variable.SCALAR_TYPE
                         : menuInfo.variableType];
                     argJSON.variableType = argJSON.variableTypes[0];
+                    argJSON.variable = menuInfo.defaultName;
                     valueName = null;
                     shadowType = null;
                     fieldName = placeholder;

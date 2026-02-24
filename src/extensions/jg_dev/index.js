@@ -286,6 +286,16 @@ class JgDevBlocks {
                     blockType: BlockType.REPORTER
                 },
                 {
+                    opcode: 'varvarvavvarvar',
+                    text: 'varibles!?!?!??!?!?!?!?!!!?!?! but fixed [variable]',
+                    arguments: {
+                        variable: {
+                            menu: 'variableButDefaulted'
+                        }
+                    },
+                    blockType: BlockType.REPORTER
+                },
+                {
                     opcode: 'green',
                     text: 'im literally just green',
                     blockType: BlockType.REPORTER,
@@ -757,7 +767,13 @@ class JgDevBlocks {
             ],
             menus: {
                 variableInternal: {
-                    variableType: 'scalar'
+                    variableType: 'scalar',
+                    defaultName: 'my variable'
+                },
+                variableButDefaulted: {
+                    acceptReporters: true,
+                    variableType: 'broadcast_msg',
+                    defaultName: 'message1'
                 },
                 variable: "getVariablesMenu",
                 numericTypeableTest: {
@@ -907,6 +923,9 @@ class JgDevBlocks {
     }
 
     varvarvavvarvarvar(args) {
+        return JSON.stringify(args);
+    }
+    varvarvavvarvar(args) {
         return JSON.stringify(args);
     }
 
