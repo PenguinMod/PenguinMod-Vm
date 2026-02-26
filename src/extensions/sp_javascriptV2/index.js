@@ -107,7 +107,7 @@ function initBlockTools() {
             caption: word,
             value: word,
             meta: chain.length ? "child of " + chain[chain.length - 1] : "root",
-            score: 1000
+            score: 10000
           })));
         }
       };
@@ -636,7 +636,7 @@ class SPjavascriptV2 {
       caller += codeArgs.map(a => JSON.stringify(a)).join(",");
       caller += ")";
 
-      const newFuncString = "await " + newFunc.toString() + caller;
+      const newFuncString = "(" + newFunc.toString() + ")" + caller;
       return new Promise((resolve) => {
         SandboxRunner.execute(newFuncString).then(result => {
           // result is { value: any, success: boolean }
