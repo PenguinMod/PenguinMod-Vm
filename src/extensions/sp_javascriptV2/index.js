@@ -7,7 +7,7 @@ const Cast = require("../../util/cast");
 /** GUI */
 let isScratchBlocksReady = typeof ScratchBlocks === "object";
 
-let updateEditorSchema = (runtime, globalFuncs) => { /* Overridden in 'initBlockTools' */ };
+let updateEditorSchema = (globalFuncs) => { /* Overridden in 'initBlockTools' */ };
 
 const SECRET_BLOCK_KEY = "needsInit-1@#4%^7*(0";
 
@@ -42,29 +42,23 @@ function initBlockTools() {
     });
   }
 
-  // update the ace editor autocomplete with various items
-  // from various areas of Scratch
-  let aceCompleteSchema = {};
-  updateEditorSchema = (runtime, globalFuncs) => {
-    const vm = runtime.vm;
+  // update the ace editor autocomplete with various custom items
+  let aceCompleteSchema = [];
+  updateEditorSchema = (globalFuncs) => {
+    aceCompleteSchema = [
+      "data", // variable used when passing an array into a js data input
+    ];
 
     // add global functions into autocomplete
-      console.log("UPDAYE SCHEMA", [globalFuncs]);
     const globalFuncNames = {};
     if (globalFuncs && globalFuncs.size > 0) {
       const iterator = globalFuncs.keys();
       let iteratorValue = iterator.next();
       while (!iteratorValue.done) {
-        globalFuncNames[iteratorValue.value] = [];
+        aceCompleteSchema.push(iteratorValue.value);
         iteratorValue = iterator.next();
       }
     }
-      console.log("UPDAYE SCHEMA", globalFuncNames);
-
-    aceCompleteSchema = {
-      "data": [], // variable used when passing an array into a js data input
-      ...globalFuncNames
-    };
   };
 
   /*
@@ -102,6 +96,7 @@ function initBlockTools() {
               ...Object.getOwnPropertyNames(current.constructor.prototype)
             ];
           } else if (chain.length === 0 || chain[0] === "window") {
+            list.push(...aceCompleteSchema);
             list.push("vm");
             if (typeof Scratch === "object") list.push("Scratch");
             if (typeof Blockly === "object") list.push("Blockly");
@@ -301,7 +296,7 @@ function initBlockTools() {
 }
 if (isScratchBlocksReady) {
   initBlockTools();
-  if (window.vm) updateEditorSchema(window.vm.runtime);
+  updateEditorSchema();
 }
 
 class SPjavascriptV2 {
@@ -310,7 +305,7 @@ class SPjavascriptV2 {
     this.isInSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     this.isEditorUnsandboxed = false;
 
-    this.runtime.vm.on("EXTENSION_ADDED", () => updateEditorSchema(this.runtime, this.globalFuncs));
+    this.runtime.vm.on("EXTENSION_ADDED", () => updateEditorSchema(this.globalFuncs));
     this.runtime.vm.on("workspaceUpdate", () => {
       if (!isScratchBlocksReady) {
         isScratchBlocksReady = typeof ScratchBlocks === "object";
@@ -641,9 +636,7 @@ class SPjavascriptV2 {
       caller += codeArgs.map(a => JSON.stringify(a)).join(",");
       caller += ")";
 
-      const newFuncString = "await" + newFunc.toString() + caller;
-        console.log(newFuncString);
-
+      const newFuncString = "await " + newFunc.toString() + caller;
       return new Promise((resolve) => {
         SandboxRunner.execute(newFuncString).then(result => {
           // result is { value: any, success: boolean }
@@ -718,7 +711,7 @@ class SPjavascriptV2 {
       if (funcRegex.test(code) || lambRegex.test(code)) this.globalFuncs.set(funcName, { code, isBlockCode: false });
       else throw new Error("Global Code must be 'function' or 'lambda'!");
 
-      updateEditorSchema(this.runtime, this.globalFuncs);
+      updateEditorSchema(this.globalFuncs);
     } else {
       throw new Error("Illegal Function Name!");
     }
@@ -729,7 +722,7 @@ class SPjavascriptV2 {
     if (this._isLegalFuncName(funcName)) {
       const branch = util.thread.blockContainer.getBranch(util.thread.peekStack(), 1);
       this.globalFuncs.set(funcName, { id: branch, origin: util.target.id, isBlockCode: true });
-      updateEditorSchema(this.runtime, this.globalFuncs);
+      updateEditorSchema(this.globalFuncs);
     } else {
       throw new Error("Illegal Function Name!");
     }
@@ -741,7 +734,7 @@ class SPjavascriptV2 {
 
   deleteGlobalFunc(args) {
     this.globalFuncs.delete(Cast.toString(args.NAME));
-    updateEditorSchema(this.runtime, this.globalFuncs);
+    updateEditorSchema(this.globalFuncs);
   }
 
   returnData(args, util) {
