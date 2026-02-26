@@ -90,12 +90,12 @@ function initBlockTools() {
           }
 
           let list = [];
-          if (current) {
+          if (current && chain.length) {
             list = [
               ...Object.getOwnPropertyNames(current),
               ...Object.getOwnPropertyNames(current.constructor.prototype)
             ];
-          } else if (chain.length === 0 || chain[0] === "window") {
+          } else {
             list.push(...aceCompleteSchema);
             list.push("vm");
             if (typeof Scratch === "object") list.push("Scratch");
@@ -107,7 +107,7 @@ function initBlockTools() {
             caption: word,
             value: word,
             meta: chain.length ? "child of " + chain[chain.length - 1] : "root",
-            score: 10000
+            score: 1000
           })));
         }
       };
