@@ -49,6 +49,7 @@ function initBlockTools() {
     const vm = runtime.vm;
 
     // add global functions into autocomplete
+      console.log("UPDAYE SCHEMA", [globalFuncs]);
     const globalFuncNames = {};
     if (globalFuncs && globalFuncs.size > 0) {
       const iterator = globalFuncs.keys();
@@ -58,6 +59,7 @@ function initBlockTools() {
         iteratorValue = iterator.next();
       }
     }
+      console.log("UPDAYE SCHEMA", globalFuncNames);
 
     aceCompleteSchema = {
       "data": [], // variable used when passing an array into a js data input
@@ -560,7 +562,7 @@ class SPjavascriptV2 {
     }
   }
 
-  async _compileCode(code, codeArgs) {
+  async _compileCode(code, codeArgs = []) {
     let binders = "";
 
     /* inject global functions */
@@ -640,6 +642,7 @@ class SPjavascriptV2 {
       caller += ")";
 
       const newFuncString = "await" + newFunc.toString() + caller;
+        console.log(newFuncString);
 
       return new Promise((resolve) => {
         SandboxRunner.execute(newFuncString).then(result => {
@@ -678,6 +681,7 @@ class SPjavascriptV2 {
 
   async jsBoolean(args) {
     const possiblePromise = await this._compileCode(Cast.toString(args.CODE));
+
     /* force output a boolean */
     if (possiblePromise && typeof possiblePromise.then === "function") {
       return (async () => {
@@ -685,6 +689,7 @@ class SPjavascriptV2 {
         return Cast.toBoolean(value);
       })();
     }
+
     return Cast.toBoolean(possiblePromise);
   }
   async jsBooleanBinded(args) {
@@ -692,6 +697,7 @@ class SPjavascriptV2 {
       Cast.toString(args.CODE),
       this._parseArguments(args.ARGS)
     );
+
     /* force output a boolean */
     if (possiblePromise && typeof possiblePromise.then === "function") {
       return (async () => {
@@ -699,6 +705,7 @@ class SPjavascriptV2 {
         return Cast.toBoolean(value);
       })();
     }
+
     return Cast.toBoolean(possiblePromise);
   }
 
