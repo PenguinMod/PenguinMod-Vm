@@ -57,9 +57,18 @@ function get_extension_switches(id, blocks) {
                     ) return;
                     if (Object.values(current.remapArguments ?? {}).includes(name)) return;
 
-                    let shadowType = el.getElementsByTagName("shadow")[0].getAttribute("type");
-
                     let value = (currargs[name] ?? get_block.info.arguments[name].defaultValue ?? "").toString();
+
+                    let shadowType = el.getElementsByTagName("shadow");
+
+                    if (!shadowType.length) { // null input
+                        log.log("Got a null input, " + name + ", in " + `${id}_${current.opcode}`);
+                        log.log(shadowType)
+                        createInputs[name] = { shadowType: null, value };
+                        return;
+                    }
+
+                    shadowType = shadowType[0].getAttribute("type");
 
                     createInputs[name] = {
                         shadowType,
