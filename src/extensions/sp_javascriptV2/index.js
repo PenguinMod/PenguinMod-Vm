@@ -193,10 +193,8 @@ function initBlockTools() {
 
       // blockly will prevent us from focusining on our textarea
       // so we need to override it via outside events
-      const textarea = editor.container.querySelector("textarea");
       const unfocusListener = (e) => {
         if (String(e.toElement?.className).includes("ace")) return;
-        textarea._lastFocusTime = undefined;
 
         editor.blur();
         ScratchBlocks.mainWorkspace.allowDragging = true;
@@ -204,21 +202,14 @@ function initBlockTools() {
 
         input.removeEventListener("mouseleave", unfocusListener);
       };
-      editor.container.addEventListener("mousedown", (e) => {
-        textarea._lastFocusTime = e.timeStamp;
 
-        // manually unfocus when we leave the editor
+      ScratchBlocks.bindEventWithChecks_(input, "mousedown", field, (e) => {
+        e.stopPropagation();
+        ScratchBlocks.mainWorkspace.allowDragging = false;
+        parent.setMovable(false);
+        editor.focus();
+
         input.addEventListener("mouseleave", unfocusListener);
-      });
-      textarea.addEventListener("blur", (e) => {
-        if (e.timeStamp - textarea._lastFocusTime < 250) {
-          // blockly has forced unfocused this element
-          queueMicrotask(() => {
-            ScratchBlocks.mainWorkspace.allowDragging = false;
-            parent.setMovable(false);
-            editor.focus();
-          });
-        }
       });
 
       // allow resizing the editor
