@@ -611,15 +611,7 @@ const serializeSound = function (sound) {
     return obj;
 };
 
-// Using some bugs, it can be possible to get values like undefined, null, or complex objects into
-// variables or lists. This will cause make the project unusable after exporting without JSON editing
-// as it will fail validation in scratch-parser.
-// To avoid this, we'll convert those objects to strings before saving them.
-const isVariableValueSafeForJSON = value => (
-    typeof value === 'number' ||
-    typeof value === 'string' ||
-    typeof value === 'boolean'
-);
+// Serialize custom return types
 const makeSafeForJSON = (runtime, value) => {
     // null and undefined should not be serialized, as they are illegal values
     if (value === null || typeof value === 'undefined')
@@ -635,13 +627,6 @@ const makeSafeForJSON = (runtime, value) => {
                 const {serialize} = runtime.serializers[copy[i].customId];
                 copy[i] = serialize(copy[i]);
             }
-            if (!isVariableValueSafeForJSON(value[i])) {
-                if (!copy) {
-                    // Only copy the list when needed
-                    copy = value.slice();
-                }
-                copy[i] = `${copy[i]}`;
-            }
         }
         if (copy) {
             return copy;
@@ -656,10 +641,8 @@ const makeSafeForJSON = (runtime, value) => {
             serialized: serialize(value)
         };
     }
-    if (isVariableValueSafeForJSON(value)) {
-        return value;
-    }
-    return `${value}`;
+
+    return value;
 };
 
 /**
