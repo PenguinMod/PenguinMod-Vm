@@ -37,7 +37,7 @@ class PointerType {
     static create() {
         currentPointerID++;
         let id = currentPointerID;
-        if (currentPointerID == pointerLimit) currentPointerID = 0; // your a madman if you achieve this
+        if (currentPointerID == pointerLimit) currentPointerID = 1; // your a madman if you achieve this
 
         let pointer = new PointerType(id);
         pointer.init();
@@ -45,11 +45,10 @@ class PointerType {
     }
 
     static toPointer(x) {
-        console.debug(x)
         if (x instanceof PointerType) return x;
 
         let num = Cast.toNumber(x);
-        if (num <= pointerLimit) return new PointerType(num);
+        if (num > 0 && num <= pointerLimit) return new PointerType(num);
 
         return new PointerType(0);
     }
