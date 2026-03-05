@@ -1,6 +1,7 @@
 name: Remote Dispatch Action Initiator
 #test
 on:
+  workflow_dispatch:
   push:
     branches: ["develop"]
 permissions:
