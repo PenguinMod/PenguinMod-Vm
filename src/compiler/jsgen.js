@@ -355,7 +355,7 @@ class Frame {
          */
         this.isLastBlock = false;
 
-        this.overrideLoop = overrideLoop 
+        this.overrideLoop = overrideLoop;
 
         /**
          * General important data that needs to be carried down from other threads.
@@ -1193,6 +1193,9 @@ class JSGenerator {
             this.source += `yield* executeInCompatibilityLayer(${inputs}, ${blockFunction}, ${this.isWarp}, false, ${blockId});\n`;
             break;
         }
+        case 'literal':
+            this.source += node.literal;
+            break;
         case 'compat': {
             // If the last command in a loop returns a promise, immediately continue to the next iteration.
             // If you don't do this, the loop effectively yields twice per iteration and will run at half-speed.
@@ -1474,6 +1477,8 @@ class JSGenerator {
             // save the original target
             const originalTarget = this.localVariables.next();
             this.source += `const ${originalTarget} = target;\n`;
+
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = target; }`;
             // pm: unknown behavior may appear so lets use try catch
             this.source += `try {\n`;
             // set target
@@ -1502,6 +1507,7 @@ class JSGenerator {
             this.source += `thread.target = ${originalTarget};\n`;
             this.source += `thread.spoofing = ${alreadySpoofing};\n`;
             this.source += `thread.spoofTarget = ${alreadySpoofTarget};\n`;
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = null; }`;
 
             this.source += `}\n`;
             this.source += `} catch (e) {\nconsole.log('as sprite function failed;', e);\n`;
@@ -1510,6 +1516,7 @@ class JSGenerator {
             this.source += `thread.target = ${originalTarget};\n`;
             this.source += `thread.spoofing = ${alreadySpoofing};\n`;
             this.source += `thread.spoofTarget = ${alreadySpoofTarget};\n`;
+            this.source += `if (!thread.spoofing) { thread.spoofOrigin = null; }`;
 
             this.source += `}\n`;
             break;
@@ -2271,7 +2278,8 @@ class JSGenerator {
         script += 'console.error(err);';
         script += `runtime.emit("BLOCK_STACK_ERROR", {`;
         script += `id:"${sanitize(this.script.topBlockId)}",`;
-        script += `value:String(err)`;
+        script += `value:String(err),`;
+        script += `thread,`
         script += `});\n`;
         script += '}\n';
         if (!this.isProcedure) {

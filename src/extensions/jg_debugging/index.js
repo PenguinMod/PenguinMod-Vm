@@ -72,7 +72,7 @@ class jgDebuggingBlocks {
             + 'position: absolute; left: 0px; top: 2rem;'
             + 'color: white; cursor: text; overflow: auto;'
             + 'background: transparent; outline: unset !important;'
-            + 'border: 0; margin: 0; padding: 0; font-family: monospace;'
+            + 'border: 0; margin: 0; padding: 1rem; font-family: monospace;'
             + 'display: flex; flex-direction: column; align-items: flex-start;'
             + 'z-index: 1000005; user-select: text;';
 
@@ -161,6 +161,44 @@ class jgDebuggingBlocks {
         this._logs = [];
         this.commandSet = {};
         this.commandExplanations = {};
+
+        this.isScratchBlocksReady = typeof ScratchBlocks === "object";
+        this.ScratchBlocks = ScratchBlocks;
+        runtime.vm.on("workspaceUpdate", () => {
+            if (this.isScratchBlocksReady) return;
+            this.isScratchBlocksReady = typeof ScratchBlocks === "object";
+            if (!this.isScratchBlocksReady) return;
+            this.ScratchBlocks = ScratchBlocks;
+        });
+
+        runtime.on("THREAD_STARTED", (thread, options) => {
+            if (options?.updateMonitor) return;
+            thread.traceback = new Set(options?.parentThread?.traceback ?? []);
+        });
+
+        runtime.on("BLOCK_STACK_ERROR", ({ value, thread }) => {
+            const log = "\"" + xmlEscape(value) + "\" thrown in script:\n";
+            this._addLog(log + this._renderTraceback(thread.traceback), "color: red;");
+        });
+
+        const _jsgen_compile = vm.exports.JSGenerator.prototype.compile;
+        vm.exports.JSGenerator.prototype.compile = function() {
+            const old_trace = this.localVariables.next();
+            this.script.stack.push({
+                kind: 'literal',
+                literal: `thread.traceback = ${old_trace};`
+            });
+
+            const proc_code = this.isProcedure ? `"${this.script.procedureCode}"` : "null";
+
+            this.source += `var ${old_trace} = new Set(thread.traceback);
+            thread.traceback = thread.traceback.add({
+                target: thread.target.id,
+                blockId: "${this.script.topBlockId}",
+                procCode: ${proc_code},
+            });`;
+            return _jsgen_compile.call(this);
+        };
     }
 
     /**
@@ -229,7 +267,7 @@ class jgDebuggingBlocks {
                 {
                     opcode: 'breakpoint',
                     blockType: BlockType.COMMAND,
-                }
+                },
             ]
         };
     }
@@ -241,7 +279,7 @@ class jgDebuggingBlocks {
         if (style) {
             logElement.style = `white-space: break-spaces; ${style}`;
         }
-        logElement.innerHTML = xmlEscape(log);
+        logElement.innerHTML = log;
         this.consoleLogs.scrollBy(0, 1000000);
     }
     _parseCommand(command) {
@@ -368,42 +406,87 @@ class jgDebuggingBlocks {
     }
 
     log(args) {
-        const text = Cast.toString(args.INFO);
+        const text = xmlEscape(Cast.toString(args.INFO));
         console.log(text);
         this._addLog(text);
     }
-    warn(args) {
-        const text = Cast.toString(args.INFO);
-        console.warn(text);
-        this._addLog(text, "color: yellow;");
+    warn(args, util) {
+        const current_trace_stack = {
+            target: this.figure_block_target(util.thread),
+            blockId: util.thread.peekStack(),
+            procCode: null,
+        };
+        const traceback = new Set(util.thread.traceback).add(current_trace_stack);
+
+        const log = "Warning: " + xmlEscape(Cast.toString(args.INFO)) + "\n";
+        this._addLog(log + this._renderTraceback(traceback, { linkColor: "#fb0" }), "color: yellow;");
+        console.warn(log + this._renderTraceback(traceback, { disableHTML: true }));
     }
     error(args, util) {
-        // create error stack
-        const stack = [];
-        const target = util.target;
-        const thread = util.thread;
-        if (thread.stackClick) {
-            stack.push('clicked blocks');
-        }
-        const commandBlockId = thread.peekStack();
-        const block = this._findBlockFromId(commandBlockId, target);
-        if (block) {
-            stack.push(`block ${block.opcode}`);
-        } else {
-            stack.push(`block ${commandBlockId}`);
-        }
-        const eventBlock = this._findBlockFromId(thread.topBlock, target);
-        if (eventBlock) {
-            stack.push(`event ${eventBlock.opcode}`);
-        } else {
-            stack.push(`event ${thread.topBlock}`);
-        }
-        stack.push(`sprite ${target.sprite.name}`);
+        const current_trace_stack = {
+            target: this.figure_block_target(util.thread),
+            blockId: util.thread.peekStack(),
+            procCode: null,
+        };
+        const traceback = new Set(util.thread.traceback).add(current_trace_stack);
 
-        const text = `Error: ${Cast.toString(args.INFO)}`
-            + `\n${stack.map(text => (`\tat ${text}`)).join("\n")}`;
-        console.error(text);
-        this._addLog(text, "color: red;");
+        const log = "Error: " + xmlEscape(Cast.toString(args.INFO)) + "\n";
+        this._addLog(log + this._renderTraceback(traceback), "color: red;");
+        console.error(log + this._renderTraceback(traceback, { disableHTML: true }));
+    }
+    figure_block_target(thread) {
+        if (thread.spoofing)
+            return thread.spoofOrigin.id;
+        if (!!thread._jwLambdaRunning)
+            return thread._jwLambdaRunning.parentTarget.id;
+        return thread.target.id;
+    }
+    _renderTraceback(traceback, opts={}) {
+        const disableHTML = opts?.disableHTML ?? false;
+        const linkColor = opts?.linkColor ?? "#f0b";
+        let initial_trace   = Array.from(traceback).toReversed();
+        let final_traceback = [];
+        for (let stack_element of initial_trace) {
+            const target_id = stack_element.target;
+            const blockId  = stack_element.blockId;
+            const isProcedure = stack_element.procCode !== null;
+
+            const target = this.runtime.targets.find(target => target.id == target_id);
+            const block  = target.blocks.getBlock(blockId);
+
+
+            if (block === undefined) {
+                final_traceback.push("\tanonymous::" + blockId + "@anonymous");
+                continue;
+            }
+
+            const target_name = xmlEscape(target.getName());
+            const block_name  =
+                (isProcedure ? stack_element.procCode : block.opcode) + "@" + blockId;
+
+            const block_ref = disableHTML ? block_name :
+`<a
+    style="color:${linkColor}"
+    href="javascript:vm.runtime.ext_jgDebugging._jumpToTargetAndBlock('${target_id}', '${blockId}')"
+>${block_name}</a>`;
+
+            const trace_text = "\t" + target_name + "::" + block_ref;
+
+            final_traceback.push(trace_text);
+        }
+        return final_traceback.join("\n");
+    }
+
+    _jumpToTargetAndBlock(target_id, blockId) {
+        if (target_id != this.runtime.vm.editingTarget.id) {
+            this.runtime.vm.setEditingTarget(target_id);
+            this.runtime.vm.refreshWorkspace();
+        }
+
+        if (!blockId || !this.isScratchBlocksReady) return;
+
+        const workspace = this.ScratchBlocks.getMainWorkspace();
+        workspace.centerOnBlock(blockId);
     }
 
     breakpoint() {

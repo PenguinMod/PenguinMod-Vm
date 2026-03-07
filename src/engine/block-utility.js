@@ -231,7 +231,10 @@ class BlockUtility {
         // and confuse the calling block when we return to it.
         const callerThread = this.thread;
         const callerSequencer = this.sequencer;
-        const result = this.sequencer.runtime.startHats(requestedHat, optMatchFields, optTarget);
+
+        const result = this.sequencer.runtime.startHats(
+            requestedHat, optMatchFields, optTarget, callerThread
+        );
 
         // Restore thread and sequencer to prior values before we return to the calling block.
         this.thread = callerThread;

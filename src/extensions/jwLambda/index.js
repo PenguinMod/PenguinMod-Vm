@@ -40,6 +40,7 @@ class LambdaType {
         this.func = func
         this.proc = thread ? thread.procedures : {}
         this.timesExecuted = 0
+        this.parentTarget = thread ? thread.target : null
     }
 
     static toLambda(x) {
@@ -67,10 +68,12 @@ class LambdaType {
     execute = function* (arg, thread, target, runtime, stage) {
         thread._jwLambdaArgument ??= []
         thread._jwLambdaArgument.push(arg)
+        thread._jwLambdaRunning = this;
         if (this.proc) thread.procedures = {...this.proc, ...thread.procedures}
         this.timesExecuted++
         let output = (yield* this.func(arg, thread, target, runtime, stage, this) ?? "")
         thread._jwLambdaArgument.pop()
+        thread._jwLambdaRunning = null;
         return output
     }
 }
@@ -103,8 +106,8 @@ class Extension {
 
         vm.jwLambda = Lambda
         vm.runtime.registerSerializer(
-            "jwLambda", 
-            v => null, 
+            "jwLambda",
+            v => null,
             v => new Lambda.Type()
         );
         vm.runtime.registerCompiledExtensionBlocks('jwLambda', this.getCompileInfo());

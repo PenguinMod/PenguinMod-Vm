@@ -2535,6 +2535,7 @@ class Runtime extends EventEmitter {
         thread.target = target;
         thread.stackClick = Boolean(opts && opts.stackClick);
         thread.updateMonitor = Boolean(opts && opts.updateMonitor);
+
         thread.blockContainer = thread.updateMonitor ?
             this.monitorBlocks :
             ((opts && opts.targetBlockLocation) || target.blocks);
@@ -2550,7 +2551,7 @@ class Runtime extends EventEmitter {
             thread.tryCompile();
         }
 
-        this.emit(Runtime.THREAD_STARTED, thread);
+        this.emit(Runtime.THREAD_STARTED, thread, opts);
         return thread;
     }
 
@@ -2718,15 +2719,17 @@ class Runtime extends EventEmitter {
      * @param {!string} requestedHatOpcode Opcode of hats to start.
      * @param {object=} optMatchFields Optionally, fields to match on the hat.
      * @param {Target=} optTarget Optionally, a target to restrict to.
+     * @param {Thread=} optParentThread Optionally, a parent thread.
      * @return {Array.<Thread>} List of threads started by this function.
      */
-    startHats (requestedHatOpcode, optMatchFields, optTarget) {
+    startHats (requestedHatOpcode, optMatchFields, optTarget, optParentThread) {
         if (!this._hats.hasOwnProperty(requestedHatOpcode)) {
             // No known hat with this opcode.
             return;
         }
         const instance = this;
         const newThreads = [];
+
         // Look up metadata for the relevant hat.
         const hatMeta = instance._hats[requestedHatOpcode];
 
@@ -2781,7 +2784,9 @@ class Runtime extends EventEmitter {
                 }
             }
             // Start the thread with this top block.
-            newThreads.push(this._pushThread(topBlockId, target));
+            newThreads.push(this._pushThread(topBlockId, target, {
+                parentThread: optParentThread
+            }));
         }, optTarget);
         // For compatibility with Scratch 2, edge triggered hats need to be processed before
         // threads are stepped. See ScratchRuntime.as for original implementation
@@ -2800,8 +2805,12 @@ class Runtime extends EventEmitter {
                 execute(this.sequencer, thread);
                 thread.goToNextBlock();
             }
+
+
         });
-        this.emit(Runtime.HATS_STARTED, requestedHatOpcode, optMatchFields, optTarget, newThreads);
+        this.emit(Runtime.HATS_STARTED,
+            requestedHatOpcode, optMatchFields, optTarget, newThreads, optParentThread
+        );
         return newThreads;
     }
 
