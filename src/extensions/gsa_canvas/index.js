@@ -151,6 +151,7 @@ class canvas {
                 break;
             case ArgumentType.BOOLEAN:
                 info.check = 'Boolean';
+                info.shadow = 'checkbox';
                 break;
             case ArgumentType.COLOR:
                 info.shadow = 'colour_picker';
@@ -189,13 +190,19 @@ class canvas {
         this.runtime.on('variableChange', updateVariables);
         this.runtime.on('variableDelete', updateVariables);
         let infoObj = {};
-        Object.defineProperty(ScratchBlocks.Blocks, 'newCanvas_setProperty', {
-            set: block => {
-                this._implementSBInfo(block);
-                infoObj = block;
-            },
-            get: () => infoObj
-        });
+        const injectBlockly = () => {
+            if (typeof window.ScratchBlocks?.Blocks === 'undefined') return; 
+            this.runtime.vm.off('workspaceUpdate', injectBlockly);
+            Object.defineProperty(ScratchBlocks.Blocks, 'newCanvas_setProperty', {
+                set: block => {
+                    this._implementSBInfo(block);
+                    infoObj = block;
+                },
+                get: () => infoObj
+            });
+        };
+        this.runtime.vm.on('workspaceUpdate', injectBlockly);
+        injectBlockly();
     }
 
     orderCategoryBlocks(blocks) {
@@ -279,7 +286,7 @@ class canvas {
     getInfo() {
         return {
             id: 'newCanvas',
-            name: 'html canvas',
+            name: 'HTML Canvas',
             color1: '#0069c2',
             isDynamic: true,
             orderBlocks: this.orderCategoryBlocks.bind(this),
@@ -287,7 +294,7 @@ class canvas {
                 {
                     opcode: 'createNewCanvas',
                     blockType: BlockType.BUTTON,
-                    text: 'create new canvas'
+                    text: 'Make a Canvas'
                 },
                 {
                     opcode: 'canvasGetter',
@@ -302,7 +309,60 @@ class canvas {
                 },
                 {
                     blockType: BlockType.LABEL,
-                    text: "stylizing"
+                    text: "Utilizing"
+                },
+                {
+                    opcode: 'putOffSprite',
+                    blockType: BlockType.COMMAND,
+                    text: 'show this sprite'
+                },
+                {
+                    opcode: 'putOntoSprite',
+                    blockType: BlockType.COMMAND,
+                    text: 'show canvas [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        }
+                    }
+                },
+                {
+                    opcode: 'getDataURI',
+                    blockType: BlockType.REPORTER,
+                    text: 'get data URL of [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        }
+                    }
+                },
+                {
+                    opcode: 'getWidthOfCanvas',
+                    blockType: BlockType.REPORTER,
+                    text: 'get width of [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        }
+                    }
+                },
+                {
+                    opcode: 'getHeightOfCanvas',
+                    blockType: BlockType.REPORTER,
+                    text: 'get height of [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        }
+                    }
+                },
+                {
+                    blockType: BlockType.LABEL,
+                    text: "Stylizing"
                 },
                 {
                     opcode: 'setSize',
@@ -370,7 +430,7 @@ class canvas {
                 },
                 {
                     blockType: BlockType.LABEL,
-                    text: "direct drawing"
+                    text: "Canvas Reseting"
                 },
                 {
                     opcode: 'clearCanvas',
@@ -410,7 +470,65 @@ class canvas {
                     },
                     blockType: BlockType.COMMAND
                 },
-                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: "Simple Drawing"
+                },
+                {
+                    opcode: 'drawRect',
+                    text: 'draw rectangle at x: [x] y: [y] with width: [width] height: [height] on [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        },
+                        x: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '0'
+                        },
+                        y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '0'
+                        },
+                        width: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: this.runtime.stageWidth
+                        },
+                        height: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: this.runtime.stageHeight
+                        }
+                    },
+                    blockType: BlockType.COMMAND
+                },
+                {
+                    opcode: 'outlineRect',
+                    text: 'draw rectangle outline at x: [x] y: [y] with width: [width] height: [height] on [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        },
+                        x: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '0'
+                        },
+                        y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '0'
+                        },
+                        width: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: this.runtime.stageWidth
+                        },
+                        height: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: this.runtime.stageHeight
+                        }
+                    },
+                    blockType: BlockType.COMMAND
+                },
+                "---",
                 {
                     opcode: 'drawText',
                     text: 'draw text [text] at [x] [y] onto [canvas]',
@@ -512,58 +630,27 @@ class canvas {
                     blockType: BlockType.COMMAND
                 },
                 {
-                    opcode: 'drawRect',
-                    text: 'draw rectangle at x: [x] y: [y] with width: [width] height: [height] on [canvas]',
+                    opcode: 'getDrawnWidthOfText',
+                    blockType: BlockType.REPORTER,
+                    text: 'get [dimension] of text [text] when drawn to [canvas]',
                     arguments: {
+                        dimension: {
+                            type: ArgumentType.STRING,
+                            menu: 'textDimension'
+                        },
+                        text: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'bogos binted'
+                        },
                         canvas: {
                             type: ArgumentType.STRING,
                             menu: 'canvas'
-                        },
-                        x: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: '0'
-                        },
-                        y: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: '0'
-                        },
-                        width: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: this.runtime.stageWidth
-                        },
-                        height: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: this.runtime.stageHeight
                         }
-                    },
-                    blockType: BlockType.COMMAND
+                    }
                 },
                 {
-                    opcode: 'outlineRect',
-                    text: 'draw rectangle outline at x: [x] y: [y] with width: [width] height: [height] on [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        },
-                        x: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: '0'
-                        },
-                        y: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: '0'
-                        },
-                        width: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: this.runtime.stageWidth
-                        },
-                        height: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: this.runtime.stageHeight
-                        }
-                    },
-                    blockType: BlockType.COMMAND
+                    blockType: BlockType.LABEL,
+                    text: "Image Drawing"
                 },
                 {
                     opcode: 'preloadUriImage',
@@ -728,7 +815,7 @@ class canvas {
                 },
                 {
                     blockType: BlockType.LABEL,
-                    text: "path drawing"
+                    text: "Path Drawing"
                 },
                 {
                     opcode: 'beginPath',
@@ -908,7 +995,7 @@ class canvas {
                 {
                     opcode: 'closePath',
                     blockType: BlockType.COMMAND,
-                    text: 'attempt to close any open path in [canvas]',
+                    text: 'close current path in [canvas]',
                     arguments: {
                         canvas: {
                             type: ArgumentType.STRING,
@@ -940,7 +1027,18 @@ class canvas {
                 },
                 {
                     blockType: BlockType.LABEL,
-                    text: "transforms"
+                    text: "Transforms"
+                },
+                {
+                    opcode: 'resetTransform',
+                    blockType: BlockType.COMMAND,
+                    text: 'clear transform in [canvas]',
+                    arguments: {
+                        canvas: {
+                            type: ArgumentType.STRING,
+                            menu: 'canvas'
+                        }
+                    }
                 },
                 {
                     opcode: 'saveTransform',
@@ -1068,7 +1166,7 @@ class canvas {
                 {
                     opcode: 'setTranslateX',
                     blockType: BlockType.COMMAND,
-                    text: 'set X scaler to [amount] on [canvas]',
+                    text: 'set X translation to [amount] on [canvas]',
                     arguments: {
                         amount: {
                             type: ArgumentType.NUMBER,
@@ -1114,7 +1212,7 @@ class canvas {
                 {
                     opcode: 'changeScaleXY',
                     blockType: BlockType.COMMAND,
-                    text: 'change XY scaler by [percent]% on [canvas]',
+                    text: 'change scale by [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1129,7 +1227,7 @@ class canvas {
                 {
                     opcode: 'setScaleXY',
                     blockType: BlockType.COMMAND,
-                    text: 'set XY scaler to [percent]% on [canvas]',
+                    text: 'set scale to [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1144,7 +1242,7 @@ class canvas {
                 {
                     opcode: 'changeScaleX',
                     blockType: BlockType.COMMAND,
-                    text: 'change X scaler by [percent]% on [canvas]',
+                    text: 'change X scale by [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1159,7 +1257,7 @@ class canvas {
                 {
                     opcode: 'setScaleX',
                     blockType: BlockType.COMMAND,
-                    text: 'set X scaler to [percent]% on [canvas]',
+                    text: 'set X scale to [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1174,7 +1272,7 @@ class canvas {
                 {
                     opcode: 'changeScaleY',
                     blockType: BlockType.COMMAND,
-                    text: 'change Y scaler by [percent]% on [canvas]',
+                    text: 'change Y scale by [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1189,7 +1287,7 @@ class canvas {
                 {
                     opcode: 'setScaleY',
                     blockType: BlockType.COMMAND,
-                    text: 'set Y scaler to [percent]% on [canvas]',
+                    text: 'set Y scale to [percent]% on [canvas]',
                     arguments: {
                         percent: {
                             type: ArgumentType.NUMBER,
@@ -1202,17 +1300,6 @@ class canvas {
                     }
                 },
                 "---",
-                {
-                    opcode: 'resetTransform',
-                    blockType: BlockType.COMMAND,
-                    text: 'clear transform in [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
                 {
                     opcode: 'loadTransform',
                     blockType: BlockType.COMMAND,
@@ -1233,73 +1320,6 @@ class canvas {
                     blockType: BlockType.REPORTER,
                     text: 'get current transform in [canvas]',
                     arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
-                {
-                    blockType: BlockType.LABEL,
-                    text: "utilizing"
-                },
-                {
-                    opcode: 'putOntoSprite',
-                    blockType: BlockType.COMMAND,
-                    text: 'set this sprites costume to [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
-                {
-                    opcode: 'getDataURI',
-                    blockType: BlockType.REPORTER,
-                    text: 'get data URL of [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
-                {
-                    opcode: 'getWidthOfCanvas',
-                    blockType: BlockType.REPORTER,
-                    text: 'get width of [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
-                {
-                    opcode: 'getHeightOfCanvas',
-                    blockType: BlockType.REPORTER,
-                    text: 'get height of [canvas]',
-                    arguments: {
-                        canvas: {
-                            type: ArgumentType.STRING,
-                            menu: 'canvas'
-                        }
-                    }
-                },
-                {
-                    opcode: 'getDrawnWidthOfText',
-                    blockType: BlockType.REPORTER,
-                    text: 'get [dimension] of text [text] when drawn to [canvas]',
-                    arguments: {
-                        dimension: {
-                            type: ArgumentType.STRING,
-                            menu: 'textDimension'
-                        },
-                        text: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'bogos binted'
-                        },
                         canvas: {
                             type: ArgumentType.STRING,
                             menu: 'canvas'
@@ -1656,6 +1676,9 @@ class canvas {
                     kind: 'input',
                     canvas: generator.descendVariable(block, 'canvas', 'canvas')
                 }),
+                putOffSprite: (generator, block) => ({
+                    kind: 'stack'
+                }),
                 putOntoSprite: (generator, block) => ({
                     kind: 'stack',
                     canvas: generator.descendVariable(block, 'canvas', 'canvas')
@@ -1752,8 +1775,10 @@ class canvas {
                 clearCanvas: (node, compiler) => {
                     const canvas = compiler.referenceVariable(node.canvas);
                     const ctx = compiler.evaluateOnce(`${canvas}.canvas.getContext('2d')`);
-
+                    compiler.source += `${ctx}.save();\n`;
+                    compiler.source += `${ctx}.resetTransform();\n`;
                     compiler.source += `${ctx}.clearRect(0, 0, ${canvas}.canvas.width, ${canvas}.canvas.height);\n`;
+                    compiler.source += `${ctx}.restore();\n`;
                     compiler.source += `${canvas}.updateCanvasContentRenders();\n`;
                 },
                 clearAria: (node, compiler) => {
@@ -2200,6 +2225,9 @@ class canvas {
 
                     return new TypedInput(content, TYPE_STRING);
                 },
+                putOffSprite: (node, compiler) => {
+                    compiler.source += `target.renderer.updateDrawableSkinId(target.drawableID, target.getCostumes()[target.currentCostume].skinId);\n`;
+                },
                 putOntoSprite: (node, compiler) => {
                     const canvas = compiler.referenceVariable(node.canvas);
 
@@ -2216,7 +2244,7 @@ class canvas {
                     const cache = compiler.evaluateOnce(`{}`);
 
                     let code = `(text => {`;
-                    code += `let textMeasure = ${cache}[text + ${ctx}.font]`;
+                    code += `let textMeasure = ${cache}[text + ${ctx}.font];`;
                     code += `if (!textMeasure) {`;
                     code +=     `textMeasure = ${ctx}.measureText(text);\n`;
                     code +=     `${cache}[text + ${ctx}.font] = textMeasure;\n`;
