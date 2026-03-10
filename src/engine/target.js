@@ -9,6 +9,7 @@ const log = require('../util/log');
 const StringUtil = require('../util/string-util');
 const VariableUtil = require('../util/variable-util');
 const ExtensionStorage = require('../util/deprecated-extension-storage.js');
+const MonitorRecord = require('./monitor-record');
 
 /**
  * @fileoverview
@@ -327,7 +328,9 @@ class Target extends EventEmitter {
                         this.runtime.ioDevices.cloud.requestRenameVariable(oldName, newName);
                     }
 
-                    if (variable.type === Variable.SCALAR_TYPE) {
+                    const varType = variable.type;
+
+                    if (varType === Variable.SCALAR_TYPE) {
                         // sensing__of may be referencing to this variable.
                         // Change the reference.
                         let blockUpdated = false;
@@ -343,19 +346,49 @@ class Target extends EventEmitter {
                     }
 
                     const blocks = this.runtime.monitorBlocks;
-                    blocks.changeBlock({
-                        id: id,
-                        element: 'field',
-                        name: variable.type === Variable.LIST_TYPE ? 'LIST' : 'VARIABLE',
-                        value: id
-                    }, this.runtime);
-                    const monitorBlock = blocks.getBlock(variable.id);
-                    if (monitorBlock) {
-                        this.runtime.requestUpdateMonitor(Map({
+                    if (varType === Variable.LIST_TYPE || varType === Variable.SCALAR_TYPE) {
+                        blocks.changeBlock({
                             id: id,
-                            params: blocks._getBlockParams(monitorBlock)
-                        }));
+                            element: 'field',
+                            name: variable.type === Variable.LIST_TYPE ? 'LIST' : 'VARIABLE',
+                            value: id
+                        }, this.runtime);
+                        const monitorBlock = blocks.getBlock(variable.id);
+                        if (monitorBlock) {
+                            this.runtime.requestUpdateMonitor(Map({
+                                id: id,
+                                params: blocks._getBlockParams(monitorBlock)
+                            }));
+                        }
+                        return;
                     }
+
+                    const monitor = structuredClone(blocks.getBlock(variable.id + "_" + oldName));
+                    const old_id = monitor.id;
+                    blocks.deleteBlock(old_id);
+
+                    Object.values(monitor.fields)[0].value = newName;
+                    monitor.id = variable.id + "_" + newName;
+
+                    blocks.createBlock(monitor);
+
+                    const {x,y} = this.runtime.getMonitorState().get(old_id);
+
+                    this.runtime.requestRemoveMonitor(old_id);
+
+                    this.runtime.requestAddMonitor(MonitorRecord({
+                        id: monitor.id,
+                        targetId: !this.isStage ? monitor.targetId : null,
+                        spriteName: !this.isStage ? this.getName() : null,
+                        opcode: monitor.opcode,
+                        params: blocks._getBlockParams(monitor),
+                        x, y,
+                        variableType: varType,
+                        variableId: variable.id,
+                        value: '',
+                    }));
+
+                    variable._monitorUpToDate = false;
                 }
 
             }
@@ -371,6 +404,7 @@ class Target extends EventEmitter {
             // Get info about the variable before deleting it
             const deletedVariableName = this.variables[id].name;
             const deletedVariableWasCloud = this.variables[id].isCloud;
+            const deletedVariableType = this.variables[id].type;
             delete this.variables[id];
             if (this.runtime) {
                 if (deletedVariableWasCloud && this.isStage) {
@@ -379,6 +413,13 @@ class Target extends EventEmitter {
                 }
                 this.runtime.monitorBlocks.deleteBlock(id);
                 this.runtime.requestRemoveMonitor(id);
+                if (
+                    deletedVariableType !== Variable.LIST_TYPE
+                    || deletedVariableType !== Variable.SCALAR_TYPE
+                ) {
+                    this.runtime.monitorBlocks.deleteBlock(id + "_" + deletedVariableName);
+                    this.runtime.requestRemoveMonitor(id + "_" + deletedVariableName);
+                }
             }
         }
     }
