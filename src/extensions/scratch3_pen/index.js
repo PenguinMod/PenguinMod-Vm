@@ -318,6 +318,30 @@ class Scratch3PenBlocks {
     }
 
     /**
+     * Convert a Scratch RGB(A) color object to a canvas color string.
+     * If rgb.a exists use it
+     * otherwise fall back to current pen transparency
+     * @param {object} rgb
+     * @param {Target} [target]
+     * @returns {string}
+     * @private
+     */
+    _toCanvasColor (rgb, target) {
+        let alpha;
+
+        if (Object.prototype.hasOwnProperty.call(rgb, 'a')) {
+            alpha = rgb.a / 255;
+        } else if (target) {
+            const penState = this._getPenState(target);
+            alpha = this._transparencyToAlpha(penState.transparency);
+        } else {
+            alpha = 1;
+        }
+
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+    }
+
+    /**
      * Wrap a color input into the range (0,100).
      * @param {number} value - the value to be wrapped.
      * @returns {number} the wrapped value.
@@ -1108,15 +1132,13 @@ class Scratch3PenBlocks {
     setPrintFontSize (args) {
         this.printTextAttribute.size = args.SIZE;
     }
-    setPrintFontColor (args) {
+    setPrintFontColor (args, util) {
         const rgb = Cast.toRgbColorObject(args.COLOR);
-        const hex = Color.rgbToHex(rgb);
-        this.printTextAttribute.color = hex;
+        this.printTextAttribute.color = this._toCanvasColor(rgb, util.target);
     }
-    setPrintFontStrokeColor (args) {
+    setPrintFontStrokeColor (args, util) {
         const rgb = Cast.toRgbColorObject(args.COLOR);
-        const hex = Color.rgbToHex(rgb);
-        this.printTextAttribute.strokeColor = hex;
+        this.printTextAttribute.strokeColor = this._toCanvasColor(rgb, util.target);
     }
     setPrintFontStrokeWidth (args) {
         this.printTextAttribute.strokeWidth = args.WIDTH;
@@ -1228,13 +1250,15 @@ class Scratch3PenBlocks {
         }
     }
 
-    drawRect (args) {
+    drawRect (args, util) {
         const ctx = this._getBitmapCanvas();
 
         const rgb = Cast.toRgbColorObject(args.COLOR);
-        const hex = Color.rgbToHex(rgb);
-        ctx.fillStyle = hex;
-        ctx.strokeStyle = ctx.fillStyle;
+        const color = this._toCanvasColor(rgb, util.target);
+
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+
         ctx.fillRect(args.X, -args.Y, args.WIDTH, args.HEIGHT);
 
         this._drawContextToPen(ctx);
@@ -1596,8 +1620,8 @@ class Scratch3PenBlocks {
         const ctx = this._getBitmapCanvas();
 
         const rgb = Cast.toRgbColorObject(args.COLOR);
-        const hex = Color.rgbToHex(rgb);
-        ctx.fillStyle = hex;
+
+        ctx.fillStyle = this._toCanvasColor(rgb, util.target);
         ctx.strokeStyle = penColor;
         ctx.lineWidth = penAttributes.diameter;
 
@@ -1607,6 +1631,7 @@ class Scratch3PenBlocks {
             ctx.lineTo(pos.x, -pos.y);
         }
         ctx.closePath();
+
         if (penState.penDown) ctx.stroke();
         ctx.fill();
 
