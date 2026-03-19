@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const TargetType = require('../../extension-support/target-type');
@@ -76,7 +77,7 @@ const LayerNames = {
     'back': StageLayering.SPRITE_LAYER
 };
 
-const parseArray = (string) => {
+const parseArray = string => {
     let array;
     try {
         array = JSON.parse(string);
@@ -1146,10 +1147,10 @@ class Scratch3PenBlocks {
 
     _updatePrintFontString () {
         this._printFontString =
-            `${this.printTextAttribute.italic ? 'italic ' : ''}` +
+            `${`${this.printTextAttribute.italic ? 'italic ' : ''}` +
             `${this.printTextAttribute.weight} ` +
-            `${this.printTextAttribute.size}px ` +
-            this.printTextAttribute.font;
+            `${this.printTextAttribute.size}px `}${ 
+                this.printTextAttribute.font}`;
     }
 
     setPrintFont (args) {
@@ -1250,12 +1251,15 @@ class Scratch3PenBlocks {
 
         const schedule = typeof queueMicrotask === 'function'
             ? queueMicrotask
-            : (fn) => Promise.resolve().then(fn);
+            : fn => Promise.resolve().then(fn); // shouldnt this just be setTimeout(, 0)???
 
         schedule(() => {
             this._bitmapFlushScheduled = false;
             this._flushBitmapCanvas();
         });
+
+        // *inform* the sequencer, this is technically a lie because we havent done anything yet
+        this.runtime.requestRedraw();
     }
 
     _flushBitmapCanvas () {
@@ -1287,7 +1291,7 @@ class Scratch3PenBlocks {
         this.bitmapCtx.clearRect(0, 0, this._bitmapWidth, this._bitmapHeight);
 
         this._bitmapDirty = false;
-        this.runtime.requestRedraw();
+        this.runtime.requestRedraw(); // technically done earlier, but earlier is solely to flag down the sequencer
     }
 
     _getBitmapCanvas () {
@@ -1318,7 +1322,7 @@ class Scratch3PenBlocks {
         const image = this.preloadedImages[URI] ?? await new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => resolve(image);
-            image.onerror = (err) => {
+            image.onerror = err => {
                 console.error('failed to load', URI, err);
                 reject('Image failed to load');
             };
@@ -1326,9 +1330,9 @@ class Scratch3PenBlocks {
         });
 
         // protect the user from uninteligable errors that may be thrown but probably never will
-        if (!image.complete) throw new Error('the provided image never loaded')
-        if (image.width <= 0) throw new Error(`the image has an invalid width of ${image.width}`)
-        if (image.height <= 0) throw new Error(`the image has an invalid height of ${image.height}`)
+        if (!image.complete) throw new Error('the provided image never loaded');
+        if (image.width <= 0) throw new Error(`the image has an invalid width of ${image.width}`);
+        if (image.height <= 0) throw new Error(`the image has an invalid height of ${image.height}`);
         
         const ctx = this._getBitmapCanvas();
         // an error that really should never happen, but also shouldnt ever get to the user through here
@@ -1413,509 +1417,6 @@ class Scratch3PenBlocks {
     _drawContextToPen () {
         this._bitmapDirty = true;
         this._scheduleBitmapFlush();
-    }
-
-    /**
-     * The pen "stamp" block stamps the current drawable's image onto the pen layer.
-     * @param {object} args - the block arguments.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    stamp (args, util) {
-        this._flushBitmapCanvas();
-        this._stamp(util.target);
-    }
-    _stamp (target) { // used by compiler
-        const penSkinId = this._getPenLayerID();
-        if (penSkinId >= 0) {
-            this.runtime.renderer.penStamp(penSkinId, target.drawableID);
-            this.runtime.requestRedraw();
-        }
-    }
-
-    /**
-     * The pen "pen down" block causes the target to leave pen trails on future motion.
-     * @param {object} args - the block arguments.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    penDown (args, util) {
-        this._flushBitmapCanvas();
-        this._penDown(util.target);
-    }
-    _penDown (target) { // used by compiler
-        const penState = this._getPenState(target);
-
-        if (!penState.penDown) {
-            penState.penDown = true;
-            target.onTargetMoved = this._onTargetMoved;
-        }
-
-        const penSkinId = this._getPenLayerID();
-        if (penSkinId >= 0) {
-            this.runtime.renderer.penPoint(penSkinId, penState.penAttributes, target.x, target.y);
-            this.runtime.requestRedraw();
-        }
-    }
-
-    /**
-     * The pen "pen up" block stops the target from leaving pen trails.
-     * @param {object} args - the block arguments.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    penUp (args, util) {
-        this._flushBitmapCanvas();
-        this._penUp(util.target);
-    }
-    _penUp (target) { // used by compiler
-        const penState = this._getPenState(target);
-
-        if (penState.penDown) {
-            penState.penDown = false;
-            target.onTargetMoved = null;
-        }
-    }
-
-    /**
-     * The pen "set pen color to {color}" block sets the pen to a particular RGB color.
-     * The transparency is reset to 0.
-     * @param {object} args - the block arguments.
-     *  @property {int} COLOR - the color to set, expressed as a 24-bit RGB value (0xRRGGBB).
-     * @param {object} util - utility object provided by the runtime.
-     */
-    setPenColorToColor (args, util) {
-        this._setPenColorToColor(args.COLOR, util.target);
-    }
-    _setPenColorToColor (color, target) { // used by compiler
-        const penState = this._getPenState(target);
-        const rgb = Cast.toRgbColorObject(color);
-        const hsv = Color.rgbToHsv(rgb);
-        penState.color = (hsv.h / 360) * 100;
-        penState.saturation = hsv.s * 100;
-        penState.brightness = hsv.v * 100;
-        if (rgb.hasOwnProperty('a')) {
-            penState.transparency = 100 * (1 - (rgb.a / 255.0));
-        } else {
-            penState.transparency = 0;
-        }
-
-        // Set the legacy "shade" value the same way scratch 2 did.
-        penState._shade = penState.brightness / 2;
-
-        this._updatePenColor(penState);
-    }
-
-    /**
-     * Update the cached color from the color, saturation, brightness and transparency values
-     * in the provided PenState object.
-     * @param {PenState} penState - the pen state to update.
-     * @private
-     */
-    _updatePenColor (penState) {
-        const rgb = Color.hsvToRgb({
-            h: penState.color * 360 / 100,
-            s: penState.saturation / 100,
-            v: penState.brightness / 100
-        });
-        penState.penAttributes.color4f[0] = rgb.r / 255.0;
-        penState.penAttributes.color4f[1] = rgb.g / 255.0;
-        penState.penAttributes.color4f[2] = rgb.b / 255.0;
-        penState.penAttributes.color4f[3] = this._transparencyToAlpha(penState.transparency);
-    }
-
-    /**
-     * Set or change a single color parameter on the pen state, and update the pen color.
-     * @param {ColorParam} param - the name of the color parameter to set or change.
-     * @param {number} value - the value to set or change the param by.
-     * @param {PenState} penState - the pen state to update.
-     * @param {boolean} change - if true change param by value, if false set param to value.
-     * @private
-     */
-    _setOrChangeColorParam (param, value, penState, change) { // used by compiler
-        switch (param) {
-        case ColorParam.COLOR:
-            penState.color = this._wrapColor(value + (change ? penState.color : 0));
-            break;
-        case ColorParam.SATURATION:
-            penState.saturation = this._clampColorParam(value + (change ? penState.saturation : 0));
-            break;
-        case ColorParam.BRIGHTNESS:
-            penState.brightness = this._clampColorParam(value + (change ? penState.brightness : 0));
-            break;
-        case ColorParam.TRANSPARENCY:
-            penState.transparency = this._clampColorParam(value + (change ? penState.transparency : 0));
-            break;
-        default:
-            log.warn(`Tried to set or change unknown color parameter: ${param}`);
-        }
-        this._updatePenColor(penState);
-    }
-
-    /**
-     * The "change pen {ColorParam} by {number}" block changes one of the pen's color parameters
-     * by a given amound.
-     * @param {object} args - the block arguments.
-     *  @property {ColorParam} COLOR_PARAM - the name of the selected color parameter.
-     *  @property {number} VALUE - the amount to change the selected parameter by.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    changePenColorParamBy (args, util) {
-        const penState = this._getPenState(util.target);
-        this._setOrChangeColorParam(args.COLOR_PARAM, Cast.toNumber(args.VALUE), penState, true);
-    }
-
-    /**
-     * The "set pen {ColorParam} to {number}" block sets one of the pen's color parameters
-     * to a given amound.
-     * @param {object} args - the block arguments.
-     *  @property {ColorParam} COLOR_PARAM - the name of the selected color parameter.
-     *  @property {number} VALUE - the amount to set the selected parameter to.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    setPenColorParamTo (args, util) {
-        const penState = this._getPenState(util.target);
-        this._setOrChangeColorParam(args.COLOR_PARAM, Cast.toNumber(args.VALUE), penState, false);
-    }
-
-    /**
-     * The pen "change pen size by {number}" block changes the pen size by the given amount.
-     * @param {object} args - the block arguments.
-     *  @property {number} SIZE - the amount of desired size change.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    changePenSizeBy (args, util) {
-        this._changePenSizeBy(Cast.toNumber(args.SIZE), util.target);
-    }
-    _changePenSizeBy (size, target) { // used by compiler
-        const penAttributes = this._getPenState(target).penAttributes;
-        penAttributes.diameter = this._clampPenSize(penAttributes.diameter + size);
-    }
-
-    /**
-     * The pen "set pen size to {number}" block sets the pen size to the given amount.
-     * @param {object} args - the block arguments.
-     *  @property {number} SIZE - the amount of desired size change.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    setPenSizeTo (args, util) {
-        this._setPenSizeTo(Cast.toNumber(args.SIZE), util.target);
-    }
-    _setPenSizeTo (size, target) { // used by compiler
-        const penAttributes = this._getPenState(target).penAttributes;
-        penAttributes.diameter = this._clampPenSize(size);
-    }
-
-    /* LEGACY OPCODES */
-    /**
-     * Scratch 2 "hue" param is equivelant to twice the new "color" param.
-     * @param {object} args - the block arguments.
-     *  @property {number} HUE - the amount to set the hue to.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    setPenHueToNumber (args, util) {
-        this._setPenHueToNumber(Cast.toNumber(args.HUE), util.target);
-    }
-    _setPenHueToNumber (hueValue, target) {
-        const penState = this._getPenState(target);
-        const colorValue = hueValue / 2;
-        this._setOrChangeColorParam(ColorParam.COLOR, colorValue, penState, false);
-        this._setOrChangeColorParam(ColorParam.TRANSPARENCY, 0, penState, false);
-        this._legacyUpdatePenColor(penState);
-    }
-
-    /**
-     * Scratch 2 "hue" param is equivelant to twice the new "color" param.
-     * @param {object} args - the block arguments.
-     *  @property {number} HUE - the amount of desired hue change.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    changePenHueBy (args, util) {
-        this._changePenHueBy(Cast.toNumber(args.HUE), util.target);
-    }
-    _changePenHueBy (hueChange, target) { // used by compiler
-        const penState = this._getPenState(target);
-        const colorChange = hueChange / 2;
-        this._setOrChangeColorParam(ColorParam.COLOR, colorChange, penState, true);
-
-        this._legacyUpdatePenColor(penState);
-    }
-
-    /**
-     * Use legacy "set shade" code to calculate RGB value for shade,
-     * then convert back to HSV and store those components.
-     * It is important to also track the given shade in penState._shade
-     * because it cannot be accurately backed out of the new HSV later.
-     * @param {object} args - the block arguments.
-     *  @property {number} SHADE - the amount to set the shade to.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    setPenShadeToNumber (args, util) {
-        this._setPenShadeToNumber(Cast.toNumber(args.SHADE), util.target);
-    }
-    _setPenShadeToNumber (shade, target) {
-        const penState = this._getPenState(target);
-        let newShade = Cast.toNumber(shade);
-
-        // Wrap clamp the new shade value the way scratch 2 did.
-        newShade = newShade % 200;
-        if (newShade < 0) newShade += 200;
-
-        // And store the shade that was used to compute this new color for later use.
-        penState._shade = newShade;
-
-        this._legacyUpdatePenColor(penState);
-    }
-
-    /**
-     * Because "shade" cannot be backed out of hsv consistently, use the previously
-     * stored penState._shade to make the shade change.
-     * @param {object} args - the block arguments.
-     *  @property {number} SHADE - the amount of desired shade change.
-     * @param {object} util - utility object provided by the runtime.
-     */
-    changePenShadeBy (args, util) {
-        this._changePenShadeBy(args.SHADE, util.target);
-    }
-    _changePenShadeBy (shade, target) {
-        const penState = this._getPenState(target);
-        const shadeChange = Cast.toNumber(shade);
-        this._setPenShadeToNumber(penState._shade + shadeChange, target);
-    }
-
-    /**
-     * Update the pen state's color from its hue & shade values, Scratch 2.0 style.
-     * @param {object} penState - update the HSV & RGB values in this pen state from its hue & shade values.
-     * @private
-     */
-    _legacyUpdatePenColor (penState) {
-        // Create the new color in RGB using the scratch 2 "shade" model
-        let rgb = Color.hsvToRgb({ h: penState.color * 360 / 100, s: 1, v: 1 });
-        const shade = (penState._shade > 100) ? 200 - penState._shade : penState._shade;
-        if (shade < 50) {
-            rgb = Color.mixRgb(Color.RGB_BLACK, rgb, (10 + shade) / 60);
-        } else {
-            rgb = Color.mixRgb(rgb, Color.RGB_WHITE, (shade - 50) / 60);
-        }
-
-        // Update the pen state according to new color
-        const hsv = Color.rgbToHsv(rgb);
-        penState.color = 100 * hsv.h / 360;
-        penState.saturation = 100 * hsv.s;
-        penState.brightness = 100 * hsv.v;
-
-        this._updatePenColor(penState);
-    }
-
-    goPenLayer (args) {
-        this._flushBitmapCanvas();
-        this._getPenLayerID();
-        if (!this._penDrawableId) return;
-        // layer order is already set correctly, dont do anything
-        if (this.runtime.renderer._groupOrdering.at(-1) === LayerNames[args.OPTION]) return;
-        if (args.OPTION === LayerParam.FRONT) {
-            console.log('setting the layer order to', StageLayering.LAYER_GROUPS_PEN);
-            this.runtime.renderer.setLayerGroupOrdering(StageLayering.LAYER_GROUPS_PEN);
-            this._penDrawableId = this.runtime.renderer.setDrawableOrder(this._penDrawableId,
-                Infinity, StageLayering.PEN_LAYER);
-        } else {
-            console.log('setting the layer order to', StageLayering.LAYER_GROUPS);
-            this.runtime.renderer.setLayerGroupOrdering(StageLayering.LAYER_GROUPS);
-            this._penDrawableId = this.runtime.renderer.setDrawableOrder(this._penDrawableId,
-                -Infinity, StageLayering.PEN_LAYER);
-        }
-    }
-
-    _getPenColor (target) {
-        const rgba = {};
-        const penState = this._getPenState(target);
-        rgba.r = penState.penAttributes.color4f[0] * 255;
-        rgba.g = penState.penAttributes.color4f[1] * 255;
-        rgba.b = penState.penAttributes.color4f[2] * 255;
-        rgba.a = this._alphaToTransparency(penState.penAttributes.color4f[3]);
-        return Color.rgbToHex(rgba);
-    }
-
-    drawRect (args, util) {
-        const ctx = this._getBitmapCanvas();
-
-        const rgb = Cast.toRgbColorObject(args.COLOR);
-        const color = this._toCanvasColor(rgb, util.target);
-
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color;
-
-        ctx.fillRect(args.X, -args.Y, args.WIDTH, args.HEIGHT);
-
-        this._drawContextToPen();
-    }
-
-    _drawUriImage ({URI, X, Y, WIDTH, HEIGHT, ROTATE, CROPX, CROPY, CROPW, CROPH}) {
-        const image = this.preloadedImages[URI];
-        if (!image) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    this.preloadedImages[URI] = img;
-                    this._drawUriImage({URI, X, Y, WIDTH, HEIGHT, ROTATE, CROPX, CROPY, CROPW, CROPH}).then(resolve, reject);
-                };
-                img.onerror = (err) => {
-                    console.error('failed to load', URI, err);
-                    reject('Image failed to load');
-                };
-                img.src = URI;
-            });
-        }
-
-        // protect the user from uninteligable errors that may be thrown but probably never will
-        if (!image.complete) throw new Error('the provided image never loaded')
-        if (image.width <= 0) throw new Error(`the image has an invalid width of ${image.width}`)
-        if (image.height <= 0) throw new Error(`the image has an invalid height of ${image.height}`)
-        
-        const ctx = this._getBitmapCanvas();
-        // an error that really should never happen, but also shouldnt ever get to the user through here
-        if (ctx.canvas.width <= 0 && ctx.canvas.height <= 0) return;
-        
-        const width = WIDTH ?? image.width;
-        const height = HEIGHT ?? image.height;
-        const realX = X - (width / 2);
-        const realY = -Y - (height / 2);
-        const drawArgs = [CROPX, CROPY, CROPW, CROPH, realX, realY, width, height];
-
-        ctx.save();
-        ctx.rotate(MathUtil.degToRad(ROTATE - 90));
-
-        // ensure that all of the drop values exist, just in case :Trollhans
-        if (!(typeof CROPX === "number" && typeof CROPY === "number" && typeof CROPW === "number" && typeof CROPH === "number")) {
-            ctx.drawImage(image, realX, realY, width, height);
-        } else {
-            ctx.drawImage(image, ...drawArgs);
-        }
-
-        ctx.restore();
-        this._drawContextToPen();
-    }
-
-    // todo: should these be merged into their own function? they all have the same code...
-    drawUriImage (args) {
-        const preloaded = this.preloadedImages[args.URI];
-        const possiblePromise = this._drawUriImage(args);
-        if (!preloaded) {
-            return possiblePromise;
-        }
-    }
-    drawUriImageWHR (args) {
-        const preloaded = this.preloadedImages[args.URI];
-        const possiblePromise = this._drawUriImage(args);
-        if (!preloaded) {
-            return possiblePromise;
-        }
-    }
-    drawUriImageWHCX1Y1X2Y2R (args) {
-        const preloaded = this.preloadedImages[args.URI];
-        const possiblePromise = this._drawUriImage(args);
-        if (!preloaded) {
-            return possiblePromise;
-        }
-    }
-
-    preloadUriImage ({ URI, NAME }) {
-        return new Promise(resolve => {
-            const image = new Image();
-            image.crossOrigin = "anonymous";
-            image.onload = () => {
-                this.preloadedImages[Cast.toString(NAME)] = image;
-                resolve();
-            };
-            image.onerror = resolve; // ignore loading errors lol!
-            image.src = Cast.toString(URI);
-        });
-    }
-    unloadUriImage ({ NAME }) {
-        const name = Cast.toString(NAME);
-        if (this.preloadedImages.hasOwnProperty(name)) {
-            this.preloadedImages[name].remove();
-            delete this.preloadedImages[name];
-        }
-    }
-
-    printText (args) {
-        const ctx = this._getBitmapCanvas();
-
-        ctx.font = this._printFontString;
-        ctx.strokeStyle = this.printTextAttribute.strokeWidth > 0 ? this.printTextAttribute.strokeColor : this.printTextAttribute.color;
-        ctx.lineWidth = this.printTextAttribute.strokeWidth;
-        ctx.fillStyle = this.printTextAttribute.color;
-
-        if (this.printTextAttribute.strokeWidth > 0) ctx.strokeText(args.TEXT, args.X, -args.Y);
-        ctx.fillText(args.TEXT, args.X, -args.Y);
-
-        this._drawContextToPen();
-    }
-
-    _drawContextToPen () {
-        this._bitmapDirty = true;
-        this._scheduleBitmapFlush();
-    }
-
-    _flushBitmapCanvas () {
-        if (!this._bitmapDirty || !this.bitmapCtx) return;
-
-        const penSkinId = this._getPenLayerID();
-        if (penSkinId < 0 || this.bitmapSkinID < 0 || this.bitmapDrawableID < 0) return;
-
-        const renderer = this.runtime.renderer;
-        const printSkin = renderer._allSkins[this.bitmapSkinID];
-        if (!printSkin) return;
-
-        try {
-            printSkin._setTexture(this.bitmapCanvas);
-        } catch (e) {
-            const imageData = this.bitmapCtx.getImageData(0, 0, this._bitmapWidth, this._bitmapHeight);
-            printSkin._setTexture(imageData);
-        }
-
-        renderer.penStamp(penSkinId, this.bitmapDrawableID);
-
-        if (this.bitmapCtx.resetTransform) {
-            this.bitmapCtx.resetTransform();
-        } else {
-            this.bitmapCtx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-        this.bitmapCtx.clearRect(0, 0, this._bitmapWidth, this._bitmapHeight);
-
-        this._bitmapDirty = false;
-        this.runtime.requestRedraw();
-    }
-
-    _scheduleBitmapFlush () {
-        if (this._bitmapFlushScheduled) return;
-        this._bitmapFlushScheduled = true;
-
-        const schedule = typeof queueMicrotask === 'function'
-            ? queueMicrotask
-            : (fn) => Promise.resolve().then(fn);
-
-        schedule(() => {
-            this._bitmapFlushScheduled = false;
-            this._flushBitmapCanvas();
-        });
-    }
-
-    _prepareBitmapCanvas () {
-        const ctx = this._ensureBitmapSurface();
-        if (!ctx) return null;
-
-        if (ctx.resetTransform) {
-            ctx.resetTransform();
-        } else {
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-
-        ctx.setTransform(
-            this._bitmapQuality, 0, 0, this._bitmapQuality,
-            this._bitmapWidth / 2,
-            this._bitmapHeight / 2
-        );
-
-        return ctx;
     }
 
     /**

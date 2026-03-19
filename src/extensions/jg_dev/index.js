@@ -327,6 +327,33 @@ class JgDevBlocks {
                     }
                 },
                 {
+                    opcode: 'variable',
+                    blockType: BlockType.REPORTER,
+                    text: '[var]',
+                    arguments: {
+                        var: {
+                            menu: 'variableInternal'
+                        }
+                    },
+                    canDragDuplicate: true,
+                    disableMonitor: true,
+                    hideFromPalette: true
+                },
+                {
+                    opcode: 'theheheuoihew9h9666',
+                    blockType: BlockType.COMMAND,
+                    text: 'This block will appear in the penguinmod wiki [SEP] [DUPLIC]',
+                    arguments: {
+                        SEP: {
+                            type: ArgumentType.SEPERATOR,
+                        },
+                        DUPLIC: {
+                            type: ArgumentType.STRING,
+                            fillIn: 'variable',
+                        }
+                    }
+                },
+                {
                     opcode: 'docsScreenshotBlock',
                     text: 'text',
                     blockType: BlockType.REPORTER,
@@ -1176,7 +1203,9 @@ class JgDevBlocks {
     duplicato() {
         return 0
     }
-    theheheuoihew9h9() {}
+    variable(args) { return args.var; }
+    theheheuoihew9h9(args) { console.log(args); }
+    theheheuoihew9h9666(args) { console.log(args); }
     docsScreenshotBlock() {
         return 0
     }
