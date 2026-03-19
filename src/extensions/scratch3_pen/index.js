@@ -19,7 +19,7 @@ const StageLayering = require('../../engine/stage-layering');
 const blockIconURI = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+cGVuLWljb248L3RpdGxlPjxnIHN0cm9rZT0iIzU3NUU3NSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik04Ljc1MyAzNC42MDJsLTQuMjUgMS43OCAxLjc4My00LjIzN2MxLjIxOC0yLjg5MiAyLjkwNy01LjQyMyA1LjAzLTcuNTM4TDMxLjA2NiA0LjkzYy44NDYtLjg0MiAyLjY1LS40MSA0LjAzMi45NjcgMS4zOCAxLjM3NSAxLjgxNiAzLjE3My45NyA0LjAxNUwxNi4zMTggMjkuNTljLTIuMTIzIDIuMTE2LTQuNjY0IDMuOC03LjU2NSA1LjAxMiIgZmlsbD0iI0ZGRiIvPjxwYXRoIGQ9Ik0yOS40MSA2LjExcy00LjQ1LTIuMzc4LTguMjAyIDUuNzcyYy0xLjczNCAzLjc2Ni00LjM1IDEuNTQ2LTQuMzUgMS41NDYiLz48cGF0aCBkPSJNMzYuNDIgOC44MjVjMCAuNDYzLS4xNC44NzMtLjQzMiAxLjE2NGwtOS4zMzUgOS4zYy4yODItLjI5LjQxLS42NjguNDEtMS4xMiAwLS44NzQtLjUwNy0xLjk2My0xLjQwNi0yLjg2OC0xLjM2Mi0xLjM1OC0zLjE0Ny0xLjgtNC4wMDItLjk5TDMwLjk5IDUuMDFjLjg0NC0uODQgMi42NS0uNDEgNC4wMzUuOTYuODk4LjkwNCAxLjM5NiAxLjk4MiAxLjM5NiAyLjg1NU0xMC41MTUgMzMuNzc0Yy0uNTczLjMwMi0xLjE1Ny41Ny0xLjc2NC44M0w0LjUgMzYuMzgybDEuNzg2LTQuMjM1Yy4yNTgtLjYwNC41My0xLjE4Ni44MzMtMS43NTcuNjkuMTgzIDEuNDQ4LjYyNSAyLjEwOCAxLjI4Mi42Ni42NTggMS4xMDIgMS40MTIgMS4yODcgMi4xMDIiIGZpbGw9IiM0Qzk3RkYiLz48cGF0aCBkPSJNMzYuNDk4IDguNzQ4YzAgLjQ2NC0uMTQuODc0LS40MzMgMS4xNjVsLTE5Ljc0MiAxOS42OGMtMi4xMyAyLjExLTQuNjczIDMuNzkzLTcuNTcyIDUuMDFMNC41IDM2LjM4bC45NzQtMi4zMTYgMS45MjUtLjgwOGMyLjg5OC0xLjIxOCA1LjQ0LTIuOSA3LjU3LTUuMDFsMTkuNzQzLTE5LjY4Yy4yOTItLjI5Mi40MzItLjcwMi40MzItMS4xNjUgMC0uNjQ2LS4yNy0xLjQtLjc4LTIuMTIyLjI1LjE3Mi41LjM3Ny43MzcuNjE0Ljg5OC45MDUgMS4zOTYgMS45ODMgMS4zOTYgMi44NTYiIGZpbGw9IiM1NzVFNzUiIG9wYWNpdHk9Ii4xNSIvPjxwYXRoIGQ9Ik0xOC40NSAxMi44M2MwIC41LS40MDQuOTA1LS45MDQuOTA1cy0uOTA1LS40MDUtLjkwNS0uOTA0YzAtLjUuNDA3LS45MDMuOTA2LS45MDMuNSAwIC45MDQuNDA0LjkwNC45MDR6IiBmaWxsPSIjNTc1RTc1Ii8+PC9nPjwvc3ZnPg==';
 
 // aka nothing because every image is way too big just like your mother
-const DefaultDrawImage = 'data:image/png;base64,';
+const DefaultDrawImage = 'data:image/png;base64,'; 
 
 const SANS_SERIF_ID = 'Sans Serif';
 const SERIF_ID = 'Serif';
@@ -148,19 +148,6 @@ class Scratch3PenBlocks {
         this.preloadedImages = {};
 
         this.cameraBound = -1;
-
-        this.bitmapCanvas = null;
-        this.bitmapCtx = null;
-        this.bitmapSkinID = -1;
-        this.bitmapDrawableID = -1;
-        this._bitmapWidth = 0;
-        this._bitmapHeight = 0;
-        this._bitmapQuality = 1;
-        this._bitmapDirty = false;
-        this._bitmapFlushScheduled = false;
-
-        this._printFontString = '';
-        this._updatePrintFontString();
     }
 
     /**
@@ -242,10 +229,6 @@ class Scratch3PenBlocks {
             this.bitmapCanvas = document.createElement('canvas');
             this.bitmapCanvas.width = this.runtime.stageWidth;
             this.bitmapCanvas.height = this.runtime.stageHeight;
-            this.bitmapCtx = this.bitmapCanvas.getContext('2d', {
-                alpha: true,
-                desynchronized: true
-            }) || this.bitmapCanvas.getContext('2d');
             this.bitmapSkinID = renderer.createBitmapSkin(this.bitmapCanvas, 1);
             this.bitmapDrawableID = renderer.createDrawable(StageLayering.PEN_LAYER);
             renderer.updateDrawableSkinId(this.bitmapDrawableID, this.bitmapSkinID);
@@ -324,7 +307,7 @@ class Scratch3PenBlocks {
 
     bindToCamera(screen) {
         this.cameraBound = screen;
-        this._onCameraMoved(screen);
+        this._onCameraMoved();
     }
 
     removeCameraBinding() {
@@ -1137,7 +1120,6 @@ class Scratch3PenBlocks {
      * The pen "clear" block clears the pen layer's contents.
      */
     clear () { // used by compiler
-        this._flushBitmapCanvas();
         const penSkinId = this._getPenLayerID();
         if (penSkinId >= 0) {
             this.runtime.renderer.penClear(penSkinId);
@@ -1145,21 +1127,11 @@ class Scratch3PenBlocks {
         }
     }
 
-    _updatePrintFontString () {
-        this._printFontString =
-            `${`${this.printTextAttribute.italic ? 'italic ' : ''}` +
-            `${this.printTextAttribute.weight} ` +
-            `${this.printTextAttribute.size}px `}${ 
-                this.printTextAttribute.font}`;
-    }
-
     setPrintFont (args) {
         this.printTextAttribute.font = args.FONT;
-        this._updatePrintFontString();
     }
     setPrintFontSize (args) {
         this.printTextAttribute.size = args.SIZE;
-        this._updatePrintFontString();
     }
     setPrintFontColor (args, util) {
         const rgb = Cast.toRgbColorObject(args.COLOR);
@@ -1174,130 +1146,10 @@ class Scratch3PenBlocks {
     }
     setPrintFontWeight (args) {
         this.printTextAttribute.weight = args.WEIGHT;
-        this._updatePrintFontString();
     }
     setPrintFontItalics (args) {
         this.printTextAttribute.italic = args.OPTION === ItalicsParam.ON;
-        this._updatePrintFontString();
     }
-
-    _ensureBitmapSurface () {
-        const penSkinId = this._getPenLayerID();
-        if (penSkinId < 0) return null;
-
-        const renderer = this.runtime.renderer;
-        const penSkin = renderer._allSkins[penSkinId];
-        if (!penSkin) return null;
-
-        const width = penSkin._size[0];
-        const height = penSkin._size[1];
-        const quality = penSkin.renderQuality || 1;
-
-        if (!this.bitmapCanvas) {
-            this.bitmapCanvas = document.createElement('canvas');
-            this.bitmapCtx = this.bitmapCanvas.getContext('2d', {
-                alpha: true,
-                desynchronized: true
-            }) || this.bitmapCanvas.getContext('2d');
-
-            this.bitmapSkinID = renderer.createBitmapSkin(this.bitmapCanvas, 1);
-            this.bitmapDrawableID = renderer.createDrawable(StageLayering.PEN_LAYER);
-            if (renderer.markDrawableAsNoninteractive) {
-                renderer.markDrawableAsNoninteractive(this.bitmapDrawableID);
-            }
-            renderer.updateDrawableSkinId(this.bitmapDrawableID, this.bitmapSkinID);
-            renderer.updateDrawableVisible(this.bitmapDrawableID, false);
-        } else if (!this.bitmapCtx) {
-            this.bitmapCtx = this.bitmapCanvas.getContext('2d', {
-                alpha: true,
-                desynchronized: true
-            }) || this.bitmapCanvas.getContext('2d');
-        }
-
-        if (width !== this._bitmapWidth || height !== this._bitmapHeight) {
-            this._bitmapWidth = width;
-            this._bitmapHeight = height;
-            this.bitmapCanvas.width = width;
-            this.bitmapCanvas.height = height;
-            this._bitmapDirty = false;
-        }
-
-        this._bitmapQuality = quality;
-        return this.bitmapCtx;
-    }
-
-    _prepareBitmapCanvas () {
-        const ctx = this._ensureBitmapSurface();
-        if (!ctx) return null;
-
-        if (ctx.resetTransform) {
-            ctx.resetTransform();
-        } else {
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-
-        ctx.setTransform(
-            this._bitmapQuality, 0, 0, this._bitmapQuality,
-            this._bitmapWidth / 2,
-            this._bitmapHeight / 2
-        );
-
-        return ctx;
-    }
-
-    _scheduleBitmapFlush () {
-        if (this._bitmapFlushScheduled) return;
-        this._bitmapFlushScheduled = true;
-
-        const schedule = typeof queueMicrotask === 'function'
-            ? queueMicrotask
-            : fn => Promise.resolve().then(fn); // shouldnt this just be setTimeout(, 0)???
-
-        schedule(() => {
-            this._bitmapFlushScheduled = false;
-            this._flushBitmapCanvas();
-        });
-
-        // *inform* the sequencer, this is technically a lie because we havent done anything yet
-        this.runtime.requestRedraw();
-    }
-
-    _flushBitmapCanvas () {
-        if (!this._bitmapDirty || !this.bitmapCtx || this.bitmapSkinID < 0 || this.bitmapDrawableID < 0) {
-            return;
-        }
-
-        const renderer = this.runtime.renderer;
-        const skin = renderer._allSkins[this.bitmapSkinID];
-        if (!skin) return;
-
-        try {
-            skin._setTexture(this.bitmapCanvas);
-        } catch (e) {
-            const imageData = this.bitmapCtx.getImageData(0, 0, this._bitmapWidth, this._bitmapHeight);
-            skin._setTexture(imageData);
-        }
-
-        const penSkinId = this._getPenLayerID();
-        if (penSkinId >= 0) {
-            renderer.penStamp(penSkinId, this.bitmapDrawableID);
-        }
-
-        if (this.bitmapCtx.resetTransform) {
-            this.bitmapCtx.resetTransform();
-        } else {
-            this.bitmapCtx.setTransform(1, 0, 0, 1, 0, 0);
-        }
-        this.bitmapCtx.clearRect(0, 0, this._bitmapWidth, this._bitmapHeight);
-
-        this._bitmapDirty = false;
-        this.runtime.requestRedraw(); // technically done earlier, but earlier is solely to flag down the sequencer
-    }
-
-    _getBitmapCanvas () {
-        return this._prepareBitmapCanvas();
-    }
-
     printText (args) {
         const ctx = this._getBitmapCanvas();
 
@@ -1315,7 +1167,7 @@ class Scratch3PenBlocks {
         if (this.printTextAttribute.strokeWidth > 0) ctx.strokeText(args.TEXT, args.X, -args.Y);
         ctx.fillText(args.TEXT, args.X, -args.Y);
 
-        this._drawContextToPen();
+        this._drawContextToPen(ctx);
     }
 
     async _drawUriImage({URI, X, Y, WIDTH, HEIGHT, ROTATE, CROPX, CROPY, CROPW, CROPH}) {
@@ -1338,23 +1190,22 @@ class Scratch3PenBlocks {
         // an error that really should never happen, but also shouldnt ever get to the user through here
         if (ctx.canvas.width <= 0 && ctx.canvas.height <= 0) return;
         
+        ctx.rotate(MathUtil.degToRad(ROTATE - 90));
+
+        // use sizes from the image if none specified
         const width = WIDTH ?? image.width;
         const height = HEIGHT ?? image.height;
         const realX = X - (width / 2);
         const realY = -Y - (height / 2);
-        const hasCrop = typeof CROPX === 'number' && typeof CROPY === 'number' && typeof CROPW === 'number' && typeof CROPH === 'number';
+        const drawArgs = [CROPX, CROPY, CROPW, CROPH, realX, realY, width, height];
 
-        ctx.save();
-        ctx.rotate(MathUtil.degToRad(ROTATE - 90));
-
-        if (hasCrop) {
-            ctx.drawImage(image, CROPX, CROPY, CROPW, CROPH, realX, realY, width, height);
-        } else {
-            ctx.drawImage(image, realX, realY, width, height);
+        // ensure that all of the drop values exist, just in case :Trollhans
+        if (!(typeof CROPX === "number" && typeof CROPY === "number" && CROPH && CROPH)) {
+            drawArgs.splice(0, 4);
         }
 
-        ctx.restore();
-        this._drawContextToPen();
+        ctx.drawImage(image, ...drawArgs);
+        this._drawContextToPen(ctx);
     }
 
     // todo: should these be merged into their own function? they all have the same code...
@@ -1411,12 +1262,38 @@ class Scratch3PenBlocks {
 
         ctx.fillRect(args.X, -args.Y, args.WIDTH, args.HEIGHT);
 
-        this._drawContextToPen();
+        this._drawContextToPen(ctx);
     }
 
-    _drawContextToPen () {
-        this._bitmapDirty = true;
-        this._scheduleBitmapFlush();
+    _drawContextToPen (ctx) {
+        const penSkinId = this._getPenLayerID();
+        const width = this.bitmapCanvas.width;
+        const height = this.bitmapCanvas.height;
+        ctx.restore();
+
+        const printSkin = this.runtime.renderer._allSkins[this.bitmapSkinID];
+        const imageData = ctx.getImageData(0, 0, width, height);
+        printSkin._setTexture(imageData);
+        this.runtime.renderer.penStamp(penSkinId, this.bitmapDrawableID);
+
+        this.runtime.requestRedraw();
+    }
+
+    _getBitmapCanvas () {
+        const penSkinId = this._getPenLayerID();
+        const penSkin = this.runtime.renderer._allSkins[penSkinId];
+        const width = penSkin._size[0];
+        const height = penSkin._size[1];
+        this.bitmapCanvas.width = width;
+        this.bitmapCanvas.height = height;
+
+        const ctx = this.bitmapCanvas.getContext('2d');
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.translate(width / 2, height / 2);
+        // console.log(penSkin.renderQuality, this.bitmapCanvas.width, this.bitmapCanvas.height);
+        ctx.scale(penSkin.renderQuality, penSkin.renderQuality);
+        return ctx;
     }
 
     /**
@@ -1425,7 +1302,6 @@ class Scratch3PenBlocks {
      * @param {object} util - utility object provided by the runtime.
      */
     stamp (args, util) {
-        this._flushBitmapCanvas();
         this._stamp(util.target);
     }
     _stamp (target) { // used by compiler
@@ -1442,7 +1318,6 @@ class Scratch3PenBlocks {
      * @param {object} util - utility object provided by the runtime.
      */
     penDown (args, util) {
-        this._flushBitmapCanvas();
         this._penDown(util.target);
     }
     _penDown (target) { // used by compiler
@@ -1466,7 +1341,6 @@ class Scratch3PenBlocks {
      * @param {object} util - utility object provided by the runtime.
      */
     penUp (args, util) {
-        this._flushBitmapCanvas();
         this._penUp(util.target);
     }
     _penUp (target) { // used by compiler
@@ -1709,7 +1583,6 @@ class Scratch3PenBlocks {
     }
 
     goPenLayer (args) {
-        this._flushBitmapCanvas();
         this._getPenLayerID();
         if (!this._penDrawableId) return;
         // layer order is already set correctly, dont do anything
@@ -1763,7 +1636,7 @@ class Scratch3PenBlocks {
         if (penState.penDown) ctx.stroke();
         ctx.fill();
 
-        this._drawContextToPen();
+        this._drawContextToPen(ctx);
     }
 
     draw4SidedComplexShape (args, util) {
