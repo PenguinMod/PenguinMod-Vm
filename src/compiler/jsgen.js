@@ -56,7 +56,7 @@ const generatorNameVariablePool = new VariablePool('gen');
 
 /**
  * @typedef Input
- * @property {Function} asNumber Returns string 
+ * @property {Function} asNumber Returns string
  * @property {Function} asNumberOrNaN Returns string
  * @property {Function} asString Returns string
  * @property {Function} asBoolean Returns string
@@ -355,7 +355,7 @@ class Frame {
          */
         this.isLastBlock = false;
 
-        this.overrideLoop = overrideLoop 
+        this.overrideLoop = overrideLoop
 
         /**
          * General important data that needs to be carried down from other threads.
@@ -2262,21 +2262,25 @@ class JSGenerator {
         script += `if (thread.spoofing) {\n`;
         script += `target = thread.spoofTarget;\n`;
         script += `};\n`;
-        script += 'try {\n';
+
+        if (!this.isProcedure) {
+            script += 'try {\n';
+        }
 
         script += this.source;
 
-        script += '} catch (err) {';
-        script += `console.log("${sanitize(script)}");\n`;
-        script += 'console.error(err);';
-        script += `runtime.emit("BLOCK_STACK_ERROR", {`;
-        script += `id:"${sanitize(this.script.topBlockId)}",`;
-        script += `value:String(err)`;
-        script += `});\n`;
-        script += '}\n';
         if (!this.isProcedure) {
+            script += '} catch (err) {';
+            script += `console.log("${sanitize(script)}");\n`;
+            script += 'console.error(err);';
+            script += `runtime.emit("BLOCK_STACK_ERROR", {`;
+            script += `id:"${sanitize(this.script.topBlockId)}",`;
+            script += `value:String(err)`;
+            script += `});\n`;
+            script += '}\n';
             script += 'retire();\n';
         }
+
         script += '}; })';
         return script;
     }
