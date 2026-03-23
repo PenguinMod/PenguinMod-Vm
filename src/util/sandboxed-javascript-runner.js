@@ -40,7 +40,6 @@ const createFrame = () => {
     const element = document.createElement("iframe");
     const frameId = generateQuadUid(); // this is how we differentiate iframe messages from other messages
     // hopefully pm doesnt do sonme weird stuff that makes this not work lol
-    // console.log(frameId); // remove later lol
     element.dataset.id = frameId;
     element.style.display = "none";
     element.setAttribute('aria-hidden', 'true');
@@ -61,18 +60,8 @@ const origin = window.origin;
  * @returns {Promise<object>} The data provided by the message
  */
 const messageHandler = (event, iframe, removeHandler) => new Promise(resolve => {
-    // console.log(event.origin) // remove later
-    // this might not work first try cuz idk what event.origin is
-    // if (event.origin !== iframe.contentDocument.location.origin) return; 
-    // yea event origin is just location
-    // console.log(event.origin, origin)
-    // why is event.origin null
-    // ok we arent checking origin because its just null for some reason
-    // if (event.origin !== origin) return;
-    // console.log(event.data.payload)
     if (!event.data.payload) return;
 
-    // console.log({ payload: event.data.payload.id, iframe: iframe.dataset.id })
     if (event.data.payload.id !== iframe.dataset.id) return;
     const data = event.data.payload;
 
@@ -124,7 +113,6 @@ const generateEvaluateSrc = (code, frame) => {
 
     const parent = window.parent;
     const origin = '*';
-    // console.log(result,success);
     console.log(origin);
 
     try {
@@ -160,16 +148,8 @@ const generateEvaluateSrc = (code, frame) => {
 
     const html = [
         '<!DOCTYPE html>',
-        '<html lang="en-US">',
-        // the html head isnt required i just think its sily to add and shouldnt affect anything
-        '<head>',
-        '<title>the an one of an iframe</title>',
-        '</head>',
-        // same story with adding actual elements
+        '<html>',
         '<body>',
-        '<h1><p>epic computing in progress...</p></h1>',
-        // removed for being not cool!
-        // '<img src="https://media.tenor.com/jXQiJUuqfM8AAAAd/type-emoji.gif">',
         '<script>',
         runnerCode,
         '</script>',
@@ -194,9 +174,7 @@ class SandboxRunner {
             const trueHandler = e => {
                 // this code is weird but we need to remove
                 // event handler ladter
-                // console.log(e); // debug
                 messageHandler(e, frame, trueHandler).then(payload => {
-                    // console.log(payload)
                     resolve({
                         success: payload.success,
                         value: payload.value
