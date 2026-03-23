@@ -567,7 +567,8 @@ class SPjavascriptV2 {
       newFunc = util.thread._JSV2cache?.[cacheKey];
     }
 
-    let isArgArray, argEntries;
+    const isArgArray = Array.isArray(codeArgs);
+    const argEntries = Object.entries(codeArgs);
     if (newFunc === undefined) {
       // no cache found
       let binders = "";
@@ -607,9 +608,6 @@ class SPjavascriptV2 {
       }
 
       /* generate arguments */
-      isArgArray = Array.isArray(codeArgs);
-      argEntries = Object.entries(codeArgs);
-
       let argNames = [];
       if (codeArgs !== undefined) {
         if (isArgArray) argNames.push("...data");
