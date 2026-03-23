@@ -567,6 +567,7 @@ class SPjavascriptV2 {
       newFunc = util.thread._JSV2cache?.[cacheKey];
     }
 
+    let isArgArray, argEntries;
     if (newFunc === undefined) {
       // no cache found
       let binders = "";
@@ -606,8 +607,8 @@ class SPjavascriptV2 {
       }
 
       /* generate arguments */
-      const isArgArray = Array.isArray(codeArgs);
-      const argEntries = Object.entries(codeArgs);
+      isArgArray = Array.isArray(codeArgs);
+      argEntries = Object.entries(codeArgs);
 
       let argNames = [];
       if (codeArgs !== undefined) {
@@ -668,28 +669,30 @@ class SPjavascriptV2 {
     return args.CODE;
   }
 
-  async jsCommand(args) {
-    await this._compileCode(Cast.toString(args.CODE));
+  async jsCommand(args, util) {
+    await this._compileCode(Cast.toString(args.CODE), [], util);
   }
-  async jsCommandBinded(args) {
+  async jsCommandBinded(args, util) {
     await this._compileCode(
       Cast.toString(args.CODE),
-      this._parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS),
+      util
     );
   }
 
-  async jsReporter(args) {
-    return await this._compileCode(Cast.toString(args.CODE));
+  async jsReporter(args, util) {
+    return await this._compileCode(Cast.toString(args.CODE), [], util);
   }
-  async jsReporterBinded(args) {
+  async jsReporterBinded(args, util) {
     return await this._compileCode(
       Cast.toString(args.CODE),
-      this._parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS),
+      util
     );
   }
 
-  async jsBoolean(args) {
-    const possiblePromise = await this._compileCode(Cast.toString(args.CODE));
+  async jsBoolean(args, util) {
+    const possiblePromise = await this._compileCode(Cast.toString(args.CODE), [], util);
 
     /* force output a boolean */
     if (possiblePromise && typeof possiblePromise.then === "function") {
@@ -701,10 +704,11 @@ class SPjavascriptV2 {
 
     return Cast.toBoolean(possiblePromise);
   }
-  async jsBooleanBinded(args) {
+  async jsBooleanBinded(args, util) {
     const possiblePromise = await this._compileCode(
       Cast.toString(args.CODE),
-      this._parseArguments(args.ARGS)
+      this._parseArguments(args.ARGS),
+      util
     );
 
     /* force output a boolean */
