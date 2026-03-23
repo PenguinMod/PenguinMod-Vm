@@ -513,6 +513,12 @@ class SPjavascriptV2 {
     ].join("\n"));
   }
 
+  _getThisBlockID(util) {
+    return util.thread.isCompiled ?
+      util.thread.peekStack() :
+      util.thread.peekStackFrame().op.id;
+  }
+
   _parseArguments(arg) {
     if (!arg) return [];
 
@@ -548,60 +554,79 @@ class SPjavascriptV2 {
     }
   }
 
-  async _compileCode(code, codeArgs = []) {
-    let binders = "";
+  async _compileCode(code, codeArgs = [], util) {
+    // check if we have a cached function so we can
+    // run code faster
+    let cacheKey;
+    let newFunc = undefined;
+    if (
+      this.isEditorUnsandboxed ||
+      this.runtime.extensionRuntimeOptions.javascriptUnsandboxed === true
+    ) {
+      cacheKey = this._getThisBlockID(util);
+      newFunc = util.thread._JSV2cache?.[cacheKey];
+    }
 
-    /* inject global functions */
-    if (this.globalFuncs.size > 0) {
-      const entries = this.globalFuncs.entries();
-      let iteratorValue = entries.next();
-      while (!iteratorValue.done) {
-        const [name, funcData] = iteratorValue.value;
-        if (funcData.isBlockCode) {
-          binders += `const ${name} = async function(...args) {\n`;
-          if (funcData.id) {
-            binders += `return new Promise((resolve) => {\n`;
-            binders += `const target = vm.runtime.getTargetById("${funcData.origin}");\n`;
-            binders += `const thread = vm.runtime._pushThread("${funcData.id}", target);\n`;
-            binders += `const threadID = thread.getId();\n`;
-            binders += `thread.jsExtData = [...args];\n`;
+    if (newFunc === undefined) {
+      // no cache found
+      let binders = "";
 
-            /* listener for thread returns */
-            binders += `const endHandler = (t) => {\n`;
-            binders += `if (t.getId() === thread.getId()) {\n`;
-            binders += `vm.runtime.removeListener("THREAD_FINISHED", endHandler);\n`;
-            binders += `resolve(t.justReported);\n`;
+      /* inject global functions */
+      if (this.globalFuncs.size > 0) {
+        const entries = this.globalFuncs.entries();
+        let iteratorValue = entries.next();
+        while (!iteratorValue.done) {
+          const [name, funcData] = iteratorValue.value;
+          if (funcData.isBlockCode) {
+            binders += `const ${name} = async function(...args) {\n`;
+            if (funcData.id) {
+              binders += `return new Promise((resolve) => {\n`;
+              binders += `const target = vm.runtime.getTargetById("${funcData.origin}");\n`;
+              binders += `const thread = vm.runtime._pushThread("${funcData.id}", target);\n`;
+              binders += `const threadID = thread.getId();\n`;
+              binders += `thread.jsExtData = [...args];\n`;
+
+              /* listener for thread returns */
+              binders += `const endHandler = (t) => {\n`;
+              binders += `if (t.getId() === thread.getId()) {\n`;
+              binders += `vm.runtime.removeListener("THREAD_FINISHED", endHandler);\n`;
+              binders += `resolve(t.justReported);\n`;
+              binders += "}\n";
+              binders += "};\n";
+              binders += `vm.runtime.on("THREAD_FINISHED", endHandler);\n`;
+              binders += "});\n";
+            }
             binders += "}\n";
-            binders += "};\n";
-            binders += `vm.runtime.on("THREAD_FINISHED", endHandler);\n`;
-            binders += "});\n";
+          } else {
+            binders += `const ${name} = ${funcData.code}\n`;
           }
-          binders += "}\n";
-        } else {
-          binders += `const ${name} = ${funcData.code}\n`;
+
+          iteratorValue = entries.next();
         }
-
-        iteratorValue = entries.next();
       }
+
+      /* generate arguments */
+      const isArgArray = Array.isArray(codeArgs);
+      const argEntries = Object.entries(codeArgs);
+
+      let argNames = [];
+      if (codeArgs !== undefined) {
+        if (isArgArray) argNames.push("...data");
+        else argNames.push(...argEntries.map((a) => a[0]));
+      }
+
+      newFunc = this.ASYNC_FUNC_PROTO.constructor(...argNames, binders + code);
     }
-
-    /* generate arguments */
-    const isArgArray = Array.isArray(codeArgs);
-    const argEntries = Object.entries(codeArgs);
-
-    let argNames = [];
-    if (codeArgs !== undefined) {
-      if (isArgArray) argNames.push("...data");
-      else argNames.push(...argEntries.map((a) => a[0]));
-    }
-
-    const newFunc = this.ASYNC_FUNC_PROTO.constructor(...argNames, binders + code);
 
     /* 'extensionRuntimeOptions.javascriptUnsandboxed' is used by packager */
     if (
       this.isEditorUnsandboxed ||
       this.runtime.extensionRuntimeOptions.javascriptUnsandboxed === true
     ) {
+      // cache the function
+      if (!util.thread._JSV2cache) util.thread._JSV2cache = {};
+      util.thread._JSV2cache[cacheKey] = newFunc;
+
       // unsandboxed code
       let result;
       try {
