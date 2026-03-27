@@ -1661,7 +1661,7 @@ class JSGenerator {
             }
             break;
         case 'looks.clearEffects':
-            this.source += 'target.clearEffects();\nruntime.ext_scratch3_looks._resetBubbles(target)\n';
+            this.source += 'target.clearEffects();\nruntime.ext_scratch3_looks._resetBubbles(target);\n';
             break;
         case 'looks.changeEffect':
             if (this.target.effects.hasOwnProperty(node.effect)) {
