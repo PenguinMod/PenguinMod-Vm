@@ -629,7 +629,7 @@ runtimeFunctions._resolveKeyPath = `const _resolveKeyPath = (obj, keyPath) => {
 
 runtimeFunctions.get = `const get = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    if ((Object.getPrototypeOf(root) !== Object || Object.getPrototypeOf(root) !== null) && typeof root.get !== 'function') return '';
+    if ((Object.getPrototypeOf(root) !== Object && Object.getPrototypeOf(root) !== null) && typeof root.get !== 'function') return '';
     return typeof root === 'undefined' 
         ? '' 
         : root.get?.(key) ?? root[key];
@@ -637,7 +637,7 @@ runtimeFunctions.get = `const get = (obj, keyPath) => {
 
 runtimeFunctions.set = `const set = (obj, keyPath, val) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    if ((Object.getPrototypeOf(root) !== Object || Object.getPrototypeOf(root) !== null) && typeof root.set !== 'function') return '';
+    if ((Object.getPrototypeOf(root) !== Object && Object.getPrototypeOf(root) !== null) && typeof root.set !== 'function') return '';
     return typeof root === 'undefined' 
         ? '' 
         : root.set?.(key, val) ?? (root[key] = val);
@@ -645,7 +645,7 @@ runtimeFunctions.set = `const set = (obj, keyPath, val) => {
 
 runtimeFunctions.remove = `const remove = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    if ((Object.getPrototypeOf(root) !== Object || Object.getPrototypeOf(root) !== null) && typeof root.remove !== 'function' && typeof root.delete !== 'function') return '';
+    if ((Object.getPrototypeOf(root) !== Object && Object.getPrototypeOf(root) !== null) && typeof root.remove !== 'function' && typeof root.delete !== 'function') return '';
     return typeof root === 'undefined' 
         ? '' 
         : root.delete?.(key) ?? root.remove?.(key) ?? (delete root[key]);
@@ -653,7 +653,7 @@ runtimeFunctions.remove = `const remove = (obj, keyPath) => {
 
 runtimeFunctions.includes = `const includes = (obj, keyPath) => {
     const [root, key] = _resolveKeyPath(obj, keyPath);
-    if ((Object.getPrototypeOf(root) !== Object || Object.getPrototypeOf(root) !== null) && typeof root.has !== 'function') return '';
+    if ((Object.getPrototypeOf(root) !== Object && Object.getPrototypeOf(root) !== null) && typeof root.has !== 'function') return '';
     return typeof root === 'undefined' 
         ? '' 
         : root.has?.(key) ?? (key in root);
