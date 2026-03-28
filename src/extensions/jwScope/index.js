@@ -58,7 +58,7 @@ const jwScope = {
 
     reset(array) {
         for (let i = array.length-1; i >= 0; i--) {
-            array[i] = {}
+            array[i] = Object.create(null);
         }
     },
 
@@ -91,7 +91,7 @@ class Extension {
             const oldDescendStack = vm.exports.JSGenerator.prototype.descendStack
             vm.exports.JSGenerator.prototype.descendStack = function(nodes, frame) {
                 if (frame.parent == 'control.switch') return oldDescendStack.call(this, nodes, frame)
-                this.source += "var jwScopeT = [...jwScope, {}];\n"
+                this.source += "var jwScopeT = [...jwScope, Object.create(null)];\n"
                 this.source += "{\n" //create scope
                 this.source += "let jwScope = jwScopeT;\n"
                 const result = oldDescendStack.call(this, nodes, frame)
