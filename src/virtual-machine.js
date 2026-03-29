@@ -735,6 +735,7 @@ class VirtualMachine extends EventEmitter {
      * @return {string} Serialized state of the runtime.
      */
     toJSON (optTargetId, serializationOptions, beautiful) {
+        this.emit('SERIALIZE', optTargetId);
         const sb3 = require('./serialization/sb3');
         return StringUtil.stringify(sb3.serialize(this.runtime, optTargetId, serializationOptions), beautiful);
     }
