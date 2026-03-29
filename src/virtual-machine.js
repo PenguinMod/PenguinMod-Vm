@@ -482,6 +482,7 @@ class VirtualMachine extends EventEmitter {
      * @return {!Promise} Promise that resolves after targets are installed.
      */
     loadProject (input) {
+        this.emit('DESERIALIZE', 'project');
         return new Promise(async (resolve, reject) => {
             try {
                 const arr = new Uint8Array(input);
