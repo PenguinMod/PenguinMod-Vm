@@ -915,7 +915,7 @@ class JSGenerator {
                         builder += ')';
                         powWrap--;
                     }
-                    if (opType) builder += opType;
+                    if (opType) builder += " " + opType + " ";
                 }
             }
             return new TypedInput('(' + builder + ')', TYPE_NUMBER_NAN);
