@@ -45,7 +45,22 @@ const OPERATORS = [
         opcode: 'operator_gt',
         symbol: '&gt;',
         execute: (a, b) => Cast.compare(a, b) > 0
-    }
+    },
+    {
+        opcode: 'operator_ltorequal',
+        symbol: '&lt;=',
+        execute: (a, b) => Cast.compare(a, b) <= 0
+    },
+    {
+        opcode: 'operator_notequal',
+        symbol: '≠',
+        execute: (a, b) => Cast.compare(a, b) !== 0
+    },
+    {
+        opcode: 'operator_gtorequal',
+        symbol: '&gt;=',
+        execute: (a, b) => Cast.compare(a, b) >= 0
+    },
 ];
 
 const NEXT = '{{NEXT}}';
