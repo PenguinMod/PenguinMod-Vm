@@ -256,9 +256,9 @@ const CORE_EXTENSIONS = [
 const coreExtensionList = Object.getOwnPropertyNames(defaultBuiltinExtensions);
 
 const preload = [];
-
-if (IsLocal || IsLiveTests) {
-    preload.push("jgDev");
+const customAutoloadedExtensions = require('./custom-autoloaded-extensions.json');
+if ((IsLocal || IsLiveTests)) {
+    preload.push('jgDev');
 }
 
 /**
@@ -363,6 +363,9 @@ class ExtensionManager {
             log.error(`ExtensionManager was unable to register extension service: ${JSON.stringify(e)}`);
         });
 
+        customAutoloadedExtensions.forEach(extensionId => {
+            this.loadExtensionURL(value);
+        })
         preload.forEach(value => {
             this.loadExtensionURL(value);
         });
