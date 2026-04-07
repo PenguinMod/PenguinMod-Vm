@@ -632,13 +632,6 @@ const makeSafeForJSON = (runtime, value) => {
                 };
                 continue;
             }
-            if (!isVariableValueSafeForJSON(value[i])) {
-                if (!copy) {
-                    // Only copy the list when needed
-                    copy = value.slice();
-                }
-                copy[i] = `${copy[i]}`;
-            }
         }
         if (copy) {
             return copy;
