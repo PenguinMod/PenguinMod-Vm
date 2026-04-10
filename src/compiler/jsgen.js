@@ -1468,7 +1468,7 @@ class JSGenerator {
             }
             this.source += `}\n`;
             break;
-        case 'control.fromTo':
+        case 'control.fromTo': {
             this.resetVariableInputs();
             const from = this.localVariables.next();
             const to = this.localVariables.next();
@@ -1481,6 +1481,7 @@ class JSGenerator {
             this.yieldLoop();
             this.source += '}\n';
             break;
+        }
         case 'control.runAsSprite':
             const stage = 'runtime.getTargetForStage()';
             const sprite = this.descendInput(node.sprite).asString();
@@ -1621,13 +1622,14 @@ class JSGenerator {
         case 'list.deleteAll':
             this.source += `${this.referenceVariable(node.list)}.value = [];\n`;
             break;
-        case 'list.shift':
+        case 'list.shift': {
             const list = this.referenceVariable(node.list);
             const index = this.descendInput(node.index).asNumber();
             if (index <= 0) break;
-            this.source += `${list}.value = ${list}.value.slice(${index});\n`
-            this.source += `${list}._monitorUpToDate = false;\n`
-            break
+            this.source += `${list}.value = ${list}.value.slice(${index});\n`;
+            this.source += `${list}._monitorUpToDate = false;\n`;
+            break;
+        }
         case 'list.hide':
             this.source += `runtime.monitorBlocks.changeBlock({ id: "${sanitize(node.list.id)}", element: "checkbox", value: false }, runtime);\n`;
             break;
