@@ -301,6 +301,10 @@ class ScriptTreeGenerator {
             return {
                 kind: 'control.isclone'
             };
+        case 'control_from_to_index':
+            return {
+                kind: 'control.fromToIndex'
+            };
 
         case 'data_variable':
             return {
@@ -2114,10 +2118,6 @@ class ScriptTreeGenerator {
         case 'control_dualblock':
             return {
                 kind: 'control.dualBlock'
-            };
-        case 'control_from_to_index':
-            return {
-                kind: 'control.fromToIndex'
             };
         default: {
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
