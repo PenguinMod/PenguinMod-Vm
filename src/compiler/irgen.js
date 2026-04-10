@@ -1372,6 +1372,14 @@ class ScriptTreeGenerator {
                 kind: 'control.newScript',
                 substack: this.descendSubstack(block, 'SUBSTACK')
             };
+        case 'control_from_to':
+            this.analyzeLoop();
+            return {
+                kind: 'control.fromTo',
+                from: this.descendInputOfBlock(block, 'FROM'),
+                to: this.descendInputOfBlock(block, 'TO'),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            };
         case 'data_addtolist':
             return {
                 kind: 'list.add',
@@ -2106,6 +2114,10 @@ class ScriptTreeGenerator {
         case 'control_dualblock':
             return {
                 kind: 'control.dualBlock'
+            };
+        case 'control_from_to_index':
+            return {
+                kind: 'control.fromToIndex'
             };
         default: {
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
