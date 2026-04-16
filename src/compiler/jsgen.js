@@ -175,7 +175,7 @@ class ConstantInput {
 
     asUnknown () {
         // Attempt to convert strings to numbers if it is unlikely to break things
-        if (typeof this.constantValue === 'number') {
+        if (typeof this.constantValue === 'number' || typeof this.constantValue === 'boolean') {
             // todo: handle NaN?
             return this.constantValue;
         }
