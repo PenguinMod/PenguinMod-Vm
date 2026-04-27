@@ -161,6 +161,20 @@ class Extension {
                     `
                 },
                 {
+                    opcode: 'newLambdaR',
+                    text: 'new lambda [ARG] [VALUE]',
+                    arguments: {
+                        ARG: {
+                            fillIn: 'arg'
+                        },
+                        VALUE: {
+                            type: ArgumentType.STRING,
+                            exemptFromNormalization: true
+                        }
+                    },
+                    ...Lambda.Block
+                },
+                {
                     opcode: 'rawLambdaInput',
                     text: '[FIELD]',
                     hideFromPalette: true,
@@ -236,6 +250,10 @@ class Extension {
                     kind: 'input',
                     substack: generator.descendSubstack(block, 'SUBSTACK')
                 }),
+                newLambdaR: (generator, block) => ({
+                    kind: 'input',
+                    value: generator.descendInputOfBlock(block, 'VALUE'),
+                }),
                 this: (generator, block) => ({
                     kind: 'input'
                 }),
@@ -266,6 +284,15 @@ class Extension {
                     compiler.source = temp;
                     return new imports.TypedInput(returns, imports.TYPE_UNKNOWN);
                 },
+                newLambdaR: (node, compiler, imports) => {
+                    const temp = compiler.source;
+                    compiler.source = '(new vm.jwLambda.Type(function*(arg, thread, target, runtime, stage, lambda) {\n';
+                    compiler.source += `return ${compiler.descendInput(node.value).asUnknown()};\n`;
+                    compiler.source += '}, thread))';
+                    const returns = compiler.source;
+                    compiler.source = temp;
+                    return new imports.TypedInput(returns, imports.TYPE_UNKNOWN);
+                },
                 this: (node, compiler, imports) => {
                     return new imports.TypedInput('(typeof lambda === "undefined" ? new runtime.vm.jwLambda.Type() : lambda)', imports.TYPE_UNKNOWN)
                 },
@@ -284,6 +311,9 @@ class Extension {
     }
 
     newLambda() {
+        return 'noop'
+    }
+    newLambdaR() {
         return 'noop'
     }
 
