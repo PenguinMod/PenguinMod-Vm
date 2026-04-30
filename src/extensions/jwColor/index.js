@@ -104,7 +104,7 @@ class ColorType {
     }
 
     toString() {
-        return String(this.toDecimal())
+        return `#${this.toHex()}`
     }
     toMonitorContent = () => span(this.toString())
 
@@ -326,10 +326,13 @@ class Extension {
                 },
                 {
                     opcode: 'toHex',
-                    text: '[COLOR] to hexadecimal',
+                    text: '[COLOR] to hexadecimal [OPTION]',
                     blockType: BlockType.REPORTER,
                     arguments: {
-                        COLOR: Color.Argument
+                        COLOR: Color.Argument,
+                        OPTION: {
+                            menu: "toHexOption"
+                        }
                     }
                 }
             ],
@@ -350,6 +353,14 @@ class Extension {
                         'hue',
                         'saturation',
                         'value'
+                    ]
+                },
+                toHexOption: {
+                    acceptReporters: false,
+                    items: [
+                       'RRGGBB',
+                       '#RRGGBB',
+                       '0xRRGGBB' 
                     ]
                 }
             }
@@ -459,10 +470,16 @@ class Extension {
         return COLOR.toDecimal()
     }
 
-    toHex({COLOR}) {
-        COLOR = Color.Type.toColor(COLOR)
+    toHex({COLOR, OPTION}) {
+        COLOR = Color.Type.toColor(COLOR);
 
-        return COLOR.toHex()
+        let hex = COLOR.toHex();
+
+        switch (OPTION) {
+            case "#RRGGBB": return `#${hex}`;
+            case "0xRRGGBB": return `0x${hex}`;
+            default: return hex
+        }
     }
 }
 
