@@ -101,7 +101,7 @@ class AudioExtension {
         const varBlock = blocks[2];
         blocks.splice(0, 3);
         // create the variable block xml's
-        const varBlocks = Helper.GetAllAudioGroups().map(audioGroup => varBlock.replace('{audioGroupId}', audioGroup.id));
+        const varBlocks = Object.keys(this.audioGroups).map(audioGroupId => varBlock.replace('{audioGroupId}', audioGroupId));
         if (!varBlocks.length) {
             return [buttons.create];
         }
@@ -364,25 +364,36 @@ class AudioExtension {
 
     // button handlers
     createAudioGroup() {
-        const newGroup = prompt('Set a name for this Audio Group:', 'audio group ' + (Helper.GetAllAudioGroups().length + 1));
-        if (!newGroup) return alert('Canceled')
-        if (Helper.GetAudioGroup(newGroup)) return alert(`"${newGroup}" is taken!`);
-        Helper.AddAudioGroup(newGroup);
+        const audioGroupIds = Object.keys(this.audioGroups);
+        const newGroupId = prompt('Set a name for this Audio Group:', 'audio group ' + (audioGroupIds.length + 1));
+        if (!newGroupId) return alert('Cancelled');
+        if (this.audioGroups[newGroupId]) return alert(`"${newGroupId}" is taken!`);
+
+        // make the new audio group
+        const audioGroup = new AudioGroup();
+        this.audioGroups[newGroupId] = audioGroup;
+
         vm.emitWorkspaceUpdate();
         this.serialize();
     }
     deleteAudioGroup() {
-        const group = prompt('Which audio group would you like to delete?');
-        // helper deals with audio groups that dont exist, so we just call the function with no check
-        Helper.DeleteAudioGroup(group);
+        const groupId = prompt('Which audio group would you like to delete?');
+        if (!groupId) return;
+        const group = this.audioGroups[groupId];
+        if (!group) return;
+
+        // delete the audio group
+        group.disposeSources();
+        delete this.audioGroups[groupId];
+
         vm.emitWorkspaceUpdate();
         this.serialize();
     }
 
     // menus
     fetchAudioGroupMenu() {
-        const audioGroups = Helper.GetAllAudioGroups();
-        if (audioGroups.length <= 0) {
+        const audioGroupIds = Object.keys(this.audioGroups);
+        if (audioGroupIds.length <= 0) {
             return [
                 {
                     text: '',
@@ -390,9 +401,9 @@ class AudioExtension {
                 }
             ];
         }
-        return audioGroups.map(audioGroup => ({
-            text: audioGroup.id,
-            value: audioGroup.id
+        return audioGroupIds.map(audioGroupId => ({
+            text: audioGroupId,
+            value: audioGroupId
         }));
     }
     fetchScratchSoundMenu() {
@@ -406,43 +417,51 @@ class AudioExtension {
 
     // blocks
     audioGroupGet(args) {
-        const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
-        return JSON.stringify(Object.getOwnPropertyNames(audioGroup.sources));
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        return JSON.stringify(Object.keys(audioGroup.sources));
     }
 
     audioGroupSetVolumeSpeedPitchPan(args) {
-        const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
         switch (args.VSPP) {
             case "volume":
-                audioGroup.globalVolume = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), 1);
+                audioGroup.volume = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), 1);
                 break;
             case "speed":
-                audioGroup.globalSpeed = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), Infinity);
+                audioGroup.speed = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), Infinity);
                 break;
             case "detune":
             case "pitch":
-                audioGroup.globalPitch = Cast.toNumber(args.VALUE);
+                audioGroup.pitch = Cast.toNumber(args.VALUE);
                 break;
             case "pan":
-                audioGroup.globalPan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
+                audioGroup.pan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
                 break;
         }
-        Helper.UpdateAudioGroupSources(audioGroup);
     }
 
     audioSourceCreate(args) {
-        const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
+
+        const audioSourceId = args.NAME;
         switch (args.CREATEOPTION) {
             case "create":
-                Helper.RemoveAudioSource(audioGroup, args.NAME);
-                Helper.AppendAudioSource(audioGroup, args.NAME);
+                // TODO: replace this
+                Helper.RemoveAudioSource(audioGroup, audioSourceId);
+                Helper.AppendAudioSource(audioGroup, audioSourceId);
                 break;
             case "delete":
-                Helper.RemoveAudioSource(audioGroup, args.NAME);
+                const source = audioGroup.sources[audioSourceId];
+
+                source.dispose();
+                delete audioGroup.sources[audioSourceId];
                 break;
         }
     }
     audioSourceDuplicate(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         const origin = Cast.toString(args.NAME);
         const newName = Cast.toString(args.COPY);
@@ -453,6 +472,7 @@ class AudioExtension {
         audioGroup.sources[newName] = audioSource.clone();
     }
     audioSourceReverse(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         const target = Cast.toString(args.NAME);
         if (!audioGroup) return;
@@ -461,6 +481,7 @@ class AudioExtension {
         audioSource.reverse();
     }
     audioSourceDeleteAll(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
 
         for (const sourceName in audioGroup.sources) {
@@ -482,6 +503,7 @@ class AudioExtension {
     }
 
     audioSourceSetScratch(args, util) {
+        // TODO: replace this
         return new Promise((resolve, reject) => {
             const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
             if (!audioGroup) return resolve();
@@ -504,6 +526,7 @@ class AudioExtension {
         });
     }
     audioSourceSetUrl(args, util) {
+        // TODO: replace this
         return new Promise((resolve, reject) => {
             const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
             if (!audioGroup) return resolve();
@@ -529,6 +552,7 @@ class AudioExtension {
     }
 
     audioSourcePlayerOption(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -537,6 +561,7 @@ class AudioExtension {
         audioSource[args.PLAYEROPTION]();
     }
     audioSourceSetLoop(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -545,6 +570,7 @@ class AudioExtension {
         audioSource.looping = args.LOOP == "loop";
     }
     audioSourceSetTime(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -552,6 +578,7 @@ class AudioExtension {
         audioSource.startPosition = Cast.toNumber(args.TIME);
     }
     audioSourceSetTime2(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -576,6 +603,7 @@ class AudioExtension {
         }
     }
     audioSourceSetVolumeSpeedPitchPan(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -599,22 +627,24 @@ class AudioExtension {
     }
 
     audioGroupGetModifications(args) {
-        const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
         switch (args.OPTION) {
             case "volume":
-                return audioGroup.globalVolume * 100;
+                return audioGroup.volume * 100;
             case "speed":
-                return audioGroup.globalSpeed * 100;
+                return audioGroup.speed * 100;
             case "detune":
             case "pitch":
-                return audioGroup.globalPitch;
+                return audioGroup.pitch;
             case "pan":
-                return audioGroup.globalPan * 100;
+                return audioGroup.pan * 100;
             default:
                 return 0;
         }
     }
     audioSourceGetModificationsBoolean(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return false;
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
@@ -631,6 +661,7 @@ class AudioExtension {
         }
     }
     audioSourceGetModificationsNormal(args) {
+        // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return "";
         const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
