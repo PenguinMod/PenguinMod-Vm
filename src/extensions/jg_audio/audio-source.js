@@ -1,6 +1,8 @@
 const Cast = require("../../util/cast");
 const Timer = require("./timer");
 
+const audioBufferToWav = require("../../util/wav-encoder");
+
 class AudioSource {
     /**
      * @param {import("./audio-group")} audioGroup The audio group to hold this audio source. All audio sources should be apart of an audio group.
@@ -185,17 +187,19 @@ class AudioSource {
     }
 
     /**
-     * Analyzes the current dominant frequency of this AudioSource.
+     * Analyzes the current spectral peak frequency of this AudioSource.
+     * This may be simplified to "dominant frequency" but that name is not quite accurate to the result.
+     * See https://stackoverflow.com/a/54567527 for more info.
      * @returns {number}
      */
-    get dominantFrequency () {
+    get spectralPeak () {
         const analyserNode = this._audioAnalyzerNode;
 
         const bufferLength = analyserNode.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         analyserNode.getByteFrequencyData(dataArray);
 
-        // find the max frequency
+        // find the max index
         let maxIndex = 0;
         for (let i = 1; i < bufferLength; i++) {
             if (dataArray[i] > dataArray[maxIndex]) {
@@ -203,7 +207,7 @@ class AudioSource {
             }
         }
 
-        // return the dominant freq
+        // return the peak freq
         const nyquist = this._audioContext.sampleRate / 2;
         return maxIndex * nyquist / bufferLength;
     }
@@ -383,6 +387,37 @@ class AudioSource {
         return newSource;
     }
 
+    /**
+     * Generates a .wav Data URL from the audio source buffer.
+     * @param {"16"|"32"} format `"16"` for 16-bit PCM, `"32"` for 32-bit float
+     * @returns {Promise<ArrayBuffer>}
+     */
+    async generateArrayBuffer(format) {
+        // NOTE: We might want to make audioBufferToWav async at some point
+        const arrayBuffer = audioBufferToWav(this.src, { float32: format === "32" });
+        return arrayBuffer;
+    }
+    /**
+     * See `generateArrayBuffer`
+     * @param {"16"|"32"} format `"16"` for 16-bit PCM, `"32"` for 32-bit float
+     * @returns {Promise<string>}
+     */
+    generateDataUrl(format) {
+        if (!this.src) throw "No source clip is set";
+
+        return new Promise(async (resolve, reject) => {
+            const arrayBuffer = await this.generateArrayBuffer(format);
+            const blob = new Blob([arrayBuffer], { type: "audio/wav" });
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                resolve(e.target.result);
+            };
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(blob);
+        });
+    }
+
     reverse() {
         if (!this.src) throw "Cannot reverse an empty audio source";
 
@@ -403,6 +438,26 @@ class AudioSource {
             }
         }
         this.src = reversedBuffer;
+    }
+    invert() {
+        if (!this.src) throw "Cannot invert an empty audio source";
+
+        const buffer = this.src;
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length,
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            for (let i = 0; i < buffer.length; i++) {
+                destinationData[i] = sourceData[i] * -1;
+            }
+        }
+        this.src = destinationBuffer;
     }
 
     // internal

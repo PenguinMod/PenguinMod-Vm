@@ -117,11 +117,14 @@ class AudioExtension {
             color2: '#D33388',
             isDynamic: true,
             blocks: [
+                // button handlers
                 { opcode: 'createAudioGroupButton', text: 'New Audio Group', blockType: BlockType.BUTTON, },
                 {
                     opcode: 'deleteAudioGroupButton', text: 'Remove an Audio Group', blockType: BlockType.BUTTON,
                     hideFromPalette: !hasAudioGroups,
                 },
+                // blocks
+                // audio group list
                 {
                     opcode: 'audioGroupGet', text: '[AUDIOGROUP]', blockType: BlockType.REPORTER,
                     arguments: {
@@ -133,6 +136,7 @@ class AudioExtension {
                     blockType: BlockType.XML,
                     xml: audioGroupIds.map(audioGroupId => `"<block type=\"jgExtendedAudio_audioGroupGet\"><field name=\"AUDIOGROUP\">${xmlEscape(audioGroupId)}</field></block>"`),
                 },
+                // Operations
                 {
                     text: "Operations", blockType: BlockType.LABEL,
                     hideFromPalette: !hasAudioGroups,
@@ -147,6 +151,14 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
+                    opcode: 'audioGroupCopyVolumeSpeedPitchPan', text: 'copy [SRC] settings to [TARGET]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        SRC: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        TARGET: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
                     opcode: 'audioGroupGetModifications', text: '[AUDIOGROUP] [OPTION]', blockType: BlockType.REPORTER, disableMonitor: true,
                     arguments: {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -156,7 +168,7 @@ class AudioExtension {
                 },
                 "---",
                 {
-                    opcode: 'audioSourceCreate', text: '[CREATEOPTION] audio source named [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceCreate', text: '[CREATEOPTION] source named [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         CREATEOPTION: { type: ArgumentType.STRING, menu: 'createOptions', defaultValue: "" },
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
@@ -165,7 +177,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceDuplicate2', text: 'duplicate audio source from [NAME] to [COPY] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceDuplicate2', text: 'duplicate source from [NAME] to [COPY] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
@@ -174,16 +186,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceReverse', text: 'reverse audio source used in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
-                    arguments: {
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
-                    hideFromPalette: !hasAudioGroups,
-                },
-                {
-                    opcode: 'audioSourceDeleteAll', text: '[DELETEOPTION] all audio sources in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceDeleteAll', text: '[DELETEOPTION] all sources in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         DELETEOPTION: { type: ArgumentType.STRING, menu: 'deleteOptions', defaultValue: "" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -192,7 +195,7 @@ class AudioExtension {
                 },
                 "---",
                 {
-                    opcode: 'audioSourceSetScratch', text: 'set audio source [NAME] in [AUDIOGROUP] to use [SOUND]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetScratch', text: 'set source [NAME] in [AUDIOGROUP] to clip [SOUND]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -201,7 +204,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceSetUrl', text: 'set audio source [NAME] in [AUDIOGROUP] to use [URL]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetUrl', text: 'set source [NAME] in [AUDIOGROUP] to clip [URL]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -210,7 +213,17 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourcePlayerOption', text: '[PLAYEROPTION] audio source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetSourceBuffer', text: 'copy clip from source [SRCSOURCE] in [SRCGROUP] into [TARSOURCE] in [TARGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        SRCSOURCE: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
+                        SRCGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        TARSOURCE: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        TARGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourcePlayerOption', text: '[PLAYEROPTION] source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         PLAYEROPTION: { type: ArgumentType.STRING, menu: 'playerOptions', defaultValue: "" },
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
@@ -220,7 +233,7 @@ class AudioExtension {
                 },
                 "---",
                 {
-                    opcode: 'audioSourceSetLoop', text: 'set audio source [NAME] in [AUDIOGROUP] to [LOOP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetLoop', text: 'set source [NAME] in [AUDIOGROUP] to [LOOP]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -229,7 +242,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceSetTime2', text: 'set audio source [NAME] [TIMEPOS] position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetTime2', text: 'set source [NAME] [TIMEPOS] position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         TIMEPOS: { type: ArgumentType.STRING, menu: 'timePosition' },
@@ -239,7 +252,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceSetVolumeSpeedPitchPan', text: 'set audio source [NAME] [VSPP] in [AUDIOGROUP] to [VALUE]%', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetVolumeSpeedPitchPan', text: 'set source [NAME] [VSPP] in [AUDIOGROUP] to [VALUE]%', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         VSPP: { type: ArgumentType.STRING, menu: 'vspp', defaultValue: "" },
@@ -250,7 +263,7 @@ class AudioExtension {
                 },
                 "---",
                 {
-                    opcode: 'audioSourceGetModificationsBoolean', text: 'audio source [NAME] [OPTION] in [AUDIOGROUP]', blockType: BlockType.BOOLEAN, disableMonitor: true,
+                    opcode: 'audioSourceGetModificationsBoolean', text: 'source [NAME] [OPTION] in [AUDIOGROUP]', blockType: BlockType.BOOLEAN, disableMonitor: true,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         OPTION: { type: ArgumentType.STRING, menu: 'audioSourceOptionsBooleans', defaultValue: "" },
@@ -259,7 +272,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceGetModificationsNormal', text: 'audio source [NAME] [OPTION] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
+                    opcode: 'audioSourceGetModificationsNormal', text: 'source [NAME] [OPTION] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         OPTION: { type: ArgumentType.STRING, menu: 'audioSourceOptions', defaultValue: "" },
@@ -267,9 +280,62 @@ class AudioExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
+                // Mutations
+                {
+                    text: "Mutations", blockType: BlockType.LABEL,
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceReverse', text: 'reverse clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceInvertPhase', text: 'invert phase of clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                // Rendering
+                {
+                    text: "Rendering", blockType: BlockType.LABEL,
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceRendererCreate', text: '[CREATEOPTION] renderer audio source named [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        CREATEOPTION: { type: ArgumentType.STRING, menu: 'createOptions', defaultValue: "" },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceRendererExecute', text: 'render audio clip in source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceGetDataURL', text: 'generate [WAVOPTION] data: URL from clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
+                    arguments: {
+                        WAVOPTION: { type: ArgumentType.STRING, menu: 'wavExportOptions', defaultValue: "16" },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                
                 // deleted blocks
                 {
-                    opcode: 'audioSourceSetTime', text: 'set audio source [NAME] start position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetTime', text: 'set source [NAME] start position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -278,7 +344,7 @@ class AudioExtension {
                     hideFromPalette: true,
                 },
                 {
-                    opcode: 'audioSourceDuplicate', text: 'weakly duplicate audio source from [NAME] to [COPY] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceDuplicate', text: 'weakly duplicate source from [NAME] to [COPY] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
@@ -367,19 +433,24 @@ class AudioExtension {
                         { text: "speed", value: "speed" },
                         { text: "detune", value: "pitch" },
                         { text: "pan", value: "pan" },
-                        { text: "time position", value: "time position" },
                         { text: "output volume", value: "output volume" },
+                        { text: "spectral peak", value: "spectral peak" },
+                        { text: "time position", value: "time position" },
                         { text: "start position", value: "start position" },
                         { text: "end position", value: "end position" },
                         { text: "start loop position", value: "start loop position" },
                         { text: "end loop position", value: "end loop position" },
                         { text: "sound length", value: "sound length" },
-                        { text: "origin sound", value: "origin sound" },
-
-                        // see https://stackoverflow.com/a/54567527 as to why this is not a menu option
-                        // { text: "dominant frequency", value: "dominant frequency" },
+                        { text: "origin clip name", value: "origin sound" },
                     ]
-                }
+                },
+                wavExportOptions: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "16-bit PCM", value: "16" },
+                        { text: "32-bit float", value: "32" },
+                    ]
+                },
             }
         };
     }
@@ -545,6 +616,18 @@ class AudioExtension {
         }
         audioGroup.updateSources();
     }
+    audioGroupCopyVolumeSpeedPitchPan(args) {
+        const sourceGroup = this.audioGroups[args.SRC];
+        if (!sourceGroup) return;
+        const targetGroup = this.audioGroups[args.TARGET];
+        if (!targetGroup) return;
+        
+        targetGroup.volume = sourceGroup.volume;
+        targetGroup.speed = sourceGroup.speed;
+        targetGroup.detune = sourceGroup.detune;
+        targetGroup.pan = sourceGroup.pan;
+        targetGroup.updateSources();
+    }
     audioGroupGetModifications(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         if (!audioGroup) return;
@@ -608,14 +691,6 @@ class AudioExtension {
         const newAudioSource = audioSource.clone();
         audioGroup.sources[newName] = newAudioSource;
     }
-    audioSourceReverse(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
-        audioSource.reverse();
-    }
     audioSourceDeleteAll(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
 
@@ -658,6 +733,21 @@ class AudioExtension {
                 return resolve();
             }
         });
+    }
+    audioSourceSetSourceBuffer(args, util) {
+        const sourceGroup = this.audioGroups[args.SRCGROUP];
+        if (!sourceGroup) return;
+        const sourceSource = sourceGroup.sources[args.SRCSOURCE];
+        if (!sourceSource) return;
+
+        const targetGroup = this.audioGroups[args.TARGROUP];
+        if (!targetGroup) return;
+        const targetSource = targetGroup.sources[args.TARSOURCE];
+        if (!targetSource) return;
+
+        // copy source to target
+        targetSource.src = sourceSource.src;
+        targetSource.originAudioName = sourceSource.originAudioName;
     }
     audioSourceSetUrl(args, util) {
         return new Promise((resolve, reject) => {
@@ -785,6 +875,12 @@ class AudioExtension {
                 return audioSource.detune;
             case "pan":
                 return audioSource.pan * 100;
+            case "output volume":
+                return audioSource.outputVolume * 100;
+            case "spectral peak":
+                return audioSource.spectralPeak;
+            case "time position":
+                return audioSource.timePosition;
             case "start position":
                 return audioSource.startPosition;
             case "end position":
@@ -793,19 +889,54 @@ class AudioExtension {
                 return audioSource.loopStartPosition;
             case "end loop position":
                 return audioSource.loopEndPosition;
-            case "time position":
-                return audioSource.timePosition;
             case "sound length":
                 return audioSource.duration;
+            case "origin clip name":
             case "origin sound":
                 return audioSource.originAudioName;
-            case "output volume":
-                return audioSource.outputVolume * 100;
-            case "dominant frequency":
-                return audioSource.dominantFrequency;
             default:
                 return "";
         }
+    }
+
+    // Mutations
+    audioSourceReverse(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+        audioSource.reverse();
+    }
+    audioSourceInvertPhase(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+        audioSource.invert();
+    }
+
+    // Rendering
+    async audioSourceGetDataURL(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+
+        let format = "16";
+        switch (args.WAVFORMAT) {
+            case "16":
+            case "16-bit PCM":
+                format = "16";
+                break;
+            case "32":
+            case "32-bit float":
+                format = "32";
+                break;
+        }
+        return await audioSource.generateDataUrl(format);
     }
 }
 
