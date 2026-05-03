@@ -87,8 +87,6 @@ class AudioExtension {
                 globalPan: audioGroup.pan,
             });
         }
-        // TODO: rmeove this log
-        console.log(serializedAudioGroups);
         return serializedAudioGroups;
     }
 
@@ -101,7 +99,7 @@ class AudioExtension {
         blocks.splice(0, 3);
         // create the variable block xml's
         const varBlocks = Object.keys(this.audioGroups).map(audioGroupId => varBlock.replace('{audioGroupId}', audioGroupId));
-        if (!varBlocks.length) {
+        if (varBlocks.length <= 0) {
             return [buttons.create];
         }
         // push the button to the top of the var list
@@ -112,7 +110,6 @@ class AudioExtension {
         blocks = varBlocks
             .reverse()
             .concat(blocks);
-        console.log(blocks);
         return blocks;
     }
 
@@ -127,7 +124,7 @@ class AudioExtension {
             color1: '#E256A1',
             color2: '#D33388',
             isDynamic: true,
-            orderBlocks: this.orderCategoryBlocks,
+            orderBlocks: this.orderCategoryBlocks.bind(this),
             blocks: [
                 { opcode: 'createAudioGroup', text: 'New Audio Group', blockType: BlockType.BUTTON, },
                 { opcode: 'deleteAudioGroup', text: 'Remove an Audio Group', blockType: BlockType.BUTTON, },
