@@ -5,6 +5,18 @@ const Cast = require('../../util/cast');
 const AudioGroup = require("./audio-group");
 const AudioSource = require("./audio-source");
 
+const INPUT_STYLES = `
+    margin-top: 0.75rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    border: 1px solid var(--ui-black-transparent, hsla(0, 0%, 0%, 0.15));
+    border-radius: 5px;
+    padding: 0 1rem;
+    height: 3rem;
+    color: --text-primary;
+    font-size: .875rem;
+`; // just copying the var menu styles
+
 /**
  * Class for AudioGroups & AudioSources
  * @constructor
@@ -126,8 +138,8 @@ class AudioExtension {
             isDynamic: true,
             orderBlocks: this.orderCategoryBlocks.bind(this),
             blocks: [
-                { opcode: 'createAudioGroup', text: 'New Audio Group', blockType: BlockType.BUTTON, },
-                { opcode: 'deleteAudioGroup', text: 'Remove an Audio Group', blockType: BlockType.BUTTON, },
+                { opcode: 'createAudioGroupButton', text: 'New Audio Group', blockType: BlockType.BUTTON, },
+                { opcode: 'deleteAudioGroupButton', text: 'Remove an Audio Group', blockType: BlockType.BUTTON, },
                 {
                     opcode: 'audioGroupGet', text: '[AUDIOGROUP]', blockType: BlockType.REPORTER,
                     arguments: {
@@ -369,11 +381,56 @@ class AudioExtension {
     }
 
     // button handlers
-    createAudioGroup() {
+    createAudioGroupButton() {
+        // @ts-expect-error
+        if (typeof ScratchBlocks === "undefined") return;
         const audioGroupIds = Object.keys(this.audioGroups);
-        const newGroupId = prompt('Set a name for this Audio Group:', 'audio group ' + (audioGroupIds.length + 1));
-        if (!newGroupId) return alert('Cancelled');
-        if (this.audioGroups[newGroupId]) return alert(`"${newGroupId}" is taken!`);
+        const defaultGroupId = 'audio group ' + (audioGroupIds.length + 1);
+
+        // create modal
+        // https://docs.penguinmod.com/development/extensions/api/custom-modals/
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = defaultGroupId;
+        input.style = INPUT_STYLES;
+
+        let promptHandle = null;
+        ScratchBlocks.customPrompt({
+            title: "New Audio Group",
+        }, {
+            content: { width: "360px" }
+        }, [
+            {
+                name: "OK", role: "ok", dontClose: true, callback: () => {
+                    const newGroupId = input.value;
+                    if (this.audioGroups[newGroupId])
+                        // replicate scratch menu behavior
+                        return alert(`An audio group named "${newGroupId}" already exists.`);
+                    promptHandle.closePrompt();
+                    this.createAudioGroupButtonResult(newGroupId);
+                }
+            },
+            { name: "Cancel", role: "close", callback: () => {} }
+        ], (handle) => {
+            promptHandle = handle;
+        }).then(modal => {
+            const header = document.createElement("p");
+            header.innerHTML = "New audio group name:";
+            modal.appendChild(header);
+            modal.appendChild(input);
+
+            input.onkeydown = (event) => {
+                if (event.key === "Enter") {
+                    const okButton = (promptHandle.customPromptObject.buttons || []).find(button => button.role === "ok");
+                    okButton.callback();
+                }
+            };
+            input.focus();
+        });
+    }
+    createAudioGroupButtonResult(newGroupId) {
+        if (!newGroupId) return;
+        if (this.audioGroups[newGroupId]) return;
 
         // make the new audio group
         const audioGroup = new AudioGroup();
@@ -382,8 +439,43 @@ class AudioExtension {
         this.runtime.vm.emitWorkspaceUpdate();
         this.serialize();
     }
-    deleteAudioGroup() {
-        const groupId = prompt('Which audio group would you like to delete?');
+    deleteAudioGroupButton() {
+        // @ts-expect-error
+        if (typeof ScratchBlocks === "undefined") return;
+
+        // create modal
+        // https://docs.penguinmod.com/development/extensions/api/custom-modals/
+        const select = document.createElement("select");
+        select.value = "";
+        select.style = INPUT_STYLES;
+
+        ScratchBlocks.customPrompt({
+            title: "Delete Audio Group",
+        }, {
+            content: { width: "360px" }
+        }, [
+            {
+                name: "Delete", role: "ok", style: { background: "rgb(255, 92, 92)" }, callback: () => {
+                    const groupId = select.value;
+                    this.deleteAudioGroupButtonResult(groupId);
+                }
+            },
+            { name: "Cancel", role: "close", callback: () => {} }
+        ]).then(modal => {
+            const header = document.createElement("p");
+            header.innerHTML = "Delete audio group named:";
+            modal.appendChild(header);
+            modal.appendChild(select);
+
+            for (const audioGroupId in this.audioGroups) {
+                const option = document.createElement("option");
+                option.value = audioGroupId;
+                option.innerText = audioGroupId;
+                select.appendChild(option);
+            }
+        });
+    }
+    deleteAudioGroupButtonResult(groupId) {
         if (!groupId) return;
         const group = this.audioGroups[groupId];
         if (!group) return;
