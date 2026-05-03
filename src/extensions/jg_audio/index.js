@@ -379,7 +379,7 @@ class AudioExtension {
         const audioGroup = new AudioGroup();
         this.audioGroups[newGroupId] = audioGroup;
 
-        vm.emitWorkspaceUpdate();
+        this.runtime.vm.emitWorkspaceUpdate();
         this.serialize();
     }
     deleteAudioGroup() {
@@ -392,7 +392,7 @@ class AudioExtension {
         group.disposeSources();
         delete this.audioGroups[groupId];
 
-        vm.emitWorkspaceUpdate();
+        this.runtime.vm.emitWorkspaceUpdate();
         this.serialize();
     }
 
@@ -413,7 +413,7 @@ class AudioExtension {
         }));
     }
     fetchScratchSoundMenu() {
-        const sounds = vm.editingTarget.sprite.sounds; // this function only gets used in the editor so we are safe to use editingTarget
+        const sounds = this.runtime.vm.editingTarget.sprite.sounds; // this function only gets used in the editor so we are safe to use editingTarget
         if (sounds.length <= 0) return [{ text: '', value: '' }];
         return sounds.map(sound => ({
             text: sound.name,
