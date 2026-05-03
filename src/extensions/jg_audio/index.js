@@ -4,7 +4,7 @@ const xmlEscape = require("../../util/xml-escape");
 const Cast = require('../../util/cast');
 
 const AudioGroup = require("./audio-group");
-const AudioSource = require("./audio-source");
+const AudioSource = require("./base-audio-source");
 
 const INPUT_STYLES = `
     margin-top: 0.75rem;
@@ -307,19 +307,11 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceRendererCreate', text: '[CREATEOPTION] renderer audio source named [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
-                    arguments: {
-                        CREATEOPTION: { type: ArgumentType.STRING, menu: 'createOptions', defaultValue: "" },
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
-                    hideFromPalette: !hasAudioGroups,
-                },
-                {
-                    opcode: 'audioSourceRendererExecute', text: 'render audio clip in source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceRendererExecute', text: 'render audio clip in source [NAME] in [AUDIOGROUP] for [DURATION] seconds', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        DURATION: { type: ArgumentType.NUMBER, defaultValue: 5 },
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
@@ -433,6 +425,7 @@ class AudioExtension {
                         { text: "speed", value: "speed" },
                         { text: "detune", value: "pitch" },
                         { text: "pan", value: "pan" },
+                        { text: "calculated speed", value: "calculated speed" },
                         { text: "output volume", value: "output volume" },
                         { text: "spectral peak", value: "spectral peak" },
                         { text: "time position", value: "time position" },
@@ -875,6 +868,8 @@ class AudioExtension {
                 return audioSource.detune;
             case "pan":
                 return audioSource.pan * 100;
+            case "calculated speed":
+                return audioSource.playbackRate * 100;
             case "output volume":
                 return audioSource.outputVolume * 100;
             case "spectral peak":
@@ -918,6 +913,16 @@ class AudioExtension {
     }
 
     // Rendering
+    async audioSourceRendererExecute(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
+        const target = Cast.toString(args.NAME);
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+
+        const duration = Cast.toNumber(args.DURATION);
+        await audioSource.render(duration);
+    }
     async audioSourceGetDataURL(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);

@@ -3,7 +3,7 @@ const Timer = require("./timer");
 
 const audioBufferToWav = require("../../util/wav-encoder");
 
-class AudioSource {
+class BaseAudioSource {
     /**
      * @param {import("./audio-group")} audioGroup The audio group to hold this audio source. All audio sources should be apart of an audio group.
      * @param {import("./index")} extension The extension which this audio source came from.
@@ -126,6 +126,20 @@ class AudioSource {
         if (!this.src) return 0;
         return this.src.duration;
     }
+    /**
+     * Get the actual speed multiplier that this source will play at.
+     */
+    get playbackRate () {
+        // we need to manually calculate detune to prevent problems when using playbackRate for other things
+        return (this.speed * Math.pow(2, this.detune / 1200)) * this._audioGroup.speed * Math.pow(2, this._audioGroup.detune / 1200);
+    }
+    /**
+     * Get the duration of the audio source, accounting for the playback speed.
+     * @returns {number}
+     */
+    get scaledDuration() {
+        return this.duration;
+    }
 
     /**
      * The current time position of the audio source.
@@ -185,7 +199,6 @@ class AudioSource {
         const volume = Math.sqrt(sumSquares / bufferLength);
         return volume;
     }
-
     /**
      * Analyzes the current spectral peak frequency of this AudioSource.
      * This may be simplified to "dominant frequency" but that name is not quite accurate to the result.
@@ -304,13 +317,10 @@ class AudioSource {
         const audioGainNode = this._audioGainNode;
         const audioPanner = this._audioPanner;
 
-        // we need to manually calculate detune to prevent problems when using playbackRate for other things
-        audioNode.playbackRate.value = this.speed * Math.pow(2, this.detune / 1200);
-        audioGainNode.gain.value = this.volume;
-
-        audioNode.playbackRate.value *= audioGroup.speed * Math.pow(2, audioGroup.detune / 1200);
-        audioGainNode.gain.value *= audioGroup.volume;
-        this._timer.speed = audioNode.playbackRate.value;
+        // we actually dont use detune directly, instead playbackRate will calculate it
+        audioNode.playbackRate.value = this.playbackRate;
+        audioGainNode.gain.value = this.volume * audioGroup.volume;
+        this._timer.speed = this.playbackRate;
 
         const pan = Math.min(Math.max(this.pan + audioGroup.pan, -1), 1);
         audioPanner.positionX.value = pan;
@@ -418,6 +428,10 @@ class AudioSource {
         });
     }
 
+    render() {
+        if (!this.src) throw "Cannot render an empty audio source";
+    }
+
     reverse() {
         if (!this.src) throw "Cannot reverse an empty audio source";
 
@@ -484,4 +498,4 @@ class AudioSource {
     }
 };
 
-module.exports = AudioSource;
+module.exports = BaseAudioSource;

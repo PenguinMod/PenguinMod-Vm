@@ -1,4 +1,4 @@
-const AudioSource = require("./audio-source");
+const AudioSource = require("./base-audio-source");
 
 /**
  * An audio group in the jgExtendedAudio extension.
