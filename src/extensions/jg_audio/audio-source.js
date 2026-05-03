@@ -20,7 +20,7 @@ class AudioSource {
         this.originAudioName = "";
 
         /**
-         * The speed for this source.
+         * The volume for this source.
          * Acts like a multiplier.
          * @type {number}
          */
