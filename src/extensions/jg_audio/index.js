@@ -537,7 +537,6 @@ class AudioExtension {
             try {
                 // eslint-disable-next-line
                 const buffer = util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer
-                audioSource.duration = buffer.duration;
                 audioSource.src = buffer;
                 audioSource.originAudioName = `${args.SOUND}`;
                 resolve();
@@ -555,7 +554,6 @@ class AudioExtension {
             if (!audioSource) return resolve();
             fetch(args.URL).then(response => response.arrayBuffer().then(arrayBuffer => {
                 Helper.audioContext.decodeAudioData(arrayBuffer, buffer => {
-                    audioSource.duration = buffer.duration;
                     audioSource.src = buffer;
                     audioSource.originAudioName = `${args.URL}`;
                     resolve();
@@ -606,6 +604,9 @@ class AudioExtension {
         if (!audioSource) return;
         
         switch (args.TIMEPOS) {
+            case "time":
+                audioSource.timePosition = Cast.toNumber(args.TIME);
+                break;
             case "start":
                 audioSource.startPosition = Cast.toNumber(args.TIME);
                 break;
@@ -617,9 +618,6 @@ class AudioExtension {
                 break;
             case "end loop":
                 audioSource.loopEndPosition = Cast.toNumber(args.TIME);
-                break;
-            case "time":
-                audioSource.setTimePosition(Cast.toNumber(args.TIME));
                 break;
         }
     }
@@ -655,7 +653,7 @@ class AudioExtension {
         if (!audioSource) return false;
         switch (args.OPTION) {
             case "playing":
-                return ((!audioSource.paused) && (!audioSource.notPlaying));
+                return audioSource.playing;
             case "paused":
                 return audioSource.paused;
             case "looping":
@@ -689,15 +687,15 @@ class AudioExtension {
             case "end loop position":
                 return audioSource.loopEndPosition;
             case "time position":
-                return audioSource.getTimePosition();
+                return audioSource.timePosition;
             case "sound length":
                 return audioSource.duration;
             case "origin sound":
                 return audioSource.originAudioName;
             case "output volume":
-                return audioSource.getVolume() * 100;
+                return audioSource.outputVolume * 100;
             case "dominant frequency":
-                return audioSource.getFrequency();
+                return audioSource.dominantFrequency;
             default:
                 return "";
         }
