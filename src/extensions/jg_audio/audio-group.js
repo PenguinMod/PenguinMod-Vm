@@ -21,7 +21,7 @@ class AudioGroup {
         
         /**
          * An object with id to AudioSource pairs.
-         * @type {Object<string, import("./base-audio-source")>}
+         * @type {Object<string, import("./audio-source")>}
          */
         this.sources = {};
 

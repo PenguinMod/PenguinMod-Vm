@@ -1,6 +1,7 @@
 const Timer = require("./timer");
 
 const BaseAudioSource = require("./base-audio-source");
+const OfflineAudioSource = require("./offline-audio-source");
 
 class AudioSource extends BaseAudioSource {
     /**
@@ -16,6 +17,19 @@ class AudioSource extends BaseAudioSource {
          * @type {string}
          */
         this.originAudioName = "";
+
+        /**
+         * Determines whether or not this source will be rendered in renders.
+         * Not used during playback.
+         * @type {boolean}
+         */
+        this.renderAudible = false;
+        /**
+         * The delay until this source will play in a render.
+         * Not used during playback.
+         * @type {number}
+         */
+        this.renderTime = 0;
 
         // internal vars
         this._resumeSpot = 0;
@@ -247,6 +261,9 @@ class AudioSource extends BaseAudioSource {
         newSource.endPosition = this.endPosition;
         newSource.loopStartPosition = this.loopStartPosition;
         newSource.loopEndPosition = this.loopEndPosition;
+
+        newSource.renderAudible = this.renderAudible;
+        newSource.renderTime = this.renderTime;
         return newSource;
     }
     /**
@@ -258,9 +275,26 @@ class AudioSource extends BaseAudioSource {
         newSource.src = this.src;
         return newSource;
     }
+    /**
+     * Create a clone of this audio source as an OfflineAudioSource.
+     */
+    renderable(audioContext, audioGainNode) {
+        const newSource = new OfflineAudioSource(this._audioGroup, audioContext, audioGainNode);
+        newSource.src = this.src;
 
-    render() {
-        if (!this.src) throw "Cannot render an empty audio source";
+        newSource.volume = this.volume;
+        newSource.speed = this.speed;
+        newSource.detune = this.detune;
+        newSource.pan = this.pan;
+
+        newSource.looping = this.looping;
+        newSource.startPosition = this.startPosition;
+        newSource.endPosition = this.endPosition;
+        newSource.loopStartPosition = this.loopStartPosition;
+        newSource.loopEndPosition = this.loopEndPosition;
+
+        newSource.renderTime = this.renderTime;
+        return newSource;
     }
     
     // internal

@@ -5,6 +5,7 @@ const Cast = require('../../util/cast');
 
 const AudioGroup = require("./audio-group");
 const AudioSource = require("./audio-source");
+const OfflineAudioSource = require("./offline-audio-source");
 
 const INPUT_STYLES = `
     margin-top: 0.75rem;
@@ -35,6 +36,14 @@ class AudioExtension {
          * @type {AudioContext}
          */
         this.audioContext = new AudioContext();
+        /**
+         * The offline audio context for jgExtendedAudio used for rendering.
+         * Will be null unless a renderer is prepared for use
+         * @type {OfflineAudioContext|null}
+         */
+        this.offlineAudioContext = null;
+
+        this._renderingAudio = false;
 
         /**
          * The gain node for jgExtendedAudio
@@ -233,11 +242,12 @@ class AudioExtension {
                 },
                 "---",
                 {
-                    opcode: 'audioSourceSetLoop', text: 'set source [NAME] in [AUDIOGROUP] to [LOOP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceSetBooleanOption', text: 'set source [NAME] [OPTION] in [AUDIOGROUP] to [BOOL]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        OPTION: { type: ArgumentType.STRING, menu: 'booleanOption' },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                        LOOP: { type: ArgumentType.STRING, menu: 'loop', defaultValue: "loop" },
+                        BOOL: { type: ArgumentType.BOOLEAN },
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
@@ -280,6 +290,15 @@ class AudioExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
+                {
+                    opcode: 'audioSourceGetDataURL', text: 'generate [WAVOPTION] data: URL from clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
+                    arguments: {
+                        WAVOPTION: { type: ArgumentType.STRING, menu: 'wavExportOptions', defaultValue: "16" },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
                 // Mutations
                 {
                     text: "Mutations", blockType: BlockType.LABEL,
@@ -307,7 +326,16 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceRendererExecute', text: 'render audio clip in source [NAME] in [AUDIOGROUP] for [DURATION] seconds', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceRendererCreate', text: 'prepare audio renderer with [SAMPLERATE] hz [CHANNELS] channel audio for [LENGTH] seconds', blockType: BlockType.COMMAND,
+                    arguments: {
+                        SAMPLERATE: { type: ArgumentType.NUMBER, defaultValue: 44100 },
+                        CHANNELS: { type: ArgumentType.NUMBER, defaultValue: 2 },
+                        LENGTH: { type: ArgumentType.NUMBER, defaultValue: 10 },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceRendererExecute', text: 'render audio clip into source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
@@ -316,12 +344,7 @@ class AudioExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceGetDataURL', text: 'generate [WAVOPTION] data: URL from clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
-                    arguments: {
-                        WAVOPTION: { type: ArgumentType.STRING, menu: 'wavExportOptions', defaultValue: "16" },
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
+                    opcode: 'audioSourceRendererRendering', text: 'audio renderer rendering?', blockType: BlockType.BOOLEAN, disableMonitor: true,
                     hideFromPalette: !hasAudioGroups,
                 },
                 
@@ -341,6 +364,15 @@ class AudioExtension {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: true,
+                },
+                {
+                    opcode: 'audioSourceSetLoop', text: 'set source [NAME] in [AUDIOGROUP] to [LOOP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        LOOP: { type: ArgumentType.STRING, menu: 'loop', defaultValue: "loop" },
                     },
                     hideFromPalette: true,
                 },
@@ -373,6 +405,13 @@ class AudioExtension {
                         { text: "not loop", value: "not loop" },
                     ]
                 },
+                booleanOption: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "looping", value: "looping" },
+                        { text: "audible in render", value: "audible in render" },
+                    ]
+                },
                 timePosition: {
                     acceptReporters: true,
                     items: [
@@ -381,6 +420,7 @@ class AudioExtension {
                         { text: "end", value: "end" },
                         { text: "start loop", value: "start loop" },
                         { text: "end loop", value: "end loop" },
+                        { text: "render time", value: "render time" },
                     ]
                 },
                 deleteOptions: {
@@ -416,6 +456,7 @@ class AudioExtension {
                         { text: "playing", value: "playing" },
                         { text: "paused", value: "paused" },
                         { text: "looping", value: "looping" },
+                        { text: "audible in render", value: "audible in render" }
                     ]
                 },
                 audioSourceOptions: {
@@ -433,6 +474,7 @@ class AudioExtension {
                         { text: "end position", value: "end position" },
                         { text: "start loop position", value: "start loop position" },
                         { text: "end loop position", value: "end loop position" },
+                        { text: "render time position", value: "render time position" },
                         { text: "sound length", value: "sound length" },
                         { text: "origin clip name", value: "origin sound" },
                     ]
@@ -774,13 +816,30 @@ class AudioExtension {
         audioSource[args.PLAYEROPTION]();
     }
 
-    audioSourceSetLoop(args) {
+    audioSourceSetBooleanOption(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         if (!audioGroup) return;
         const audioSource = audioGroup.sources[args.NAME];
         if (!audioSource) return;
-        if (!["loop", "not loop"].includes(args.LOOP)) return;
-        audioSource.looping = args.LOOP === "loop";
+
+        switch (args.OPTION) {
+            case "looping":
+                audioSource.looping = Cast.toBoolean(args.BOOL);
+                break;
+            case "audible in render":
+                audioSource.renderAudible = Cast.toBoolean(args.BOOL);
+                break;
+        }
+    }
+    audioSourceSetLoop(args) { // deleted block
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[args.NAME];
+        if (!audioSource) return;
+
+        const stringed = Cast.toString(args.LOOP);
+        if (!["loop", "not loop"].includes(stringed)) return;
+        audioSource.looping = stringed === "loop";
     }
     audioSourceSetTime(args) { // deleted block
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
@@ -797,19 +856,28 @@ class AudioExtension {
         
         switch (args.TIMEPOS) {
             case "time":
+            case "time position":
                 audioSource.timePosition = Cast.toNumber(args.TIME);
                 break;
             case "start":
+            case "start position":
                 audioSource.startPosition = Cast.toNumber(args.TIME);
                 break;
             case "end":
+            case "end position":
                 audioSource.endPosition = Cast.toNumber(args.TIME);
                 break;
             case "start loop":
+            case "start loop position":
                 audioSource.loopStartPosition = Cast.toNumber(args.TIME);
                 break;
             case "end loop":
+            case "end loop position":
                 audioSource.loopEndPosition = Cast.toNumber(args.TIME);
+                break;
+            case "render time":
+            case "render time position":
+                audioSource.renderTime = Cast.toNumber(args.TIME);
                 break;
         }
     }
@@ -849,6 +917,8 @@ class AudioExtension {
                 return audioSource.paused;
             case "looping":
                 return audioSource.looping;
+            case "audible in render":
+                return audioSource.renderAudible;
             default:
                 return false;
         }
@@ -884,6 +954,8 @@ class AudioExtension {
                 return audioSource.loopStartPosition;
             case "end loop position":
                 return audioSource.loopEndPosition;
+            case "render time position":
+                return audioSource.renderTime;
             case "sound length":
                 return audioSource.duration;
             case "origin clip name":
@@ -892,6 +964,26 @@ class AudioExtension {
             default:
                 return "";
         }
+    }
+    async audioSourceGetDataURL(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+
+        let format = "16";
+        switch (args.WAVFORMAT) {
+            case "16":
+            case "16-bit PCM":
+                format = "16";
+                break;
+            case "32":
+            case "32-bit float":
+                format = "32";
+                break;
+        }
+        return await audioSource.generateDataUrl(format);
     }
 
     // Mutations
@@ -913,35 +1005,66 @@ class AudioExtension {
     }
 
     // Rendering
-    async audioSourceRendererExecute(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        if (!audioGroup) return;
-        const target = Cast.toString(args.NAME);
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
-
-        const duration = Cast.toNumber(args.DURATION);
-        await audioSource.render(duration);
+    audioSourceRendererCreate(args) {
+        if (this._renderingAudio) throw "Cannot prepare a new renderer while rendering";
+        // TODO: Validate these params
+        const channelCount = Cast.toNumber(args.CHANNELS);
+        const sampleRate = Cast.toNumber(args.SAMPLERATE);
+        const length = Cast.toNumber(args.LENGTH);
+        this.offlineAudioContext = new OfflineAudioContext({
+            numberOfChannels: channelCount,
+            sampleRate: sampleRate,
+            length: sampleRate * length,
+        });
     }
-    async audioSourceGetDataURL(args) {
+    async audioSourceRendererExecute(args) {
+        if (this._renderingAudio) throw "Cannot render while rendering";
+        if (!this.offlineAudioContext) throw "Cannot render without an unprepared renderer";
+        // we save the contents of the render into the target source
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        const target = Cast.toString(args.NAME);
         if (!audioGroup) return;
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
+        const target = Cast.toString(args.NAME);
+        const targetSource = audioGroup.sources[target];
+        if (!targetSource) return;
 
-        let format = "16";
-        switch (args.WAVFORMAT) {
-            case "16":
-            case "16-bit PCM":
-                format = "16";
-                break;
-            case "32":
-            case "32-bit float":
-                format = "32";
-                break;
+        const offlineAudioSources = [];
+        this._renderingAudio = true;
+        try {
+            // make the gain node
+            const audioGainNode = this.offlineAudioContext.createGain();
+            audioGainNode.gain.value = 1;
+            audioGainNode.connect(this.offlineAudioContext.destination);
+
+            // make offline audio sources for renderAudible sources
+            for (const audioGroupId in this.audioGroups) {
+                const audioGroup = this.audioGroups[audioGroupId];
+                for (const audioSourceId in audioGroup.sources) {
+                    const audioSource = audioGroup.sources[audioSourceId];
+                    if (!audioSource.renderAudible) continue;
+
+                    // make the offline audio source
+                    const offlineAudioSource = audioSource.renderable(this.offlineAudioContext, audioGainNode);
+                    offlineAudioSource.update();
+                    offlineAudioSources.push(offlineAudioSource);
+                }
+            }
+
+            // rendering
+            for (const offlineAudioSource of offlineAudioSources) {
+                offlineAudioSource.play();
+            }
+            const audioBuffer = await this.offlineAudioContext.startRendering();
+            targetSource.src = audioBuffer;
+            targetSource.originAudioName = "render";
+        } finally {
+            this._renderingAudio = false;
+            for (const offlineAudioSource of offlineAudioSources) {
+                offlineAudioSource.dispose();
+            }
         }
-        return await audioSource.generateDataUrl(format);
+    }
+    audioSourceRendererRendering() {
+        return this._renderingAudio;
     }
 }
 
