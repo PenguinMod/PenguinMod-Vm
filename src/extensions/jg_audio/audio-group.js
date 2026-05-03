@@ -27,63 +27,29 @@ class AudioGroup {
          */
         this.sources = {};
 
-        // make the internal variables
-        // we dont need to update sources here since we dont add any on creation
-        this._volume = volume ?? 1;
-        this._speed = speed ?? 1;
-        this._detune = detune ?? 0;
-        this._pan = pan ?? 0;
-    }
-
-    /**
-     * The global volume for all sources in this audio group.
-     * Acts like a multiplier.
-     * @type {number}
-     */
-    get volume () {
-        return this._volume;
-    }
-    set volume (value) {
-        this._volume = value;
-        this.updateSources();
-    }
-
-    /**
-     * The global speed for all sources in this audio group.
-     * Acts like a multiplier.
-     * @type {number}
-     */
-    get speed () {
-        return this._speed;
-    }
-    set speed (value) {
-        this._speed = value;
-        this.updateSources();
-    }
-
-    /**
-     * The global detune for all sources in this audio group.
-     * @type {number}
-     */
-    get detune () {
-        return this._detune;
-    }
-    set detune (value) {
-        this._detune = value;
-        this.updateSources();
-    }
-
-    /**
-     * The global pan for all sources in this audio group.
-     * Range from -1 to 1. -1 = left ear, 1 = right ear
-     * @type {number}
-     */
-    get pan () {
-        return this._pan;
-    }
-    set pan (value) {
-        this._pan = value;
-        this.updateSources();
+        /**
+         * The global volume for all sources in this audio group.
+         * Acts like a multiplier.
+         * @type {number}
+         */
+        this.volume = volume ?? 1;
+        /**
+         * The global speed for all sources in this audio group.
+         * Acts like a multiplier.
+         * @type {number}
+         */
+        this.speed = speed ?? 1;
+        /**
+         * The global detune for all sources in this audio group.
+         * @type {number}
+         */
+        this.detune = detune ?? 0;
+        /**
+         * The global pan for all sources in this audio group.
+         * Range from -1 to 1. -1 = left ear, 1 = right ear
+         * @type {number}
+         */
+        this.pan = pan ?? 0;
     }
 
     /**

@@ -448,6 +448,7 @@ class AudioExtension {
                 audioGroup.pan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
                 break;
         }
+        audioGroup.updateSources();
     }
     audioGroupGetModifications(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
