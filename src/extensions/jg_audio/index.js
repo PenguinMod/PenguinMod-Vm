@@ -476,7 +476,7 @@ class AudioExtension {
                     audioSource.originAudioName = `${args.URL}`;
                     resolve();
                 }, resolve);
-            }).catch(resolve)).catch(err => {
+            }).catch(resolve)).catch(async err => {
                 // this is not a url, try some other stuff instead
                 await this.audioSourceSetScratch({
                     AUDIOGROUP: args.AUDIOGROUP,
