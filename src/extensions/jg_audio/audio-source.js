@@ -20,7 +20,7 @@ class AudioSource {
 
         this.volume = data.volume ?? 1;
         this.speed = data.speed ?? 1;
-        this.pitch = data.pitch ?? 0;
+        this.detune = data.detune ?? 0;
         this.pan = data.pan ?? 0;
         this.looping = data.looping ?? false;
 
@@ -146,10 +146,10 @@ class AudioSource {
         const audioPanner = this._audioPanner;
 
         // we need to manually calculate detune to prevent problems when using playbackRate for other things
-        audioNode.playbackRate.value = this.speed * Math.pow(2, this.pitch / 1200);
+        audioNode.playbackRate.value = this.speed * Math.pow(2, this.detune / 1200);
         audioGainNode.gain.value = this.volume;
 
-        audioNode.playbackRate.value *= audioGroup.globalSpeed * Math.pow(2, audioGroup.globalPitch / 1200);
+        audioNode.playbackRate.value *= audioGroup.globalSpeed * Math.pow(2, audioGroup.detune / 1200);
         audioGainNode.gain.value *= audioGroup.globalVolume;
         this._timer.speed = audioNode.playbackRate.value;
 

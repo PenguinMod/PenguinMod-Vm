@@ -71,7 +71,7 @@ class AudioExtension {
             const audioGroup = new AudioGroup({
                 volume: serializedAudioGroup.globalVolume,
                 speed: serializedAudioGroup.globalSpeed,
-                pitch: serializedAudioGroup.globalPitch,
+                detune: serializedAudioGroup.globalPitch,
                 pan: serializedAudioGroup.globalPan,
             });
             this.audioGroups[serializedAudioGroup.id] = audioGroup;
@@ -83,10 +83,12 @@ class AudioExtension {
         for (const audioGroupId in this.audioGroups) {
             const audioGroup = this.audioGroups[audioGroupId];
             serializedAudioGroups.push({
+                // NOTE: we use the old names for everything here
+                // importantly, detune is pitch in the old naming
                 id: audioGroupId,
                 globalVolume: audioGroup.volume,
                 globalSpeed: audioGroup.speed,
-                globalPitch: audioGroup.pitch,
+                globalPitch: audioGroup.detune,
                 globalPan: audioGroup.pan,
             });
         }
@@ -416,11 +418,13 @@ class AudioExtension {
     }
 
     // blocks
+    // audio group list
     audioGroupGet(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         return JSON.stringify(Object.keys(audioGroup.sources));
     }
 
+    // Operations
     audioGroupSetVolumeSpeedPitchPan(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         if (!audioGroup) return;
@@ -433,11 +437,28 @@ class AudioExtension {
                 break;
             case "detune":
             case "pitch":
-                audioGroup.pitch = Cast.toNumber(args.VALUE);
+                audioGroup.detune = Cast.toNumber(args.VALUE);
                 break;
             case "pan":
                 audioGroup.pan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
                 break;
+        }
+    }
+    audioGroupGetModifications(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        if (!audioGroup) return;
+        switch (args.OPTION) {
+            case "volume":
+                return audioGroup.volume * 100;
+            case "speed":
+                return audioGroup.speed * 100;
+            case "detune":
+            case "pitch":
+                return audioGroup.detune;
+            case "pan":
+                return audioGroup.pan * 100;
+            default:
+                return 0;
         }
     }
 
@@ -550,7 +571,6 @@ class AudioExtension {
             });
         })
     }
-
     audioSourcePlayerOption(args) {
         // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
@@ -560,6 +580,7 @@ class AudioExtension {
         if (!["play", "pause", "stop"].includes(args.PLAYEROPTION)) return;
         audioSource[args.PLAYEROPTION]();
     }
+
     audioSourceSetLoop(args) {
         // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
@@ -569,7 +590,7 @@ class AudioExtension {
         if (!["loop", "not loop"].includes(args.LOOP)) return;
         audioSource.looping = args.LOOP == "loop";
     }
-    audioSourceSetTime(args) {
+    audioSourceSetTime(args) { // deleted block
         // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         if (!audioGroup) return;
@@ -617,7 +638,7 @@ class AudioExtension {
                 break;
             case "detune":
             case "pitch":
-                audioSource.pitch = Cast.toNumber(args.VALUE);
+                audioSource.detune = Cast.toNumber(args.VALUE);
                 break;
             case "pan":
                 audioSource.pan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
@@ -626,23 +647,6 @@ class AudioExtension {
         Helper.UpdateAudioGroupSources(audioGroup);
     }
 
-    audioGroupGetModifications(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        if (!audioGroup) return;
-        switch (args.OPTION) {
-            case "volume":
-                return audioGroup.volume * 100;
-            case "speed":
-                return audioGroup.speed * 100;
-            case "detune":
-            case "pitch":
-                return audioGroup.pitch;
-            case "pan":
-                return audioGroup.pan * 100;
-            default:
-                return 0;
-        }
-    }
     audioSourceGetModificationsBoolean(args) {
         // TODO: replace this
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
@@ -673,7 +677,7 @@ class AudioExtension {
                 return audioSource.speed * 100;
             case "detune":
             case "pitch":
-                return audioSource.pitch;
+                return audioSource.detune;
             case "pan":
                 return audioSource.pan * 100;
             case "start position":
