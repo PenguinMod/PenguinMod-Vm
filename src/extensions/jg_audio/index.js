@@ -1,5 +1,6 @@
 const BlockType = require('../../extension-support/block-type');
 const ArgumentType = require('../../extension-support/argument-type');
+const xmlEscape = require("../../util/xml-escape");
 const Cast = require('../../util/cast');
 
 const AudioGroup = require("./audio-group");
@@ -102,51 +103,40 @@ class AudioExtension {
         return serializedAudioGroups;
     }
 
-    orderCategoryBlocks(blocks) {
-        const buttons = {
-            create: blocks[0],
-            delete: blocks[1]
-        };
-        const varBlock = blocks[2];
-        blocks.splice(0, 3);
-        // create the variable block xml's
-        const varBlocks = Object.keys(this.audioGroups).map(audioGroupId => varBlock.replace('{audioGroupId}', audioGroupId));
-        if (varBlocks.length <= 0) {
-            return [buttons.create];
-        }
-        // push the button to the top of the var list
-        varBlocks.reverse();
-        varBlocks.push(buttons.delete);
-        varBlocks.push(buttons.create);
-        // merge the category blocks and variable blocks into one block list
-        blocks = varBlocks
-            .reverse()
-            .concat(blocks);
-        return blocks;
-    }
-
     // metadata
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo() {
+        const audioGroupIds = Object.keys(this.audioGroups);
+        const hasAudioGroups = audioGroupIds.length > 0;
         return {
             id: 'jgExtendedAudio',
             name: 'Sound Systems',
             color1: '#E256A1',
             color2: '#D33388',
             isDynamic: true,
-            orderBlocks: this.orderCategoryBlocks.bind(this),
             blocks: [
                 { opcode: 'createAudioGroupButton', text: 'New Audio Group', blockType: BlockType.BUTTON, },
-                { opcode: 'deleteAudioGroupButton', text: 'Remove an Audio Group', blockType: BlockType.BUTTON, },
+                {
+                    opcode: 'deleteAudioGroupButton', text: 'Remove an Audio Group', blockType: BlockType.BUTTON,
+                    hideFromPalette: !hasAudioGroups,
+                },
                 {
                     opcode: 'audioGroupGet', text: '[AUDIOGROUP]', blockType: BlockType.REPORTER,
                     arguments: {
                         AUDIOGROUP: { menu: 'audioGroup', defaultValue: '{audioGroupId}', type: ArgumentType.STRING, }
                     },
+                    hideFromPalette: true,
                 },
-                { text: "Operations", blockType: BlockType.LABEL, },
+                {
+                    blockType: BlockType.XML,
+                    xml: audioGroupIds.map(audioGroupId => `"<block type=\"jgExtendedAudio_audioGroupGet\"><field name=\"AUDIOGROUP\">${xmlEscape(audioGroupId)}</field></block>"`),
+                },
+                {
+                    text: "Operations", blockType: BlockType.LABEL,
+                    hideFromPalette: !hasAudioGroups,
+                },
                 {
                     opcode: 'audioGroupSetVolumeSpeedPitchPan', text: 'set [AUDIOGROUP] [VSPP] to [VALUE]%', blockType: BlockType.COMMAND,
                     arguments: {
@@ -154,6 +144,7 @@ class AudioExtension {
                         VSPP: { type: ArgumentType.STRING, menu: 'vspp', defaultValue: "" },
                         VALUE: { type: ArgumentType.NUMBER, defaultValue: 100 },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioGroupGetModifications', text: '[AUDIOGROUP] [OPTION]', blockType: BlockType.REPORTER, disableMonitor: true,
@@ -161,6 +152,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         OPTION: { type: ArgumentType.STRING, menu: 'audioGroupOptions', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 "---",
                 {
@@ -170,6 +162,7 @@ class AudioExtension {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceDuplicate2', text: 'duplicate audio source from [NAME] to [COPY] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
@@ -178,6 +171,7 @@ class AudioExtension {
                         COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceReverse', text: 'reverse audio source used in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
@@ -186,6 +180,7 @@ class AudioExtension {
                         COPY: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceDeleteAll', text: '[DELETEOPTION] all audio sources in [AUDIOGROUP]', blockType: BlockType.COMMAND,
@@ -193,6 +188,7 @@ class AudioExtension {
                         DELETEOPTION: { type: ArgumentType.STRING, menu: 'deleteOptions', defaultValue: "" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 "---",
                 {
@@ -202,6 +198,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         SOUND: { type: ArgumentType.STRING, menu: 'sounds', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceSetUrl', text: 'set audio source [NAME] in [AUDIOGROUP] to use [URL]', blockType: BlockType.COMMAND,
@@ -210,6 +207,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         URL: { type: ArgumentType.STRING, defaultValue: "https://extensions.turbowarp.org/meow.mp3" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourcePlayerOption', text: '[PLAYEROPTION] audio source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
@@ -218,6 +216,7 @@ class AudioExtension {
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 "---",
                 {
@@ -227,6 +226,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         LOOP: { type: ArgumentType.STRING, menu: 'loop', defaultValue: "loop" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceSetTime2', text: 'set audio source [NAME] [TIMEPOS] position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
@@ -236,6 +236,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         TIME: { type: ArgumentType.NUMBER, defaultValue: 0.3 },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceSetVolumeSpeedPitchPan', text: 'set audio source [NAME] [VSPP] in [AUDIOGROUP] to [VALUE]%', blockType: BlockType.COMMAND,
@@ -245,6 +246,7 @@ class AudioExtension {
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                         VALUE: { type: ArgumentType.NUMBER, defaultValue: 100 },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 "---",
                 {
@@ -254,6 +256,7 @@ class AudioExtension {
                         OPTION: { type: ArgumentType.STRING, menu: 'audioSourceOptionsBooleans', defaultValue: "" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 {
                     opcode: 'audioSourceGetModificationsNormal', text: 'audio source [NAME] [OPTION] in [AUDIOGROUP]', blockType: BlockType.REPORTER, disableMonitor: true,
@@ -262,6 +265,7 @@ class AudioExtension {
                         OPTION: { type: ArgumentType.STRING, menu: 'audioSourceOptions', defaultValue: "" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
+                    hideFromPalette: !hasAudioGroups,
                 },
                 // deleted blocks
                 {
