@@ -31,6 +31,7 @@ class AudioExtension {
         this.runtime.registerExtensionAudioContext("jgExtendedAudio", this.helper.audioContext, this.helper.audioGlobalVolumeNode);
     }
 
+    // scratch runtime funcs
     deserialize(data) {
         for (const audioGroup in Helper.audioGroups) {
             Helper.DeleteAudioGroup(audioGroup);
@@ -75,6 +76,7 @@ class AudioExtension {
         return blocks;
     }
 
+    // metadata
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
@@ -320,6 +322,7 @@ class AudioExtension {
         };
     }
 
+    // button handlers
     createAudioGroup() {
         const newGroup = prompt('Set a name for this Audio Group:', 'audio group ' + (Helper.GetAllAudioGroups().length + 1));
         if (!newGroup) return alert('Canceled')
@@ -336,6 +339,7 @@ class AudioExtension {
         this.serialize();
     }
 
+    // menus
     fetchAudioGroupMenu() {
         const audioGroups = Helper.GetAllAudioGroups();
         if (audioGroups.length <= 0) {
@@ -360,6 +364,7 @@ class AudioExtension {
         }));
     }
 
+    // blocks
     audioGroupGet(args) {
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         return JSON.stringify(Object.getOwnPropertyNames(audioGroup.sources));
@@ -369,17 +374,17 @@ class AudioExtension {
         const audioGroup = Helper.GetAudioGroup(args.AUDIOGROUP);
         switch (args.VSPP) {
             case "volume":
-                audioGroup.globalVolume = Helper.Clamp(Cast.toNumber(args.VALUE) / 100, 0, 1);
+                audioGroup.globalVolume = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), 1);
                 break;
             case "speed":
-                audioGroup.globalSpeed = Helper.Clamp(Cast.toNumber(args.VALUE) / 100, 0, Infinity);
+                audioGroup.globalSpeed = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), Infinity);
                 break;
             case "detune":
             case "pitch":
                 audioGroup.globalPitch = Cast.toNumber(args.VALUE);
                 break;
             case "pan":
-                audioGroup.globalPan = Helper.Clamp(Cast.toNumber(args.VALUE), -100, 100) / 100;
+                audioGroup.globalPan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
                 break;
         }
         Helper.UpdateAudioGroupSources(audioGroup);
@@ -444,20 +449,19 @@ class AudioExtension {
             if (!audioSource) return resolve();
             const sound = Helper.FindSoundByName(util.target.sprite.sounds, args.SOUND);
             if (!sound) return resolve();
-            let canUse = true;
+
+            // for simplicity just try oneshotting grabbing the buffer
             try {
-                // eslint-disable-next-line no-unused-vars
-                util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer;
+                // eslint-disable-next-line
+                const buffer = util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer
+                audioSource.duration = buffer.duration;
+                audioSource.src = buffer;
+                audioSource.originAudioName = `${args.SOUND}`;
+                resolve();
             } catch {
-                canUse = false;
+                return resolve();
             }
-            if (!canUse) return resolve();
-            const buffer = util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer
-            audioSource.duration = buffer.duration;
-            audioSource.src = buffer;
-            audioSource.originAudioName = `${args.SOUND}`;
-            resolve();
-        })
+        });
     }
     audioSourceSetUrl(args, util) {
         return new Promise((resolve, reject) => {
@@ -474,24 +478,11 @@ class AudioExtension {
                 }, resolve);
             }).catch(resolve)).catch(err => {
                 // this is not a url, try some other stuff instead
-                const sound = Helper.FindSoundByName(util.target.sprite.sounds, args.URL);
-                if (sound) {
-                    // this is a scratch sound name
-                    let canUse = true;
-                    try {
-                        // eslint-disable-next-line no-unused-vars
-                        util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer;
-                    } catch {
-                        canUse = false;
-                    }
-                    if (!canUse) return resolve();
-                    const buffer = util.target.sprite.soundBank.getSoundPlayer(sound.soundId).buffer
-                    audioSource.duration = buffer.duration;
-                    audioSource.src = buffer;
-                    audioSource.originAudioName = `${args.URL}`;
-                    return resolve();
-                }
-                console.warn(err);
+                await this.audioSourceSetScratch({
+                    AUDIOGROUP: args.AUDIOGROUP,
+                    NAME: args.NAME,
+                    SOUND: args.URL,
+                }, util);
                 return resolve();
             });
         })
@@ -551,17 +542,17 @@ class AudioExtension {
         if (!audioSource) return;
         switch (args.VSPP) {
             case "volume":
-                audioSource.volume = Helper.Clamp(Cast.toNumber(args.VALUE) / 100, 0, 1);
+                audioSource.volume = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), 1);
                 break;
             case "speed":
-                audioSource.speed = Helper.Clamp(Cast.toNumber(args.VALUE) / 100, 0, Infinity);
+                audioSource.speed = Math.min(Math.max(Cast.toNumber(args.VALUE) / 100, 0), Infinity);
                 break;
             case "detune":
             case "pitch":
                 audioSource.pitch = Cast.toNumber(args.VALUE);
                 break;
             case "pan":
-                audioSource.pan = Helper.Clamp(Cast.toNumber(args.VALUE), -100, 100) / 100;
+                audioSource.pan = Math.min(Math.max(Cast.toNumber(args.VALUE), -100), 100) / 100;
                 break;
         }
         Helper.UpdateAudioGroupSources(audioGroup);

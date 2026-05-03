@@ -1,17 +1,6 @@
 const Cast = require("../../util/cast");
 const Timer = require("./timer");
 
-function MathOver(number, max) {
-    let num = number;
-    while (num > max) {
-        num -= max;
-    }
-    return num;
-}
-function Clamp(number, min, max) {
-    return Math.min(Math.max(number, min), max);
-}
-
 class AudioSource {
     /**
      * @param {AudioContext} audioContext 
@@ -90,7 +79,7 @@ class AudioSource {
         
         if (!this.paused) {
             this._timer.reset();
-            this._timer.setTime(Clamp(atTime ?? this.startPosition, 0, this.duration) * 1000);
+            this._timer.setTime(Math.min(Math.max(atTime ?? this.startPosition, 0), this.duration) * 1000);
             this._timer.start();
         } else {
             this.resumeSpot = this.getTimePosition();
@@ -112,11 +101,11 @@ class AudioSource {
 
         // dont play the sound if the playback duration is less than 1 sample frame, otherwise the ended event will not fire
         this.notPlaying = false;
-        const playbackDuration = Clamp(endTimePos - startTimePos, 0, this.duration);
+        const playbackDuration = Math.min(Math.max(endTimePos - startTimePos, 0), this.duration);
         if (playbackDuration < 1 / this.src.sampleRate) {
             this._onNodeStop(true);
         } else {
-            source.start(0, Clamp(startTimePos, 0, this.duration), playbackDuration);
+            source.start(0, Math.min(Math.max(startTimePos, 0), this.duration), playbackDuration);
     
             source.onended = () => {
                 this._onNodeStop();
@@ -164,7 +153,7 @@ class AudioSource {
         audioGainNode.gain.value *= audioGroup.globalVolume;
         this._timer.speed = audioNode.playbackRate.value;
 
-        const pan = Clamp(this.pan + audioGroup.globalPan, -1, 1);
+        const pan = Math.min(Math.max(this.pan + audioGroup.globalPan, -1), 1);
         audioPanner.positionX.value = pan;
         audioPanner.positionY.value = 0;
         audioPanner.positionZ.value = 1 - Math.abs(pan);
@@ -202,7 +191,7 @@ class AudioSource {
     setTimePosition(newSeconds) {
         if (!this._audioNode && !this.paused) return;
         const src = this._getActiveSource();
-        newSeconds = Clamp(newSeconds, 0, src.duration);
+        newSeconds = Math.min(Math.max(newSeconds, 0), src.duration);
         if (this.paused) {
             // only update the time
             this._timer.setTime(newSeconds * 1000);
@@ -250,7 +239,7 @@ class AudioSource {
     }
     getTimePosition() {
         const src = this._getActiveSource();
-        return Clamp(this._timer.getTime(true), 0, src.duration);
+        return Math.min(Math.max(this._timer.getTime(true), 0), src.duration);
     }
 
     _getActiveSource() {
@@ -421,13 +410,6 @@ class AudioExtensionHelper {
             if (sound.name == name) return sound;
         }
         return null;
-    }
-    /**
-        * Clamps numbers to stay inbetween 2 values.
-        * @param {number}
-    */
-    Clamp(number, min, max) {
-        return Math.min(Math.max(number, min), max);
     }
 }
 
