@@ -1,25 +1,19 @@
 const Cast = require("../../util/cast");
-const Timer = require("./timer");
 
 const audioBufferToWav = require("../../util/wav-encoder");
 
 class BaseAudioSource {
     /**
-     * @param {import("./audio-group")} audioGroup The audio group to hold this audio source. All audio sources should be apart of an audio group.
-     * @param {import("./index")} extension The extension which this audio source came from.
+     * @param {import("./audio-group")} audioGroup The audio group to assume this audio source is apart of. All audio sources should be apart of an audio group.
+     * @param {AudioContext|OfflineAudioContext} audioContext The audio context to use.
+     * @param {GainNode} audioGainNode The master audio gain node to use.
      */
-    constructor(audioGroup, extension) {
+    constructor(audioGroup, audioContext, audioGainNode) {
         /**
          * The buffer to use when playing. Must be set before playback.
          * @type {AudioBuffer?}
          */
         this.src = null;
-        /**
-         * The name of the audio assigned to this source. Empty value is a blank string.
-         * Name will likely be a URL, file name, or scratch sound name. It is an arbitrary value.
-         * @type {string}
-         */
-        this.originAudioName = "";
 
         /**
          * The volume for this source.
@@ -76,15 +70,7 @@ class BaseAudioSource {
         this.loopEndPosition = Infinity;
 
         // internal vars
-        this._resumeSpot = 0;
-        this._paused = false;
-        this._notPlaying = true;
-
-        /** @type {import("./index")} */
-        this._extension = extension;
-
-        this._audioNode = null;
-        this._audioContext = extension.audioContext;
+        this._audioContext = audioContext;
         this._audioGroup = audioGroup;
 
         this._audioPanner = this._audioContext.createPanner();
@@ -96,11 +82,8 @@ class BaseAudioSource {
 
         this._audioGainNode.connect(this._audioPanner);
         this._audioPanner.connect(this._audioAnalyzerNode);
-        this._audioAnalyzerNode.connect(this._extension.audioGainNode);
+        this._audioAnalyzerNode.connect(audioGainNode);
 
-        this._playingSrc = null;
-
-        this._timer = new Timer(this._extension.runtime, this._extension.audioContext);
         this._disposed = false;
     }
 
@@ -142,185 +125,14 @@ class BaseAudioSource {
     }
 
     /**
-     * The current time position of the audio source.
-     * When updating this value, getting it again may result in a slightly different value.
-     * @returns {number}
-     */
-    get timePosition () {
-        const src = this._activeSource;
-        return Math.min(Math.max(this._timer.getTime(true), 0), src.duration);
-    }
-    set timePosition (newSeconds) {
-        if (!this._audioNode && !this._paused) return;
-
-        const src = this._activeSource;
-        newSeconds = Math.min(Math.max(newSeconds, 0), src.duration);
-        if (this._paused) {
-            // only update the time
-            this._timer.setTime(newSeconds * 1000);
-            return;
-        }
-
-        this._timer.setTime(newSeconds * 1000);
-        this.play(newSeconds);
-    }
-
-    /**
-     * Whether or not this audio source is playing.
-     * @returns {boolean}
-     */
-    get playing () {
-        return ((!this._paused) && (!this._notPlaying));
-    }
-    /**
-     * Whether or not this audio source is paused.
-     * @returns {boolean}
-     */
-    get paused () {
-        return this._paused;
-    }
-    
-    /**
-     * Analyzes the current output volume of this AudioSource.
-     * @returns {number}
-     */
-    get outputVolume () {
-        const analyserNode = this._audioAnalyzerNode;
-
-        const bufferLength = analyserNode.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        analyserNode.getByteTimeDomainData(dataArray);
-
-        let sumSquares = 0.0;
-        for (let i = 0; i < bufferLength; i++) {
-            const sample = (dataArray[i] / 128.0) - 1.0;
-            sumSquares += sample * sample;
-        }
-        const volume = Math.sqrt(sumSquares / bufferLength);
-        return volume;
-    }
-    /**
-     * Analyzes the current spectral peak frequency of this AudioSource.
-     * This may be simplified to "dominant frequency" but that name is not quite accurate to the result.
-     * See https://stackoverflow.com/a/54567527 for more info.
-     * @returns {number}
-     */
-    get spectralPeak () {
-        const analyserNode = this._audioAnalyzerNode;
-
-        const bufferLength = analyserNode.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        analyserNode.getByteFrequencyData(dataArray);
-
-        // find the max index
-        let maxIndex = 0;
-        for (let i = 1; i < bufferLength; i++) {
-            if (dataArray[i] > dataArray[maxIndex]) {
-                maxIndex = i;
-            }
-        }
-
-        // return the peak freq
-        const nyquist = this._audioContext.sampleRate / 2;
-        return maxIndex * nyquist / bufferLength;
-    }
-
-    play(atTime = this.startPosition) {
-        if (!this.src) throw "Cannot play an empty audio source";
-        try {
-            if (this._audioNode) {
-                this._audioNode.onended = null;
-                this._audioNode.stop();
-            }
-        } catch {
-            // ... idk
-        } finally {
-            this._audioNode = null;
-        }
-
-        const source = this._audioContext.createBufferSource();
-        this._audioNode = source;
-        this.update();
-
-        source.buffer = this.src;
-        source.connect(this._audioGainNode);
-        this._playingSrc = source.buffer;
-
-        if (!this._paused) {
-            this._timer.reset();
-            this._timer.setTime(Math.min(Math.max(atTime ?? this.startPosition, 0), this.duration) * 1000);
-            this._timer.start();
-        } else {
-            this._resumeSpot = this.timePosition;
-            this._timer.start();
-        }
-
-        // we need to know when the sound starts, so we know how long to play for
-        // we also need to change endTimePos if we are looping
-        let startTimePos = this._resumeSpot;
-        let endTimePos = this.endPosition;
-        if (this._paused) {
-            this._paused = false;
-        } else {
-            startTimePos = atTime ?? this.startPosition;
-        }
-        if (this.looping) {
-            endTimePos = this.loopEndPosition;
-        }
-
-        // dont play the sound if the playback duration is less than 1 sample frame, otherwise the ended event will not fire
-        this._notPlaying = false;
-        const playbackDuration = Math.min(Math.max(endTimePos - startTimePos, 0), this.duration);
-        if (playbackDuration < 1 / this.src.sampleRate) {
-            this._onNodeStop(true);
-        } else {
-            source.start(0, Math.min(Math.max(startTimePos, 0), this.duration), playbackDuration);
-
-            source.onended = () => {
-                this._onNodeStop();
-            }
-        }
-    }
-    stop() {
-        this._notPlaying = true;
-        this._paused = false;
-        this._timer.stop();
-        try {
-            if (this._audioNode) {
-                this._audioNode.stop();
-            }
-        } catch {
-            // ... idk
-        } finally {
-            this._audioNode = null;
-        }
-    }
-    pause() {
-        if (!this._audioNode) return;
-        this._paused = true;
-        this._notPlaying = true;
-        this._timer.pause();
-
-        // onended is already ignored when paused, and stopped nodes cannot restart
-        this._audioNode.onended = null;
-        this._audioNode.stop();
-        this._audioNode = null;
-    }
-
-    /**
-     * Updates any playing audio node to new values on the audio group or settings on the audio source.
+     * Updates nodes to new values on the audio group or settings on the audio source.
      */
     update() {
-        if (!this._audioNode) return;
-        const audioNode = this._audioNode;
         const audioGroup = this._audioGroup;
         const audioGainNode = this._audioGainNode;
         const audioPanner = this._audioPanner;
 
-        // we actually dont use detune directly, instead playbackRate will calculate it
-        audioNode.playbackRate.value = this.playbackRate;
         audioGainNode.gain.value = this.volume * audioGroup.volume;
-        this._timer.speed = this.playbackRate;
 
         const pan = Math.min(Math.max(this.pan + audioGroup.pan, -1), 1);
         audioPanner.positionX.value = pan;
@@ -333,19 +145,6 @@ class BaseAudioSource {
      */
     dispose() {
         this._disposed = true;
-        this._timer.dispose();
-
-        // NOTE: this.stop makes _audioNode null so we cant do it with the others
-        // force stop and disconnect before running the real stop method
-        if (this._audioNode) {
-            try {
-                this._audioNode.stop();
-                this._audioNode.disconnect();
-            } catch {
-                // ...
-            }
-        }
-        this.stop();
 
         // dispose of the nodes
         try {
@@ -357,44 +156,13 @@ class BaseAudioSource {
         }
 
         // remove references
-        this._audioNode = null;
         this._audioContext = null;
         this._audioGroup = null;
         this._audioPanner = null;
         this._audioGainNode = null;
         this._audioAnalyzerNode = null;
-        this._playingSrc = null;
         this._extension = null;
         this._audioGroup = null;
-    }
-    /**
-     * Create a clone of this audio source and copy all public values.
-     */
-    clone() {
-        const newSource = new AudioSource(this._audioGroup, this._extension);
-        newSource.src = this.src;
-        newSource.originAudioName = this.originAudioName;
-
-        newSource.volume = this.volume;
-        newSource.speed = this.speed;
-        newSource.detune = this.detune;
-        newSource.pan = this.pan;
-
-        newSource.looping = this.looping;
-        newSource.startPosition = this.startPosition;
-        newSource.endPosition = this.endPosition;
-        newSource.loopStartPosition = this.loopStartPosition;
-        newSource.loopEndPosition = this.loopEndPosition;
-        return newSource;
-    }
-    /**
-     * Create a clone of this audio source, but only copies the audio buffer itself.
-     * Replicates old behavior of the extension where duplicates of audio sources would only copy the source.
-     */
-    weakClone() {
-        const newSource = new AudioSource(this._audioGroup, this._extension);
-        newSource.src = this.src;
-        return newSource;
     }
 
     /**
@@ -426,10 +194,6 @@ class BaseAudioSource {
             reader.onerror = (e) => reject(e);
             reader.readAsDataURL(blob);
         });
-    }
-
-    render() {
-        if (!this.src) throw "Cannot render an empty audio source";
     }
 
     reverse() {
@@ -472,29 +236,6 @@ class BaseAudioSource {
             }
         }
         this.src = destinationBuffer;
-    }
-
-    // internal
-    // internal gets and sets
-    get _activeSource() {
-        if (this._audioNode) return this._playingSrc;
-        return this.src;
-    }
-
-    // menthods
-    _onNodeStop(didNotPlay) {
-        if (this._paused || !this._audioNode) return;
-        if (!didNotPlay) {
-            if (this.looping && !this._notPlaying) {
-                this.play(this.loopStartPosition || 0);
-                return;
-            }
-        }
-
-        this._audioNode.onended = null;
-        this._notPlaying = true;
-        this._audioNode = null;
-        this._timer.stop();
     }
 };
 

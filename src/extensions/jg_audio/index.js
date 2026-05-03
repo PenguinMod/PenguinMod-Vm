@@ -4,7 +4,7 @@ const xmlEscape = require("../../util/xml-escape");
 const Cast = require('../../util/cast');
 
 const AudioGroup = require("./audio-group");
-const AudioSource = require("./base-audio-source");
+const AudioSource = require("./audio-source");
 
 const INPUT_STYLES = `
     margin-top: 0.75rem;

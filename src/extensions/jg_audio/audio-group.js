@@ -1,5 +1,3 @@
-const AudioSource = require("./base-audio-source");
-
 /**
  * An audio group in the jgExtendedAudio extension.
  * Contains audio sources, and has global settings that are applied to all sources.
@@ -23,7 +21,7 @@ class AudioGroup {
         
         /**
          * An object with id to AudioSource pairs.
-         * @type {Object<string, AudioSource>}
+         * @type {Object<string, import("./base-audio-source")>}
          */
         this.sources = {};
 
