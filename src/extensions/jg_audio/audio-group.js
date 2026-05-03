@@ -100,9 +100,22 @@ class AudioGroup {
      * Lets you easily delete the whole audio group.
      */
     disposeSources () {
-        for (const audioSourceId in this.sources) {
+        // i dont like deleting things while looping through them
+        const audioSourceIds = Object.keys(this.sources);
+        for (const audioSourceId of audioSourceIds) {
             const audioSource = this.sources[audioSourceId];
             audioSource.dispose();
+            delete this.sources[audioSourceId];
+        }
+    }
+    /**
+     * Removes an audio source from the sources list if it exists.
+     */
+    disposeIfExists (sourceId) {
+        const existingSource = this.sources[sourceId];
+        if (existingSource) {
+            existingSource.dispose();
+            delete this.sources[sourceId];
         }
     }
 };
