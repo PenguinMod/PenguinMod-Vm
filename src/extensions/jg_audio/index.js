@@ -53,8 +53,6 @@ class AudioExtension {
         });
     }
 
-    // internal stuff
-
     // scratch runtime funcs
     deserialize(data) {
         for (const audioGroupId in this.audioGroups) {
@@ -63,6 +61,7 @@ class AudioExtension {
         }
         this.audioGroups = {};
 
+        if (!data) return;
         for (const serializedAudioGroup of data) {
             const audioGroup = new AudioGroup({
                 volume: serializedAudioGroup.globalVolume,
@@ -88,6 +87,8 @@ class AudioExtension {
                 globalPan: audioGroup.pan,
             });
         }
+        // TODO: rmeove this log
+        console.log(serializedAudioGroups);
         return serializedAudioGroups;
     }
 
@@ -111,6 +112,7 @@ class AudioExtension {
         blocks = varBlocks
             .reverse()
             .concat(blocks);
+        console.log(blocks);
         return blocks;
     }
 

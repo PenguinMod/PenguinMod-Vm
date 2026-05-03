@@ -3,7 +3,7 @@ const Timer = require("./timer");
 
 class AudioSource {
     /**
-     * @param {import("./audio-group")} audioGroup 
+     * @param {import("./audio-group")} audioGroup The audio group to hold this audio source. All audio sources should be apart of an audio group.
      * @param {import("./index")} extension The extension which this audio source came from.
      */
     constructor(audioGroup, extension) {
