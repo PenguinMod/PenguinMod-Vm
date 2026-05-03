@@ -2,8 +2,12 @@ const BlockType = require('../../extension-support/block-type');
 const ArgumentType = require('../../extension-support/argument-type');
 const Cast = require('../../util/cast');
 
+const AudioGroup = require("./audio-group");
+const AudioSource = require("./audio-source");
+
+// TODO: Remove helper entirely
 const HelperTool = require('./helper');
-const Helper = new HelperTool.Helper();
+const Helper = new HelperTool();
 
 /**
  * Class for AudioGroups & AudioSources
@@ -16,41 +20,77 @@ class AudioExtension {
          * @type {runtime}
          */
         this.runtime = runtime;
-        this.helper = Helper;
-        this.helper.runtime = this.runtime;
 
+        /**
+         * The audio context for jgExtendedAudio
+         * @type {AudioContext}
+         */
+        this.audioContext = new AudioContext();
+
+        /**
+         * The gain node for jgExtendedAudio
+         * @type {GainNode}
+         */
+        this.audioGainNode = this.audioContext.createGain();
+        this.audioGainNode.gain.value = 1;
+        this.audioGainNode.connect(this.audioContext.destination);
+
+        /**
+         * The audio groups created currently.
+         * @type {Object<string, AudioGroup>}
+         */
+        this.audioGroups = {};
+
+        // connect audio context to PM
+        // TODO: registerExtensionAudioContext is going to be reworked so use the new function for clarity on what is being shared with PM
+        this.runtime.registerExtensionAudioContext("jgExtendedAudio", this.audioContext, this.audioGainNode);
+
+        // stop sources on end
         this.runtime.on('PROJECT_STOP_ALL', () => {
-            for (const audioGroupName in Helper.audioGroups) {
-                const audioGroup = Helper.GetAudioGroup(audioGroupName);
-                for (const sourceName in audioGroup.sources) {
-                    audioGroup.sources[sourceName].stop();
+            for (const audioGroupId in this.audioGroups) {
+                const audioGroup = this.audioGroups[audioGroupId];
+                for (const sourceId in audioGroup.sources) {
+                    const audioSource = audioGroup.sources[sourceId];
+                    audioSource.stop();
                 }
             }
         });
-
-        this.runtime.registerExtensionAudioContext("jgExtendedAudio", this.helper.audioContext, this.helper.audioGlobalVolumeNode);
     }
+
+    // internal stuff
 
     // scratch runtime funcs
     deserialize(data) {
-        for (const audioGroup in Helper.audioGroups) {
-            Helper.DeleteAudioGroup(audioGroup);
+        for (const audioGroupId in this.audioGroups) {
+            const audioGroup = this.audioGroups[audioGroupId];
+            audioGroup.disposeSources();
         }
-        Helper.audioGroups = {};
-        for (const audioGroup of data) {
-            Helper.AddAudioGroup(audioGroup.id, audioGroup);
+        this.audioGroups = {};
+
+        for (const serializedAudioGroup of data) {
+            const audioGroup = new AudioGroup({
+                volume: serializedAudioGroup.globalVolume,
+                speed: serializedAudioGroup.globalSpeed,
+                pitch: serializedAudioGroup.globalPitch,
+                pan: serializedAudioGroup.globalPan,
+            });
+            this.audioGroups[serializedAudioGroup.id] = audioGroup;
         }
     }
 
     serialize() {
-        return Helper.GetAllAudioGroups().map(audioGroup => ({
-            id: audioGroup.id,
-            sources: {},
-            globalVolume: audioGroup.globalVolume,
-            globalSpeed: audioGroup.globalSpeed,
-            globalPitch: audioGroup.globalPitch,
-            globalPan: audioGroup.globalPan
-        }));
+        const serializedAudioGroups = [];
+        for (const audioGroupId in this.audioGroups) {
+            const audioGroup = this.audioGroups[audioGroupId];
+            serializedAudioGroups.push({
+                id: audioGroupId,
+                globalVolume: audioGroup.volume,
+                globalSpeed: audioGroup.speed,
+                globalPitch: audioGroup.pitch,
+                globalPan: audioGroup.pan,
+            });
+        }
+        return serializedAudioGroups;
     }
 
     orderCategoryBlocks(blocks) {
@@ -447,7 +487,7 @@ class AudioExtension {
             if (!audioGroup) return resolve();
             const audioSource = Helper.GrabAudioSource(audioGroup, args.NAME);
             if (!audioSource) return resolve();
-            const sound = Helper.FindSoundByName(util.target.sprite.sounds, args.SOUND);
+            const sound = util.target.sprite.sounds.find(sound => sound.name === args.SOUND);
             if (!sound) return resolve();
 
             // for simplicity just try oneshotting grabbing the buffer
