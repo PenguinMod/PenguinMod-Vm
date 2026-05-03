@@ -7,6 +7,8 @@ const AudioGroup = require("./audio-group");
 const AudioSource = require("./audio-source");
 const OfflineAudioSource = require("./offline-audio-source");
 
+const BLANK_WAV_FILE = "data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAIARKwAABCxAgAEABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
 const INPUT_STYLES = `
     margin-top: 0.75rem;
     margin-bottom: 1.5rem;
@@ -769,21 +771,6 @@ class AudioExtension {
             }
         });
     }
-    audioSourceSetSourceBuffer(args, util) {
-        const sourceGroup = this.audioGroups[args.SRCGROUP];
-        if (!sourceGroup) return;
-        const sourceSource = sourceGroup.sources[args.SRCSOURCE];
-        if (!sourceSource) return;
-
-        const targetGroup = this.audioGroups[args.TARGROUP];
-        if (!targetGroup) return;
-        const targetSource = targetGroup.sources[args.TARSOURCE];
-        if (!targetSource) return;
-
-        // copy source to target
-        targetSource.src = sourceSource.src;
-        targetSource.originAudioName = sourceSource.originAudioName;
-    }
     audioSourceSetUrl(args, util) {
         return new Promise((resolve, reject) => {
             const audioGroup = this.audioGroups[args.AUDIOGROUP];
@@ -806,6 +793,21 @@ class AudioExtension {
                 return resolve();
             });
         })
+    }
+    audioSourceSetSourceBuffer(args, util) {
+        const sourceGroup = this.audioGroups[args.SRCGROUP];
+        if (!sourceGroup) return;
+        const sourceSource = sourceGroup.sources[args.SRCSOURCE];
+        if (!sourceSource) return;
+
+        const targetGroup = this.audioGroups[args.TARGROUP];
+        if (!targetGroup) return;
+        const targetSource = targetGroup.sources[args.TARSOURCE];
+        if (!targetSource) return;
+
+        // copy source to target
+        targetSource.src = sourceSource.src;
+        targetSource.originAudioName = sourceSource.originAudioName;
     }
     audioSourcePlayerOption(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
@@ -968,9 +970,10 @@ class AudioExtension {
     async audioSourceGetDataURL(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
+        if (!audioGroup) return BLANK_WAV_FILE;
         const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
+        if (!audioSource) return BLANK_WAV_FILE;
+        if (!audioSource.src) return BLANK_WAV_FILE;
 
         let format = "16";
         switch (args.WAVFORMAT) {
@@ -1007,14 +1010,20 @@ class AudioExtension {
     // Rendering
     audioSourceRendererCreate(args) {
         if (this._renderingAudio) throw "Cannot prepare a new renderer while rendering";
-        // TODO: Validate these params
-        const channelCount = Cast.toNumber(args.CHANNELS);
-        const sampleRate = Cast.toNumber(args.SAMPLERATE);
+        let channelCount = Math.min(Math.max(Math.round(Cast.toNumber(args.CHANNELS)), 1), 32);
+        let sampleRate = Math.min(Math.max(Math.round(Cast.toNumber(args.SAMPLERATE)), 3000), 768000);
         const length = Cast.toNumber(args.LENGTH);
+
+        // Chrome limits:
+        // 1, 32 numberOfChannels
+        // 3000, 768000 sampleRate
+
+        // NOTE: We dont fallback here incase the project ENFORCES higher quality rendering.
+        // They can decide to fallback if necessary since it's one block to make a new renderer at 44100 hz 2 channel
         this.offlineAudioContext = new OfflineAudioContext({
             numberOfChannels: channelCount,
             sampleRate: sampleRate,
-            length: sampleRate * length,
+            length: Math.max(sampleRate * length, 1),
         });
     }
     async audioSourceRendererExecute(args) {
@@ -1022,16 +1031,17 @@ class AudioExtension {
         if (!this.offlineAudioContext) throw "Cannot render without an unprepared renderer";
         // we save the contents of the render into the target source
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        if (!audioGroup) return;
+        if (!audioGroup) throw "Target audio group doesn't exist";
         const target = Cast.toString(args.NAME);
         const targetSource = audioGroup.sources[target];
-        if (!targetSource) return;
+        if (!targetSource) throw "Target audio source doesn't exist";
 
         const offlineAudioSources = [];
+        let audioGainNode = null;
         this._renderingAudio = true;
         try {
             // make the gain node
-            const audioGainNode = this.offlineAudioContext.createGain();
+            audioGainNode = this.offlineAudioContext.createGain();
             audioGainNode.gain.value = 1;
             audioGainNode.connect(this.offlineAudioContext.destination);
 
@@ -1057,10 +1067,20 @@ class AudioExtension {
             targetSource.src = audioBuffer;
             targetSource.originAudioName = "render";
         } finally {
-            this._renderingAudio = false;
+            this.offlineAudioContext = null;
+
+            // dispose of the nodes we used
+            try {
+                audioGainNode.disconnect();
+            } catch {
+                //...
+            }
             for (const offlineAudioSource of offlineAudioSources) {
                 offlineAudioSource.dispose();
             }
+
+            // mark as not rendering anymore
+            this._renderingAudio = false;
         }
     }
     audioSourceRendererRendering() {

@@ -161,8 +161,6 @@ class BaseAudioSource {
         this._audioPanner = null;
         this._audioGainNode = null;
         this._audioAnalyzerNode = null;
-        this._extension = null;
-        this._audioGroup = null;
     }
 
     /**

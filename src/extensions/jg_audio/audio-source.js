@@ -241,6 +241,7 @@ class AudioSource extends BaseAudioSource {
         // remove references
         this._audioNode = null;
         this._playingSrc = null;
+        this._extension = null;
     }
     
     /**
