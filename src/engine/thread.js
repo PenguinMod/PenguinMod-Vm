@@ -1,4 +1,5 @@
 const log = require('../util/log');
+const Timer = require('../util/timer');
 
 /**
  * Recycle bin for empty stackFrame objects
@@ -405,6 +406,7 @@ class Thread {
      * pause this thread
      */
     pause () {
+        this.pauseTime = Timer.nowObj.now();
         this.originalStatus = this.status;
         this.status = Thread.STATUS_PAUSED;
         if (this.timer) this.timer.pause();
@@ -414,7 +416,20 @@ class Thread {
      * unpause this thread
      */
     play () {
+        const dt = Timer.nowObj.now() - this.pauseTime;
         this.status = this.originalStatus;
+
+        // reference the SA/TurboWarp pause addon for this
+        // we need to update compat & execution context timers when unpausing
+        const stackFrame = this.peekStackFrame();
+        if (stackFrame && stackFrame.executionContext && stackFrame.executionContext.timer) {
+            stackFrame.executionContext.timer.startTime += dt;
+        }
+
+        if (this.compatibilityStackFrame && this.compatibilityStackFrame.timer) {
+            this.compatibilityStackFrame.timer.startTime += dt;
+        }
+        
         if (this.timer) this.timer.play();
     }
 
