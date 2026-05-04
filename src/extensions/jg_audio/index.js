@@ -22,7 +22,7 @@ const INPUT_STYLES = `
 `; // just copying the var menu styles
 
 /**
- * Class for AudioGroups & AudioSources
+ * Class for jgExtendedAudio
  * @constructor
  */
 class AudioExtension {
@@ -301,27 +301,6 @@ class AudioExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
-                // Mutations
-                {
-                    text: "Mutations", blockType: BlockType.LABEL,
-                    hideFromPalette: !hasAudioGroups,
-                },
-                {
-                    opcode: 'audioSourceReverse', text: 'reverse clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
-                    arguments: {
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
-                    hideFromPalette: !hasAudioGroups,
-                },
-                {
-                    opcode: 'audioSourceInvertPhase', text: 'invert phase of clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
-                    arguments: {
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
-                    hideFromPalette: !hasAudioGroups,
-                },
                 // Rendering
                 {
                     text: "Rendering", blockType: BlockType.LABEL,
@@ -351,6 +330,14 @@ class AudioExtension {
                 },
                 
                 // deleted blocks
+                { // moved to audioEffects
+                    opcode: 'audioSourceReverse', text: 'reverse clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: true,
+                },
                 {
                     opcode: 'audioSourceSetTime', text: 'set source [NAME] start position in [AUDIOGROUP] to [TIME] seconds', blockType: BlockType.COMMAND,
                     arguments: {
@@ -992,24 +979,6 @@ class AudioExtension {
         return await audioSource.generateDataUrl(format);
     }
 
-    // Mutations
-    audioSourceReverse(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
-        audioSource.reverse();
-    }
-    audioSourceInvertPhase(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
-        audioSource.invert();
-    }
-
     // Rendering
     audioSourceRendererCreate(args) {
         if (this._renderingAudio) throw "Cannot prepare a new renderer while rendering";
@@ -1088,6 +1057,17 @@ class AudioExtension {
     }
     audioSourceRendererRendering() {
         return this._renderingAudio;
+    }
+
+    // deleted categories
+    // Mutations, moved to audioEffects
+    audioSourceReverse(args) { // deleted block, moved to audioEffects
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+        audioSource.reverseSync();
     }
 }
 
