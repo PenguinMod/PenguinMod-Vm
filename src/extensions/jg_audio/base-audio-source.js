@@ -258,6 +258,31 @@ class BaseAudioSource {
             destinationData[i] = sourceData[i] * 0;
         });
     }
+
+    /**
+     * Normalizes the audio buffer.
+     */
+    async normalize() {
+        if (!this.src) throw "Cannot mutate an empty audio source";
+
+        // we actually need to do a loop ourselves to get peakAmplitude
+        const buffer = this.src;
+        let peakAmplitude = 0;
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            for (let i = 0; i < buffer.length; i++) {
+                const amplitude = Math.abs(sourceData[i]);
+                if (amplitude > peakAmplitude) peakAmplitude = amplitude;
+            }
+        }
+
+        // the result wont do anything
+        const multiplier = 1 / peakAmplitude;
+        if (peakAmplitude === 0 || peakAmplitude === 1) return;
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = sourceData[i] * multiplier;
+        });
+    }
 };
 
 module.exports = BaseAudioSource;

@@ -52,6 +52,7 @@ class AudioEffectsExtension {
         if (this.extension) return;
         if (!vm.runtime.ext_jgExtendedAudio)
             vm.extensionManager.loadExtensionIdSync('jgExtendedAudio');
+        // NOTE: We just hope that the workspace updates because emitWorkspaceUpdate causes errors on load sometimes
         this.extension = vm.runtime.ext_jgExtendedAudio;
     }
 
@@ -113,6 +114,7 @@ class AudioEffectsExtension {
                     acceptReporters: true,
                     items: [
                         { text: "silence", value: "silence" },
+                        { text: "normalize", value: "normalize" },
                         { text: "reverse", value: "reverse" },
                         { text: "invert", value: "invert" },
                     ]
@@ -144,6 +146,8 @@ class AudioEffectsExtension {
         switch (args.EFFECT) {
             case "silence":
                 return await audioSource.silence();
+            case "normalize":
+                return await audioSource.normalize();
             case "reverse":
                 return await audioSource.reverse();
             case "invert":
