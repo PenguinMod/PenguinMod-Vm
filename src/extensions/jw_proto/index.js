@@ -87,7 +87,9 @@ class jwProto {
                         description: 'Label for a value.'
                     }),
                     disableMonitor: true,
+                    exemptFromNormalization: true,
                     blockType: BlockType.REPORTER,
+                    allowDropAnywhere: true,
                     arguments: {
                         LABEL: {
                             type: ArgumentType.STRING,
