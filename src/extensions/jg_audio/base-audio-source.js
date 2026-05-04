@@ -199,6 +199,7 @@ class BaseAudioSource {
      * Reverses the audio buffer in a sync function.
      * Meant for replicating old behavior incase we feel like making
      * some or all mutations async.
+     * @deprecated
      */
     reverseSync() {
         if (!this.src) throw "Cannot reverse an empty audio source";
@@ -224,7 +225,7 @@ class BaseAudioSource {
 
     /**
      * Reverses the audio buffer.
-     * Calls `reverseSync` but should be used over it incase we feel like making
+     * Calls `reverseSync` for now, but should be used over it incase we feel like making
      * some or all mutations async.
      */
     async reverse() {
