@@ -195,6 +195,8 @@ class BaseAudioSource {
         });
     }
 
+    // NOTE: We actually dont mutate in place because audio source clones shouldnt make new audio buffers unless they need to.
+    // This also means that cloning an audio buffer from an existing audio source is an instant operation, and doesn't need async
     /**
      * Generic function for processing mutations to the audio source.
      * @param {(buffer:AudioBuffer, index:number, sourceData:Float32Array<ArrayBuffer>, destinationData:Float32Array<ArrayBuffer>)} callback 
@@ -281,6 +283,28 @@ class BaseAudioSource {
         if (peakAmplitude === 0 || peakAmplitude === 1) return;
         this.mutateSource((buffer, i, sourceData, destinationData) => {
             destinationData[i] = sourceData[i] * multiplier;
+        });
+    }
+
+    /**
+     * Amplifies the audio buffer.
+     * Note that this multiplication is linear, not logarithmic.
+     * @param {number} level The multiplication factor to use.
+     */
+    async amplify(level) {
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = Math.min(Math.max(sourceData[i] * level, -1), 1);
+        });
+    }
+    /**
+     * Realigns the waveform in the audio buffer.
+     * Essentially all samples are set to their absolute value, and then knocked to stay within -0.5 to 0.5.
+     * Use the center value to adjust where the waveform is placed.
+     * @param {number} center Use 1 to hit the ceiling, and -1 to hit the floor.
+     */
+    async realign(center) {
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = (Math.abs(sourceData[i]) - 0.5) ;
         });
     }
 };

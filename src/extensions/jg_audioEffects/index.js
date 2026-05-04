@@ -99,6 +99,16 @@ class AudioEffectsExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
+                    opcode: 'audioSourceAmplify', text: 'amplify clip by [AMOUNT] [METHOD] in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        AMOUNT: { type: ArgumentType.NUMBER, defaultValue: 1 },
+                        METHOD: { type: ArgumentType.STRING, menu: 'amplifyMethod', defaultValue: "" },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
                     opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         EFFECT: { type: ArgumentType.STRING, menu: 'basicEffect', defaultValue: "" },
@@ -119,6 +129,13 @@ class AudioEffectsExtension {
                         { text: "invert", value: "invert" },
                     ]
                 },
+                amplifyMethod: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "x", value: "x" },
+                        { text: "dB", value: "dB" },
+                    ]
+                },
             },
         };
     }
@@ -136,6 +153,27 @@ class AudioEffectsExtension {
 
     // blocks
     // Mutations
+    async audioSourceAmplify(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+
+        const level = Cast.toNumber(args.AMOUNT);
+        switch (args.METHOD) {
+            case "x":
+            case "linear":
+            case "linearly":
+                return await audioSource.amplify(level);
+            case "dB":
+            case "db":
+            case "decibel":
+            case "decibels":
+                const logarithmicToLinear = 10 ** (level / 20);
+                return await audioSource.amplify(logarithmicToLinear);
+        }
+    }
     async audioSourceBasicEffect(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
