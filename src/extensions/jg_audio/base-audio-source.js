@@ -196,86 +196,67 @@ class BaseAudioSource {
     }
 
     /**
+     * Generic function for processing mutations to the audio source.
+     * @param {(buffer:AudioBuffer, index:number, sourceData:Float32Array<ArrayBuffer>, destinationData:Float32Array<ArrayBuffer>)} callback 
+     */
+    mutateSource(callback) {
+        if (!this.src) throw "Cannot mutate an empty audio source";
+
+        // basically based on the scratch implementation of reversing
+        const buffer = this.src;
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length,
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            for (let i = 0; i < buffer.length; i++) {
+                callback(buffer, i, sourceData, destinationData);
+            }
+        }
+        this.src = destinationBuffer;
+    }
+    /**
      * Reverses the audio buffer in a sync function.
      * Meant for replicating old behavior incase we feel like making
      * some or all mutations async.
      * @deprecated
      */
     reverseSync() {
+        // NOTE: This error message is carried over for compat
         if (!this.src) throw "Cannot reverse an empty audio source";
-
-        // basically based on the scratch implementation of reversing
-        const buffer = this.src;
-        const reversedBuffer = this._audioContext.createBuffer(
-            buffer.numberOfChannels,
-            buffer.length,
-            buffer.sampleRate
-        );
-        
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-            const sourceData = buffer.getChannelData(channel);
-            const destinationData = reversedBuffer.getChannelData(channel);
-
-            for (let i = 0; i < buffer.length; i++) {
-                destinationData[i] = sourceData[buffer.length - 1 - i];
-            }
-        }
-        this.src = reversedBuffer;
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = sourceData[buffer.length - 1 - i];
+        });
     }
 
     /**
      * Reverses the audio buffer.
-     * Calls `reverseSync` for now, but should be used over it incase we feel like making
-     * some or all mutations async.
      */
     async reverse() {
-        this.reverseSync();
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = sourceData[buffer.length - 1 - i];
+        });
     }
     /**
      * Phase-inverts the audio buffer.
      */
     async invert() {
-        if (!this.src) throw "Cannot invert an empty audio source";
-
-        const buffer = this.src;
-        const destinationBuffer = this._audioContext.createBuffer(
-            buffer.numberOfChannels,
-            buffer.length,
-            buffer.sampleRate
-        );
-
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-            const sourceData = buffer.getChannelData(channel);
-            const destinationData = destinationBuffer.getChannelData(channel);
-
-            for (let i = 0; i < buffer.length; i++) {
-                destinationData[i] = sourceData[i] * -1;
-            }
-        }
-        this.src = destinationBuffer;
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = sourceData[i] * -1;
+        });
     }
     /**
      * Silences the audio buffer.
      */
     async silence() {
-        if (!this.src) throw "Cannot silence an empty audio source";
-
-        const buffer = this.src;
-        const destinationBuffer = this._audioContext.createBuffer(
-            buffer.numberOfChannels,
-            buffer.length,
-            buffer.sampleRate
-        );
-
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-            const sourceData = buffer.getChannelData(channel);
-            const destinationData = destinationBuffer.getChannelData(channel);
-
-            for (let i = 0; i < buffer.length; i++) {
-                destinationData[i] = sourceData[i] * 0;
-            }
-        }
-        this.src = destinationBuffer;
+        this.mutateSource((buffer, i, sourceData, destinationData) => {
+            destinationData[i] = sourceData[i] * 0;
+        });
     }
 };
 
