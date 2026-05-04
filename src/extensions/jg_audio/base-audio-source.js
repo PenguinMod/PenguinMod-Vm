@@ -296,17 +296,6 @@ class BaseAudioSource {
             destinationData[i] = Math.min(Math.max(sourceData[i] * level, -1), 1);
         });
     }
-    /**
-     * Realigns the waveform in the audio buffer.
-     * Essentially all samples are set to their absolute value, and then knocked to stay within -0.5 to 0.5.
-     * Use the center value to adjust where the waveform is placed.
-     * @param {number} center Use 1 to hit the ceiling, and -1 to hit the floor.
-     */
-    async realign(center) {
-        this.mutateSource((buffer, i, sourceData, destinationData) => {
-            destinationData[i] = (Math.abs(sourceData[i]) - 0.5) ;
-        });
-    }
 };
 
 module.exports = BaseAudioSource;
