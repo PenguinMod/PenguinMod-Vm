@@ -109,6 +109,17 @@ class AudioEffectsExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
+                    opcode: 'audioSourceTrim', text: '[TRIMOPTION] clip from [START] to [END] seconds in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        TRIMOPTION: { type: ArgumentType.STRING, menu: 'trimOptions', defaultValue: "" },
+                        START: { type: ArgumentType.NUMBER, defaultValue: 0 },
+                        END: { type: ArgumentType.NUMBER, defaultValue: 1 },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
                     opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
                         EFFECT: { type: ArgumentType.STRING, menu: 'basicEffect', defaultValue: "" },
@@ -134,6 +145,13 @@ class AudioEffectsExtension {
                     items: [
                         { text: "x", value: "x" },
                         { text: "dB", value: "dB" },
+                    ]
+                },
+                trimOptions: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "trim", value: "trim" },
+                        { text: "crop", value: "crop" },
                     ]
                 },
             },
@@ -172,6 +190,23 @@ class AudioEffectsExtension {
             case "decibels":
                 const logarithmicToLinear = 10 ** (level / 20);
                 return await audioSource.amplify(logarithmicToLinear);
+        }
+    }
+    async audioSourceTrim(args) {
+        const audioGroup = this.audioGroups[args.AUDIOGROUP];
+        const target = Cast.toString(args.NAME);
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[target];
+        if (!audioSource) return;
+
+        const start = Cast.toNumber(args.START);
+        const end = Cast.toNumber(args.END);
+        switch (args.TRIMOPTION) {
+            case "trim":
+                return await audioSource.cutRegions([ start, end ]);
+            case "crop":
+                if (!audioSource.src) throw "Cannot mutate an empty audio source"; // copy the cutRegions error message
+                return await audioSource.cutRegions([ 0, start, end, audioSource.src.duration ]);
         }
     }
     async audioSourceBasicEffect(args) {

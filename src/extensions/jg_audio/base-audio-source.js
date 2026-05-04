@@ -296,6 +296,65 @@ class BaseAudioSource {
             destinationData[i] = Math.min(Math.max(sourceData[i] * level, -1), 1);
         });
     }
+
+    /**
+     * Modifes the audio buffer by slicing regions out. Note that unlike other methods, sample times are expected.
+     * 
+     * Cutting behaves where the `start` sample is removed, and samples are removed up *untiL* the `end` sample.
+     * 
+     * - `[0, 2]` will result in sample 0 and 1 being removed, and samples 2+ kept.
+     * - `[0, 0]` will result in samples 0+ kept. No samples are removed.
+     * 
+     * An even number of points is expected, and the sample times should be in chronological order.
+     * Sample times are expected to be integers.
+     * @param {Array<number>} points [start, end] sample times for each slice.
+     */
+    async cutRegions(points) {
+        if (!this.src) throw "Cannot mutate an empty audio source";
+
+        // Calculate the new length of the buffer. This is why an even number of points is expected.
+        const buffer = this.src;
+        let newBufferLength = buffer.length;
+        for (let i = 0; i < points.length; i += 2) {
+            const start = points[i];
+            const end = points[i + 1];
+            newBufferLength -= end - start;
+        }
+
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            Math.max(newBufferLength, 1),
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            let skippingSamples = false;
+            let skippedSamples = 0;
+            let pointsIndex = 0;
+            for (let i = 0; i < buffer.length; i++) {
+                // check if the current sample is entering/exiting a cut region
+                // we use while since cropping audio may cause cases of [0, 0, 44100, 95000] (notice the 0, 0)
+                // in this case we should handle a 0 length cut
+                while (i >= (points[pointsIndex] ?? Infinity)) {
+                    // if not skipping samples, the new points[pointsIndex] should be where the cut region ends
+                    // if skipping samples, the new points[pointsIndex] should be where the next cut region starts
+                    skippingSamples = !skippingSamples;
+                    pointsIndex++;
+                }
+
+                // if we are skipping samples, then we should count to know how far to offset idx by in the dest
+                if (skippingSamples) {
+                    skippedSamples++;
+                    continue;
+                }
+                destinationData[i - skippedSamples] = sourceData[i];
+            }
+        }
+        this.src = destinationBuffer;
+    }
 };
 
 module.exports = BaseAudioSource;
