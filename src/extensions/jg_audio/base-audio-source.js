@@ -357,6 +357,38 @@ class BaseAudioSource {
         }
         this.src = destinationBuffer;
     }
+    /**
+     * Prepends or appends a buffer to the start/end of the audio buffer.
+     * @param {AudioBuffer} addingBuffer The buffer to stitch together
+     * @param {boolean} append `true` for append, `false` for prepend
+     */
+    async stitchBuffer(addingBuffer, append) {
+        if (!this.src) throw "Cannot mutate an empty audio source";
+        if (this.src.sampleRate !== addingBuffer.sampleRate) throw "Cannot work with mismatched sample rates";
+        if (this.src.numberOfChannels !== addingBuffer.numberOfChannels) throw "Cannot work with mismatched channel counts";
+
+        const buffer = this.src;
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length + addingBuffer.length,
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const addingData = addingBuffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            if (!append) { // prepend
+                destinationData.set(addingData, 0);
+                destinationData.set(sourceData, addingData.length);
+            } else { // append
+                destinationData.set(sourceData, 0);
+                destinationData.set(addingData, sourceData.length);
+            }
+        }
+        this.src = destinationBuffer;
+    }
 };
 
 module.exports = BaseAudioSource;

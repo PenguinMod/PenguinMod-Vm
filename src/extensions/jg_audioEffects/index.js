@@ -119,7 +119,17 @@ class AudioEffectsExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
-                // TODO: Add a stitch block that prepends or appends an audio clip (needed because insert would prevent either start or end from being used exactly)
+                {
+                    opcode: 'audioSourceStitch', text: 'stitch clip from [SRCNAME] in [SRCAUDIOGROUP] to [SIDE] of [TARNAME] in [TARAUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        SRCNAME: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
+                        SRCAUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        SIDE: { type: ArgumentType.STRING, menu: 'sideOptions', defaultValue: "" },
+                        TARNAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        TARAUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
                 // TODO: Add an insert block that places an audio clip in the place of a sample (basically stitch but place anywhere inside.) Mixing is not going to be added because you can do it with rendering blocks
                 {
                     opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
@@ -154,6 +164,13 @@ class AudioEffectsExtension {
                     items: [
                         { text: "trim", value: "trim" },
                         { text: "crop", value: "crop" },
+                    ]
+                },
+                sideOptions: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "start", value: "start" },
+                        { text: "end", value: "end" },
                     ]
                 },
             },
@@ -217,6 +234,24 @@ class AudioEffectsExtension {
                 return await audioSource.cutRegions([ start, end ]);
             case "crop":
                 return await audioSource.cutRegions([ 0, start, end, audioSource.src.length ]);
+        }
+    }
+    async audioSourceStitch(args) {
+        const sourceGroup = this.audioGroups[Cast.toString(args.SRCAUDIOGROUP)];
+        if (!sourceGroup) return;
+        const sourceSource = sourceGroup.sources[Cast.toString(args.SRCNAME)];
+        if (!sourceSource) return;
+
+        const targetGroup = this.audioGroups[Cast.toString(args.TARAUDIOGROUP)];
+        if (!targetGroup) return;
+        const targetSource = sourceGroup.sources[Cast.toString(args.TARNAME)];
+        if (!targetSource) return;
+
+        switch (Cast.toString(args.SIDE)) {
+            case "start":
+                return await targetSource.stitchBuffer(sourceSource.src, false);
+            case "end":
+                return await targetSource.stitchBuffer(sourceSource.src, true);
         }
     }
     async audioSourceBasicEffect(args) {
