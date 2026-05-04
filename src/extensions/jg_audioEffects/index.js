@@ -53,7 +53,6 @@ class AudioEffectsExtension {
         if (!vm.runtime.ext_jgExtendedAudio)
             vm.extensionManager.loadExtensionIdSync('jgExtendedAudio');
         this.extension = vm.runtime.ext_jgExtendedAudio;
-        this.runtime.vm.emitWorkspaceUpdate();
     }
 
     /**
