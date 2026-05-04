@@ -121,7 +121,8 @@ class BaseAudioSource {
      * @returns {number}
      */
     get scaledDuration() {
-        return this.duration;
+        if (this.playbackRate <= 0) return Infinity;
+        return this.duration / this.playbackRate;
     }
 
     /**

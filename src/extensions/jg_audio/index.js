@@ -478,6 +478,7 @@ class AudioExtension {
                         { text: "end loop position", value: "end loop position" },
                         { text: "render time position", value: "render time position" },
                         { text: "sound length", value: "sound length" },
+                        { text: "calculated sound length", value: "calculated sound length" },
                         { text: "origin clip name", value: "origin sound" },
                     ]
                 },
@@ -960,6 +961,8 @@ class AudioExtension {
                 return audioSource.renderTime;
             case "sound length":
                 return audioSource.duration;
+            case "calculated sound length":
+                return audioSource.scaledDuration;
             case "origin clip name":
             case "origin sound":
                 return audioSource.originAudioName;
