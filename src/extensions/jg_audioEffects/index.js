@@ -198,15 +198,23 @@ class AudioEffectsExtension {
         if (!audioGroup) return;
         const audioSource = audioGroup.sources[target];
         if (!audioSource) return;
+        if (!audioSource.src) throw "Cannot mutate an empty audio source"; // copy the cutRegions error message
 
-        const start = Cast.toNumber(args.START);
-        const end = Cast.toNumber(args.END);
+        // validate, we convert to sample times here to make sure we never exceed src.length
+        let start = Math.max(0, Math.round(Cast.toNumber(args.START) * audioSource.src.sampleRate));
+        let end = Math.min(Math.round(Cast.toNumber(args.END) * audioSource.src.sampleRate), audioSource.src.length);
+        if (start > end) {
+            let end2 = end;
+            end = start;
+            start = end2;
+        }
+
+        // now we can do the acutal operation
         switch (args.TRIMOPTION) {
             case "trim":
                 return await audioSource.cutRegions([ start, end ]);
             case "crop":
-                if (!audioSource.src) throw "Cannot mutate an empty audio source"; // copy the cutRegions error message
-                return await audioSource.cutRegions([ 0, start, end, audioSource.src.duration ]);
+                return await audioSource.cutRegions([ 0, start, end, audioSource.src.length ]);
         }
     }
     async audioSourceBasicEffect(args) {

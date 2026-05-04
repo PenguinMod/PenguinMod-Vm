@@ -306,7 +306,7 @@ class BaseAudioSource {
      * - `[0, 0]` will result in samples 0+ kept. No samples are removed.
      * 
      * An even number of points is expected, and the sample times should be in chronological order.
-     * Sample times are expected to be integers.
+     * Sample times are expected to be integers, and should not exceed the bounds of the .
      * @param {Array<number>} points [start, end] sample times for each slice.
      */
     async cutRegions(points) {
@@ -321,6 +321,8 @@ class BaseAudioSource {
             newBufferLength -= end - start;
         }
 
+        // create the dest buffer
+        // NOTE: we actually cant make a buffer of length 0 so we have to disobey the expected result in src.duration cuts
         const destinationBuffer = this._audioContext.createBuffer(
             buffer.numberOfChannels,
             Math.max(newBufferLength, 1),
@@ -331,21 +333,21 @@ class BaseAudioSource {
             const sourceData = buffer.getChannelData(channel);
             const destinationData = destinationBuffer.getChannelData(channel);
 
-            let skippingSamples = false;
-            let skippedSamples = 0;
+            // an even pointsIndex means points[pointsIndex] is a start of cut region
+            // an odd pointsIndex means points[pointsIndex] is an end of cut region
             let pointsIndex = 0;
+            let skippedSamples = 0;
             for (let i = 0; i < buffer.length; i++) {
                 // check if the current sample is entering/exiting a cut region
                 // we use while since cropping audio may cause cases of [0, 0, 44100, 95000] (notice the 0, 0)
-                // in this case we should handle a 0 length cut
-                while (i >= (points[pointsIndex] ?? Infinity)) {
-                    // if not skipping samples, the new points[pointsIndex] should be where the cut region ends
-                    // if skipping samples, the new points[pointsIndex] should be where the next cut region starts
-                    skippingSamples = !skippingSamples;
+                // in this case we should handle a 0 length cut by just ignoring it
+                while (pointsIndex < points.length && i >= points[pointsIndex]) {
                     pointsIndex++;
                 }
 
-                // if we are skipping samples, then we should count to know how far to offset idx by in the dest
+                // if odd pointsIndex then this sample is inside a cutting region
+                // if we are skipping samples, then we should count in skippedSamples to know how far to offset idx by in the dest
+                const skippingSamples = (pointsIndex % 2 === 1);
                 if (skippingSamples) {
                     skippedSamples++;
                     continue;
