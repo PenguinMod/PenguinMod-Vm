@@ -1,17 +1,9 @@
 /**
- * An audio group in the jgExtendedAudio extension.
+ * An audio effect in the jgExtendedAudio extension.
  * Contains audio sources, and has global settings that are applied to all sources.
- * @type {AudioGroup}
+ * @type {AudioEffect}
  */
-class AudioGroup {
-    /**
-     * The properties to add at the start of an audio group's creation.
-     * @typedef {Object} AudioGroupSetupProperties
-     * @property {number | null} volume The global volume for all sources in this audio group. Acts like a multiplier.
-     * @property {number | null} speed The global speed for all sources in this audio group. Acts like a multiplier.
-     * @property {number | null} detune The global detune for all sources in this audio group.
-     * @property {number | null} pan The global pan for all sources in this audio group. Range from -1 to 1. -1 = left ear, 1 = right ear
-     */
+class AudioEffect {
     /**
      * Create an audio group with optional properties.
      * @param {AudioGroupSetupProperties?} properties The properties to add at the start of the audio group's creation.
@@ -84,4 +76,4 @@ class AudioGroup {
     }
 };
 
-module.exports = AudioGroup;
+module.exports = AudioEffect;
