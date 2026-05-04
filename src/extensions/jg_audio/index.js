@@ -466,7 +466,9 @@ class AudioExtension {
                         { text: "render time position", value: "render time position" },
                         { text: "sound length", value: "sound length" },
                         { text: "calculated sound length", value: "calculated sound length" },
-                        { text: "origin clip name", value: "origin sound" },
+                        { text: "clip name", value: "origin sound" },
+                        { text: "clip sample rate", value: "clip sample rate" },
+                        { text: "clip channels", value: "clip channels" },
                     ]
                 },
                 wavExportOptions: {
@@ -950,9 +952,15 @@ class AudioExtension {
                 return audioSource.duration;
             case "calculated sound length":
                 return audioSource.scaledDuration;
-            case "origin clip name":
+            case "clip name":
             case "origin sound":
                 return audioSource.originAudioName;
+            case "clip sample rate":
+                if (!audioSource.src) return "";
+                return audioSource.src.sampleRate;
+            case "clip channels":
+                if (!audioSource.src) return 0;
+                return audioSource.src.numberOfChannels;
             default:
                 return "";
         }
