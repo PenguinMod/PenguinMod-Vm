@@ -119,6 +119,8 @@ class AudioEffectsExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
+                // TODO: Add a stitch block that prepends or appends an audio clip (needed because insert would prevent either start or end from being used exactly)
+                // TODO: Add an insert block that places an audio clip in the place of a sample (basically stitch but place anywhere inside.) Mixing is not going to be added because you can do it with rendering blocks
                 {
                     opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {

@@ -233,6 +233,8 @@ class AudioExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
+                // TODO: Add a block to just make a blank buffer with channel count, sample rate, length
+                "---",
                 {
                     opcode: 'audioSourcePlayerOption', text: '[PLAYEROPTION] source [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
@@ -242,7 +244,6 @@ class AudioExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
-                "---",
                 {
                     opcode: 'audioSourceSetBooleanOption', text: 'set source [NAME] [OPTION] in [AUDIOGROUP] to [BOOL]', blockType: BlockType.COMMAND,
                     arguments: {
@@ -799,6 +800,7 @@ class AudioExtension {
         targetSource.src = sourceSource.src;
         targetSource.originAudioName = sourceSource.originAudioName;
     }
+
     audioSourcePlayerOption(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         if (!audioGroup) return;
@@ -807,7 +809,6 @@ class AudioExtension {
         if (!["play", "pause", "stop"].includes(args.PLAYEROPTION)) return;
         audioSource[args.PLAYEROPTION]();
     }
-
     audioSourceSetBooleanOption(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         if (!audioGroup) return;
