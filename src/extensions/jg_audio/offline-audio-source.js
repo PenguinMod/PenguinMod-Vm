@@ -26,6 +26,7 @@ class OfflineAudioSource extends BaseAudioSource {
         source.buffer = this.src;
         source.connect(this._audioGainNode);
 
+        // TODO: IMPORTANT: Implement looping in OfflineAudioSources
         // we need to know when the sound starts, so we know how long to play for
         // we also need to change endTimePos if we are looping
         let startTimePos = atTime ?? this.startPosition;

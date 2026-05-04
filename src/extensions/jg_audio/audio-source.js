@@ -81,7 +81,6 @@ class AudioSource extends BaseAudioSource {
     get paused() {
         return this._paused;
     }
-
     
     /**
      * Analyzes the current output volume of this AudioSource.
