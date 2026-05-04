@@ -253,6 +253,29 @@ class BaseAudioSource {
         }
         this.src = destinationBuffer;
     }
+    /**
+     * Silences the audio buffer.
+     */
+    async silence() {
+        if (!this.src) throw "Cannot silence an empty audio source";
+
+        const buffer = this.src;
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length,
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            for (let i = 0; i < buffer.length; i++) {
+                destinationData[i] = sourceData[i] * 0;
+            }
+        }
+        this.src = destinationBuffer;
+    }
 };
 
 module.exports = BaseAudioSource;

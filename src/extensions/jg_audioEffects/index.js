@@ -99,16 +99,9 @@ class AudioEffectsExtension {
                     hideFromPalette: !hasAudioGroups,
                 },
                 {
-                    opcode: 'audioSourceReverse', text: 'reverse clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
-                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
-                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
-                    },
-                    hideFromPalette: !hasAudioGroups,
-                },
-                {
-                    opcode: 'audioSourceInvertPhase', text: 'invert phase of clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
-                    arguments: {
+                        EFFECT: { type: ArgumentType.STRING, menu: 'basicEffect', defaultValue: "" },
                         NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
                         AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
                     },
@@ -117,6 +110,14 @@ class AudioEffectsExtension {
             ],
             menus: {
                 audioGroup: 'fetchAudioGroupMenu',
+                basicEffect: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "silence", value: "silence" },
+                        { text: "reverse", value: "reverse" },
+                        { text: "invert", value: "invert" },
+                    ]
+                },
             },
         };
     }
@@ -133,21 +134,22 @@ class AudioEffectsExtension {
     }
 
     // blocks
-    async audioSourceReverse(args) {
+    // Mutations
+    async audioSourceBasicEffect(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
         if (!audioGroup) return;
         const audioSource = audioGroup.sources[target];
         if (!audioSource) return;
-        await audioSource.reverse();
-    }
-    async audioSourceInvertPhase(args) {
-        const audioGroup = this.audioGroups[args.AUDIOGROUP];
-        const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
-        const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
-        await audioSource.invert();
+
+        switch (args.EFFECT) {
+            case "silence":
+                return await audioSource.silence();
+            case "reverse":
+                return await audioSource.reverse();
+            case "invert":
+                return await audioSource.invert();
+        }
     }
 }
 
