@@ -130,7 +130,17 @@ class AudioEffectsExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
-                // TODO: Add an insert block that places an audio clip in the place of a sample (basically stitch but place anywhere inside.) Mixing is not going to be added because you can do it with rendering blocks
+                {
+                    opcode: 'audioSourceInsert', text: 'insert clip from [SRCNAME] in [SRCAUDIOGROUP] at [SECONDS] seconds into [TARNAME] in [TARAUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        SRCNAME: { type: ArgumentType.STRING, defaultValue: "AudioSource2" },
+                        SRCAUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                        SECONDS: { type: ArgumentType.NUMBER, defaultValue: 1 },
+                        TARNAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        TARAUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
                 {
                     opcode: 'audioSourceBasicEffect', text: '[EFFECT] clip in [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
                     arguments: {
@@ -193,9 +203,9 @@ class AudioEffectsExtension {
     async audioSourceAmplify(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
+        if (!audioGroup) throw "Invalid audio group";
         const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
+        if (!audioSource) throw "Invalid audio source";
 
         const level = Cast.toNumber(args.AMOUNT);
         switch (args.METHOD) {
@@ -214,9 +224,9 @@ class AudioEffectsExtension {
     async audioSourceTrim(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
+        if (!audioGroup) throw "Invalid audio group";
         const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
+        if (!audioSource) throw "Invalid audio source";
         if (!audioSource.src) throw "Cannot mutate an empty audio source"; // copy the cutRegions error message
 
         // validate, we convert to sample times here to make sure we never exceed src.length
@@ -238,14 +248,15 @@ class AudioEffectsExtension {
     }
     async audioSourceStitch(args) {
         const sourceGroup = this.audioGroups[Cast.toString(args.SRCAUDIOGROUP)];
-        if (!sourceGroup) return;
+        if (!sourceGroup) throw "Invalid audio group";
         const sourceSource = sourceGroup.sources[Cast.toString(args.SRCNAME)];
-        if (!sourceSource) return;
+        if (!sourceSource) throw "Invalid audio source";
+        if (!sourceSource.src) throw "Cannot mutate an empty audio source"; // copy the stitchBuffer error message
 
         const targetGroup = this.audioGroups[Cast.toString(args.TARAUDIOGROUP)];
-        if (!targetGroup) return;
-        const targetSource = sourceGroup.sources[Cast.toString(args.TARNAME)];
-        if (!targetSource) return;
+        if (!targetGroup) throw "Invalid audio group";
+        const targetSource = targetGroup.sources[Cast.toString(args.TARNAME)];
+        if (!targetSource) throw "Invalid audio source";
 
         switch (Cast.toString(args.SIDE)) {
             case "start":
@@ -254,12 +265,36 @@ class AudioEffectsExtension {
                 return await targetSource.stitchBuffer(sourceSource.src, true);
         }
     }
+    async audioSourceInsert(args) {
+        const sourceGroup = this.audioGroups[Cast.toString(args.SRCAUDIOGROUP)];
+        if (!sourceGroup) throw "Invalid audio group";
+        const sourceSource = sourceGroup.sources[Cast.toString(args.SRCNAME)];
+        if (!sourceSource) throw "Invalid audio source";
+        if (!sourceSource.src) throw "Cannot mutate an empty audio source"; // copy the insertBuffer error message
+
+        const targetGroup = this.audioGroups[Cast.toString(args.TARAUDIOGROUP)];
+        if (!targetGroup) throw "Invalid audio group";
+        const targetSource = targetGroup.sources[Cast.toString(args.TARNAME)];
+        if (!targetSource) throw "Invalid audio source";
+        if (!targetSource.src) throw "Cannot mutate an empty audio source"; // copy the insertBuffer error message
+
+        // for simplicity and because seconds aren't accurate to the sample anyway,
+        // specifying 0 will use stitchBuffer prepend
+        // and specifying ~duration+ will use stitchBuffer append
+        const seconds = Cast.toNumber(args.SECONDS);
+        const sampleTime = Math.round(seconds * targetSource.src.sampleRate);
+        if (sampleTime <= 0)
+            return await targetSource.stitchBuffer(sourceSource.src, false);
+        if (sampleTime >= targetSource.src.length)
+            return await targetSource.stitchBuffer(sourceSource.src, true);
+        await targetSource.insertBuffer(sourceSource.src, sampleTime);
+    }
     async audioSourceBasicEffect(args) {
         const audioGroup = this.audioGroups[args.AUDIOGROUP];
         const target = Cast.toString(args.NAME);
-        if (!audioGroup) return;
+        if (!audioGroup) throw "Invalid audio group";
         const audioSource = audioGroup.sources[target];
-        if (!audioSource) return;
+        if (!audioSource) throw "Invalid audio source";
 
         switch (args.EFFECT) {
             case "silence":

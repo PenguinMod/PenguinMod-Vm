@@ -306,7 +306,7 @@ class BaseAudioSource {
      * - `[0, 0]` will result in samples 0+ kept. No samples are removed.
      * 
      * An even number of points is expected, and the sample times should be in chronological order.
-     * Sample times are expected to be integers, and should not exceed the bounds of the .
+     * Sample times are expected to be integers, and should not exceed the bounds of the audio.
      * @param {Array<number>} points [start, end] sample times for each slice.
      */
     async cutRegions(points) {
@@ -386,6 +386,39 @@ class BaseAudioSource {
                 destinationData.set(sourceData, 0);
                 destinationData.set(addingData, sourceData.length);
             }
+        }
+        this.src = destinationBuffer;
+    }
+    /**
+     * Inserts a buffer to the sample index into the audio buffer.
+     * 
+     * Note that unlike other methods, sample times are expected.
+     * Sample times are expected to be integers, and should not exceed the bounds of the audio.
+     * 
+     * For placements exactly at the beginning or end of the audio buffer, `BaseAudioSource.stitchBuffer` may be more accurate.
+     * @param {AudioBuffer} addingBuffer The buffer to stitch together
+     * @param {number} sampleTime The sample time position/index where to insert the new buffer.
+     */
+    async insertBuffer(addingBuffer, sampleTime) {
+        if (!this.src) throw "Cannot mutate an empty audio source";
+        if (this.src.sampleRate !== addingBuffer.sampleRate) throw "Cannot work with mismatched sample rates";
+        if (this.src.numberOfChannels !== addingBuffer.numberOfChannels) throw "Cannot work with mismatched channel counts";
+
+        const buffer = this.src;
+        const destinationBuffer = this._audioContext.createBuffer(
+            buffer.numberOfChannels,
+            buffer.length + addingBuffer.length,
+            buffer.sampleRate
+        );
+
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const sourceData = buffer.getChannelData(channel);
+            const addingData = addingBuffer.getChannelData(channel);
+            const destinationData = destinationBuffer.getChannelData(channel);
+
+            destinationData.set(sourceData.subarray(0, sampleTime), 0);
+            destinationData.set(addingData, sampleTime);
+            destinationData.set(sourceData.subarray(sampleTime), sampleTime + addingBuffer.length);
         }
         this.src = destinationBuffer;
     }
