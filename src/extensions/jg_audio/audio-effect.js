@@ -1,78 +1,20 @@
 /**
  * An audio effect in the jgExtendedAudio extension.
- * Contains audio sources, and has global settings that are applied to all sources.
+ * Contains the logic for creating Web Audio API nodes for effects
  * @type {AudioEffect}
  */
 class AudioEffect {
-    /**
-     * Create an audio group with optional properties.
-     * @param {AudioGroupSetupProperties?} properties The properties to add at the start of the audio group's creation.
-     */
-    constructor(properties = {}) {
-        const { volume, speed, detune, pan } = properties;
+    constructor() {
+        /**
+         * The AudioSource this effect is attached to.
+         * @type {import("./audio-source")}
+         */
+        this.source = null;
+    }
+
+    // TODO: Implement AudioEffect
+    attach(source) {
         
-        /**
-         * An object with id to AudioSource pairs.
-         * @type {Object<string, import("./audio-source")>}
-         */
-        this.sources = {};
-
-        /**
-         * The global volume for all sources in this audio group.
-         * Acts like a multiplier.
-         * @type {number}
-         */
-        this.volume = volume ?? 1;
-        /**
-         * The global speed for all sources in this audio group.
-         * Acts like a multiplier.
-         * @type {number}
-         */
-        this.speed = speed ?? 1;
-        /**
-         * The global detune for all sources in this audio group.
-         * @type {number}
-         */
-        this.detune = detune ?? 0;
-        /**
-         * The global pan for all sources in this audio group.
-         * Range from -1 to 1. -1 = left ear, 1 = right ear
-         * @type {number}
-         */
-        this.pan = pan ?? 0;
-    }
-
-    /**
-     * Propagate updates from the audio group to audio sources.
-     */
-    updateSources () {
-        for (const audioSourceId in this.sources) {
-            const audioSource = this.sources[audioSourceId];
-            audioSource.update();
-        }
-    }
-    /**
-     * Dispose of all sources in the audio group.
-     * Lets you easily delete the whole audio group.
-     */
-    disposeSources () {
-        // i dont like deleting things while looping through them
-        const audioSourceIds = Object.keys(this.sources);
-        for (const audioSourceId of audioSourceIds) {
-            const audioSource = this.sources[audioSourceId];
-            audioSource.dispose();
-            delete this.sources[audioSourceId];
-        }
-    }
-    /**
-     * Removes an audio source from the sources list if it exists.
-     */
-    disposeIfExists (sourceId) {
-        const existingSource = this.sources[sourceId];
-        if (existingSource) {
-            existingSource.dispose();
-            delete this.sources[sourceId];
-        }
     }
 };
 

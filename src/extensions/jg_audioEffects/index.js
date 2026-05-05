@@ -3,6 +3,28 @@ const ArgumentType = require('../../extension-support/argument-type');
 const xmlEscape = require("../../util/xml-escape");
 const Cast = require('../../util/cast');
 
+const AUDIO_EFFECT_SHAPE = "jgExtendedAudioEffects-jgExtendedAudioEffectType";
+
+class AudioEffectBlock {
+    constructor() {
+        /**
+         * The customId of this custom type
+         */
+        this.customId = "jgExtendedAudioEffectType";
+
+        /**
+         * @type {import("../jg_audio/audio-effect"))}
+         */
+        this.effect = null;
+    }
+
+    // TODO: Figure out serialization.
+    // TODO: Implement the actual functionality of AudioEffectBlock.
+    toReporterContent() {
+
+    }
+}
+
 /**
  * Class for frontend to jgExtendedAudio effects (jgExtendedAudioEffects)
  * @constructor
@@ -150,6 +172,22 @@ class AudioEffectsExtension {
                     },
                     hideFromPalette: !hasAudioGroups,
                 },
+                "---",
+                // Effects
+                {
+                    text: "Effects", blockType: BlockType.LABEL,
+                    hideFromPalette: !hasAudioGroups,
+                },
+                {
+                    opcode: 'audioSourceAttachEffect', text: '[ASSIGNMENT] [EFFECT] for [NAME] in [AUDIOGROUP]', blockType: BlockType.COMMAND,
+                    arguments: {
+                        ASSIGNMENT: { type: ArgumentType.STRING, menu: 'effectAssignment', defaultValue: "" },
+                        EFFECT: { shape: AUDIO_EFFECT_SHAPE, check: AUDIO_EFFECT_SHAPE, exemptFromNormalization: true, },
+                        NAME: { type: ArgumentType.STRING, defaultValue: "AudioSource1" },
+                        AUDIOGROUP: { type: ArgumentType.STRING, menu: 'audioGroup', defaultValue: "" },
+                    },
+                    hideFromPalette: !hasAudioGroups,
+                },
             ],
             menus: {
                 audioGroup: 'fetchAudioGroupMenu',
@@ -181,6 +219,13 @@ class AudioEffectsExtension {
                     items: [
                         { text: "start", value: "start" },
                         { text: "end", value: "end" },
+                    ]
+                },
+                effectAssignment: {
+                    acceptReporters: true,
+                    items: [
+                        { text: "attach", value: "attach" },
+                        { text: "detach", value: "detach" },
                     ]
                 },
             },
@@ -306,6 +351,21 @@ class AudioEffectsExtension {
             case "invert":
                 return await audioSource.invert();
         }
+    }
+
+    // Effects
+    // TODO: What happens when you duplicate an audio source? Can audio effects be shared between sources, or will new instances be made?
+    // TODO: Can audio effects be applied to entire groups?
+    // TODO: Figure out how timing functions will work since rendering will need them
+    audioSourceAttachEffect(args) {
+        const audioGroup = this.audioGroups[Cast.toString(args.AUDIOGROUP)];
+        if (!audioGroup) return;
+        const audioSource = audioGroup.sources[Cast.toString(args.NAME)];
+        if (!audioSource) return;
+
+        /** @type {AudioEffectBlock} */
+        const effectBlock = args.EFFECT;
+        effectBlock.effect.source = audioSource;
     }
 }
 
