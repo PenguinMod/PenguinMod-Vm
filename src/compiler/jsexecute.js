@@ -600,7 +600,7 @@ runtimeFunctions.resolveImageURL = `const resolveImageURL = imgURL =>
     typeof imgURL === 'object' && imgURL.type === 'canvas'
         ? Promise.resolve(imgURL.canvas)
         : new Promise(async resolve => {
-            if (!await vm.securityManager.canFetch(imgUrl)) return resolve(imgURL);
+            if (!await vm.securityManager.canFetch(imgUrl)) return resolve();
             const image = new Image();
             image.crossOrigin = "anonymous";
             image.onload = resolve(image);
