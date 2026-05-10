@@ -2249,15 +2249,15 @@ class canvas {
                     code +=     `textMeasure = ${ctx}.measureText(text);\n`;
                     code +=     `${cache}[text + ${ctx}.font] = textMeasure;\n`;
                     code += '}\n';
-                    code += 'return textMeasure.';
+                    code += 'return textMeasure[';
                     switch (node.prop) {
                     case 'height': 
-                        code += `actualBoundingBoxAscent + textMeasure.actualBoundingBoxDescent`;
+                        code += `'actualBoundingBoxAscent'] + textMeasure['actualBoundingBoxDescent'`;
                         break;
                     default:
-                        code += node.prop;
+                        code += JSON.stringify(node.prop);
                     }
-                    code += `;})(${text})`;
+                    code += `];})(${text})`;
 
                     return new TypedInput(code, TYPE_NUMBER);
                 }
