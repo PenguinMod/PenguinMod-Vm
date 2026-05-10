@@ -125,7 +125,7 @@ class ArrayType {
     }
 
     toMonitorContent() {
-        return span(this.toString());
+        return span(escapeHTML(this.toString()));
     }
 
     toReporterContent() {

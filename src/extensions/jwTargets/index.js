@@ -6,7 +6,7 @@ const Cast = require('../../util/cast')
 
 function span(text) {
     let el = document.createElement('span')
-    el.innerHTML = text
+    el.innerText = text
     el.style.display = 'hidden'
     el.style.whiteSpace = 'nowrap'
     el.style.width = '100%'

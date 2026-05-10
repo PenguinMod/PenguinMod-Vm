@@ -18,7 +18,7 @@ function formatNumber(x) {
 
 function span(text) {
     let el = document.createElement('span')
-    el.innerHTML = text
+    el.innerText = text
     el.style.display = 'hidden'
     el.style.width = '100%'
     el.style.boxSizing = 'border-box'
