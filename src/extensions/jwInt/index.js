@@ -339,7 +339,7 @@ class Extension {
                         "signed",
                         "unsigned"
                     ]
-                }
+                },
                 stringifyFormat: {
                     acceptReporters: false,
                     items: [
