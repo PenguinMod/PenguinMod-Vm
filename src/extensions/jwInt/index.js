@@ -17,7 +17,7 @@ class IntType {
     customId = "jwInt"
 
     constructor(x = 0n) {
-        this.number = x instanceof BigInt ? x : BigInt(x);
+        this.number = x;
     }
 
     static toInt(x) {
@@ -107,7 +107,7 @@ class Extension {
         vm.runtime.registerSerializer(
             "jwInt",
             v => v.number.toString(),
-            v => new IntType(v)
+            v => new IntType(BigInt(v))
         );
     }
 
@@ -273,17 +273,40 @@ class Extension {
                     },
                     ...jwInt.Block
                 },
+                {
+                    opcode: "not",
+                    text: "~ [INT]",
+                    arguments: {
+                        INT: jwInt.Argument
+                    },
+                    ...jwInt.Block
+                },
                 "---",
                 {
                     opcode: "mathop",
                     text: "[MATHOP] of [INPUT]",
                     arguments: {
                         MATHOP: {
-                            type: ArgumentType.MENU,
                             defaultValue: "abs",
                             menu: "mathop"
                         },
                         INPUT: jwInt.Argument
+                    },
+                    ...jwInt.Block
+                },
+                {
+                    opcode: "truncate",
+                    text: "truncate [INT] to [BITS] bits [SIGN]",
+                    arguments: {
+                        INT: jwInt.Argument,
+                        BITS: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 64
+                        },
+                        SIGN: {
+                            defaultValue: "signed",
+                            menu: "sign"
+                        }
                     },
                     ...jwInt.Block
                 },
@@ -295,7 +318,6 @@ class Extension {
                     arguments: {
                         INPUT: jwInt.Argument,
                         FORMAT: {
-                            type: ArgumentType.MENU,
                             defaultValue: "default",
                             menu: "stringifyFormat"
                         }
@@ -309,6 +331,13 @@ class Extension {
                         "abs",
                         "log",
                         "sign"
+                    ]
+                },
+                sign: {
+                    acceptReporters: false,
+                    items: [
+                        "signed",
+                        "unsigned"
                     ]
                 },
                 stringifyFormat: {
@@ -432,21 +461,44 @@ class Extension {
         return new jwInt.Type(A.number >> B.number)
     }
 
+    not({INT}) {
+        INT = jwInt.Type.toInt(INT);
+        return new jwInt.Type(~INT.number);
+    }
+
     mathop({MATHOP, INPUT}) {
         INPUT = jwInt.Type.toInt(INPUT);
         switch (MATHOP) {
             case "abs":
                 return new jwInt.Type(INPUT.number > 0n ? INPUT.number : -INPUT.number);
             case 'log':
-                if (INPUT.number < 1n) return new jwInt.Type(-1);
+                if (INPUT.number < 1n) return new jwInt.Type(-1n);
                 else return new jwInt.Type(INPUT.number.toString().length - 1);
             case "sign":
-                if (INPUT.number === 0n) return new jwInt.Type(0);
-                else if (INPUT.number > 0n) return new jwInt.Type(1);
-                else return new jwInt.Type(-1);
+                if (INPUT.number === 0n) return new jwInt.Type();
+                else if (INPUT.number > 0n) return new jwInt.Type(1n);
+                else return new jwInt.Type(-1n);
             default: 
                 return INPUT;
         }
+    }
+
+    truncate({INT, BITS, SIGN}) {
+        INT = jwInt.Type.toInt(INT);
+        BITS = Cast.toNumber(BITS);
+        
+        if (BITS < 0) return new jwInt.Type();
+
+        try {
+            switch (SIGN) {
+                case "signed":
+                    return new jwInt.Type(BigInt.asIntN(BITS, INT.number));
+                case "unsigned":
+                    return new jwInt.Type(BigInt.asUintN(BITS, INT.number));
+            }
+        } catch (e) {}
+
+        return INT;
     }
 
     stringify({INPUT, FORMAT}) {
