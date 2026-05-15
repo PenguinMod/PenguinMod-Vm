@@ -3924,7 +3924,7 @@ class Runtime extends EventEmitter {
         }
         this.cameraStates[screen] = state =
             Object.assign(this.cameraStates[screen], state);
-        if (!silent ?? state.silent) this.emitCameraChanged(screen);
+        if (!(silent ?? state.silent)) this.emitCameraChanged(screen);
     }
     emitCameraChanged(screen) {
         for (let i = 0; i < this.targets.length; i++)
