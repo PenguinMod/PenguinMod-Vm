@@ -504,7 +504,7 @@ class JSGenerator {
         for (let i = this.frames.length - 1; i >= 0; i--) {
             const frame = this.frames[i];
             if (frame.overrideLoop) {
-                return frame.isLoop
+                return false;
             }
             if (!frame.isLastBlock) {
                 return false;
