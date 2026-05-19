@@ -614,6 +614,7 @@ runtimeFunctions.parseJSONSafe = `const parseJSONSafe = json => {
 }`;
 
 runtimeFunctions._resolveKeyPath = `const _resolveKeyPath = (obj, keyPath) => {
+    if (!keyPath) return [obj, keyPath];
     const path = keyPath.matchAll(/(\\.|^)(?<key>[^.[]+)|\\[(?<litkey>(\\\\\\]|\\\\|[^]])+)\\]/g);
     let top = obj;
     let pre;
