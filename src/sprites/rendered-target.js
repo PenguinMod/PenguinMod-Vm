@@ -66,6 +66,8 @@ class RenderedTarget extends Target {
             blue: 0,
             opaque: 0,
             saturation: 0,
+            repeatX: 0,
+            repeatY: 0,
             // we add 1 since 0x000000 = 0, effects set to 0 will not even be enabled in the shader 
             // (so we can never tint to black if we didnt add 1)
             tintColor: 0xffffff + 1,
