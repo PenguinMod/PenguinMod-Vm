@@ -10,6 +10,7 @@ const Cast = require('../../util/cast');
    * @returns {number}
    */
 const interpolate = (time, a, b) => {
+    // don't restrict range of time as some easing functions are expected to go outside the range
     const multiplier = b - a;
     return time * multiplier + a;
 };
@@ -129,6 +130,10 @@ const EasingMethods = {
 
 class Tween {
     constructor(runtime) {
+        /**
+         * The runtime instantiating this block package.
+         * @type {Runtime}
+         */
         this.runtime = runtime;
     }
 
@@ -323,7 +328,7 @@ class Tween {
                     items: ["in", "out", "in out"]
                 },
                 vars: {
-                    acceptReporters: false,
+                    acceptReporters: false, // for Scratch parity
                     items: "getVariables"
                 },
                 properties: {
@@ -344,6 +349,7 @@ class Tween {
                     .map(model => ({ text: model.name, value: model.getId() }));
         if (variables.length > 0) return variables;
         return [{ text: "", value: "" }];
+        
     }
 
     tweenValue(args) {
@@ -354,6 +360,7 @@ class Tween {
         const progress = Cast.toNumber(args.AMOUNT) / 100;
 
         if (!Object.prototype.hasOwnProperty.call(EasingMethods, easeMethod)) {
+            // Unknown method
             return start;
         }
         const easingFunction = EasingMethods[easeMethod];
@@ -363,9 +370,13 @@ class Tween {
     }
 
     _tweenValue(args, util, id, valueArgName, currentValue, propertyName) {
+        // Only use args on first run. For later executions grab everything from stackframe.
+        // This ensures that if the arguments change, the tweening won't change. This matches
+        // the vanilla Scratch glide blocks.
         const state = util.stackFrame[id];
 
         if (!state) {
+            // First run, need to start timer
             util.yield();
 
             const easeMethod = Cast.toString(args.MODE);
@@ -450,15 +461,20 @@ class Tween {
         const property = args.PROPERTY;
         const id = util.target.id;
 
+        // supposedly for i loop is faster (garbo seemed to say this before too?)
         for (let i = 0; i < this.runtime.threads.length; i++) {
             const thread = this.runtime.threads[i];
             if (!thread.target) continue;
             if (thread.target.id !== id) continue;
+            // some threads dont have a stackFrame from util
             if (!thread.compatibilityStackFrame) continue;
+            // x position and y position should also cancel the tweenXY block
             const propertyFrame = thread.compatibilityStackFrame[""] ||
                 (property === "x position" ? thread.compatibilityStackFrame["x"] : null) ||
                 (property === "y position" ? thread.compatibilityStackFrame["y"] : null);
+            // this thread did not have a property tween
             if (!propertyFrame) continue;
+            // check if the property being tweened is the one we are cancelling
             if (propertyFrame.propertyName !== property) continue;
             propertyFrame.cancelled = true;
         }
