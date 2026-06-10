@@ -77,6 +77,17 @@ class ArrayType {
         return new ArrayType([x], true)
     }
 
+    static validArray(x) {
+        if (x instanceof ArrayType) return true;
+        if (x instanceof Array) return true;
+        if (typeof x == "object" && typeof x.toJSON == "function") return true;
+        try {
+            let parsed = JSON.parse(Cast.toString(x));
+            if (parsed instanceof Array) return true;
+        } catch {}
+        return false;
+    }
+
     static forArray(x) {
         if (x instanceof ArrayType) return new ArrayType([...x.array])
         if (x instanceof Array) return new ArrayType([...x])
@@ -664,7 +675,20 @@ class Extension {
                         }
                     },
                     ...jwArray.Block
-                }
+                },
+                "---",
+                {
+                    opcode: 'validate',
+                    text: 'is [INPUT] a valid array?',
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        INPUT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: '["a", "b", "c"]',
+                            exemptFromNormalization: true
+                        }
+                    }
+                },
             ],
             menus: {
                 list: {
@@ -948,6 +972,10 @@ class Extension {
 
     basicSort() {
         return 'noop'
+    }
+    
+    validate({INPUT}) {
+        return jwArray.Type.validArray(INPUT);
     }
 }
 
