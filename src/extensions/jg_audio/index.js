@@ -28,7 +28,11 @@ class AudioExtension {
             }
         });
 
-        this.runtime.registerExtensionAudioContext("jgExtendedAudio", this.helper.audioContext, this.helper.audioGlobalVolumeNode);
+        this.runtime.registerExtensionIntegrationComponents("jgExtendedAudio", [], {
+            audioContexts: [this.helper.audioContext],
+            audioNodes: [this.helper.audioGlobalVolumeNode],
+            gainNodes: [this.helper.audioGlobalVolumeNode],
+        });
     }
 
     deserialize(data) {
