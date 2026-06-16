@@ -45,19 +45,40 @@ const OPERATORS = [
         opcode: 'operator_gt',
         symbol: '&gt;',
         execute: (a, b) => Cast.compare(a, b) > 0
-    }
+    },
+    {
+        opcode: 'operator_ltorequal',
+        symbol: '&lt;=',
+        execute: (a, b) => Cast.compare(a, b) <= 0
+    },
+    {
+        opcode: 'operator_notequal',
+        symbol: '≠',
+        execute: (a, b) => Cast.compare(a, b) !== 0
+    },
+    {
+        opcode: 'operator_gtorequal',
+        symbol: '&gt;=',
+        execute: (a, b) => Cast.compare(a, b) >= 0
+    },
 ];
 
 const NEXT = '{{NEXT}}';
+const MSG_DURATION = '2';
 
 let result = `
 <xml>
     <block type="event_whenflagclicked">
         <next>
-            <block type="looks_say">
+            <block type="looks_sayforsecs">
                 <value name="MESSAGE">
                     <shadow type="text">
                         <field name="TEXT">plan 0</field>
+                    </shadow>
+                </value>
+                <value name="SECS">
+                    <shadow type="math_number">
+                        <field name="NUM">${MSG_DURATION}</field>
                     </shadow>
                 </value>
                 ${NEXT}
@@ -106,10 +127,15 @@ for (const i of VALUES) {
                         </block>
                     </value>
                     <statement name="SUBSTACK">
-                        <block type="looks_say">
+                        <block type="looks_sayforsecs">
                             <value name="MESSAGE">
                                 <shadow type="text">
                                     <field name="TEXT">fail ${n}: ${i} should be ${operator.symbol} ${j}</field>
+                                </shadow>
+                            </value>
+                            <value name="SECS">
+                                <shadow type="math_number">
+                                    <field name="NUM">${MSG_DURATION}</field>
                                 </shadow>
                             </value>
                         </block>
@@ -124,10 +150,15 @@ for (const i of VALUES) {
 
 result = result.replace(NEXT, `
 <next>
-    <block type="looks_say">
+    <block type="looks_sayforsecs">
         <value name="MESSAGE">
             <shadow type="text">
                 <field name="TEXT">end</field>
+            </shadow>
+        </value>
+        <value name="SECS">
+            <shadow type="math_number">
+                <field name="NUM">${MSG_DURATION}</field>
             </shadow>
         </value>
     </block>
