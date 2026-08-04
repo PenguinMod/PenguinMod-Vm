@@ -70,6 +70,7 @@ class LambdaType {
         if (this.procedureFactories) {
             thread.procedures = {
                 ...Object.fromEntries(Object.entries(this.procedureFactories).map(
+                    // Only call the factory if the procedure doesn't already exist in `thread.procedures`
                     ([key, factory]) => [key, thread.procedures.hasOwnProperty(key) ? null : factory(thread)]
                 )),
                 ...thread.procedures
