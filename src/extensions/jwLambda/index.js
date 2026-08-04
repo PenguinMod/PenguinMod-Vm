@@ -38,7 +38,7 @@ class LambdaType {
 
     constructor(func = function*() {}, thread) {
         this.func = func
-        this.proc = thread ? thread.procedures : {}
+        this.procedureFactories = thread ? thread.procedureFactories : {}
         this.timesExecuted = 0
     }
 
@@ -67,7 +67,15 @@ class LambdaType {
     execute = function* (arg, thread, target, runtime, stage) {
         thread._jwLambdaArgument ??= []
         thread._jwLambdaArgument.push(arg)
-        if (this.proc) thread.procedures = {...this.proc, ...thread.procedures}
+        if (this.procedureFactories) {
+            thread.procedures = {
+                ...Object.fromEntries(Object.entries(this.procedureFactories).map(
+                    ([key, factory]) => [key, thread.procedures.hasOwnProperty(key) ? null : factory(thread)]
+                )),
+                ...thread.procedures
+            }
+            thread.procedureFactories = {...this.procedureFactories, ...thread.procedureFactories}
+        }
         this.timesExecuted++
         let output = (yield* this.func(arg, thread, target, runtime, stage, this) ?? "")
         thread._jwLambdaArgument.pop()
