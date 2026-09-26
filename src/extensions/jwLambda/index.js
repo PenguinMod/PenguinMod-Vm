@@ -79,12 +79,12 @@ const Lambda = {
     Type: LambdaType,
     Block: {
         blockType: BlockType.REPORTER,
-        blockShape: BlockShape.SQUARE,
+        blockShape: BlockShape.PLUS,
         forceOutputType: "Lambda",
         disableMonitor: true
     },
     Argument: {
-        shape: BlockShape.SQUARE,
+        shape: BlockShape.PLUS,
         check: ["Lambda"]
     }
 }
@@ -122,8 +122,8 @@ class Extension {
             menuIconURI: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCI+CiAgPGVsbGlwc2Ugc3R5bGU9ImZpbGw6IHJnYigxOTksIDI2LCA3NSk7IHN0cm9rZTogcmdiKDE1OSwgMjAsIDYwKTsiIGN4PSIxMCIgY3k9IjEwIiByeT0iOS41IiByeD0iOS41Ij48L2VsbGlwc2U+CiAgPHBhdGggZD0iTSA3LjIzNyA1LjI2NCBDIDEwLjM5NSA1LjI2NCAxMC4zOTUgMTQuNzM2IDEzLjU1MSAxNC43MzYgTSAxMC4wNzkgOS4wNTMgTCA2LjQ0OSAxNC43MzYiIHN0eWxlPSJmaWxsOiBub25lOyBzdHJva2U6IHJnYigyNTUsIDI1NSwgMjU1KTsgc3Ryb2tlLWxpbmVjYXA6IHJvdW5kOyBzdHJva2Utd2lkdGg6IDJweDsiPjwvcGF0aD4KPC9zdmc+",
             blocks: [
                 {
-                    opcode: 'arg',
-                    text: 'argument',
+                    opcode: 'param',
+                    text: 'arguments',
                     blockType: BlockType.REPORTER,
                     hideFromPalette: true,
                     allowDropAnywhere: true,
@@ -131,11 +131,11 @@ class Extension {
                 },
                 {
                     opcode: 'newLambda',
-                    text: 'new lambda [ARG]',
+                    text: 'new function with args [PARAM]',
                     hideFromPalette: true,
                     arguments: {
-                        ARG: {
-                            fillIn: 'arg'
+                        PARAM: {
+                            fillIn: 'param'
                         }
                     },
                     branches: [{}],
@@ -146,7 +146,7 @@ class Extension {
                     xml: `
                     <block type="jwLambda_newLambda">
                         <value name="ARG">
-                            <shadow type="jwLambda_arg" />
+                            <shadow type="jwLambda_param" />
                         </value>
                         <value name="SUBSTACK">
                             <block type="procedures_return">
