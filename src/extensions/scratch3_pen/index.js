@@ -1178,6 +1178,7 @@ class Scratch3PenBlocks {
                 console.error('failed to load', URI, err);
                 reject('Image failed to load');
             };
+            image.crossOrigin = "anonymous";
             image.src = URI;
         });
 
