@@ -342,6 +342,8 @@ class Target extends EventEmitter {
                         });
                         // Request workspace change only if sensing_of blocks were actually updated.
                         if (blockUpdated) this.runtime.requestBlocksUpdate();
+                    } else if (variable.type === Variable.BROADCAST_MESSAGE_TYPE) {
+                        variable.value = variable.name; // value must be same as name
                     }
 
                     const blocks = this.runtime.monitorBlocks;
