@@ -203,6 +203,8 @@ class Thread {
 
         this.isCompiled = false;
 
+        this.originalStatus = null;
+
         // compiler data
         // these values only make sense if isCompiled == true
         this.timer = null;
@@ -416,6 +418,8 @@ class Thread {
      * unpause this thread
      */
     play () {
+        if (this.originalStatus === null) return;
+
         const dt = Timer.nowObj.now() - this.pauseTime;
         this.status = this.originalStatus;
 
@@ -431,6 +435,7 @@ class Thread {
         }
         
         if (this.timer) this.timer.play();
+        this.originalStatus = null;
     }
 
 
