@@ -49,8 +49,30 @@ class CameraType {
     }
 
     toReporterContent() {
-        if (typeof this.name === "symbol") return span(`Camera&lt;<u>${this.name.description}</u>&gt;`);
-        return span(`Camera&lt;${escapeHTML(this.name)}&gt;`);
+        const root = document.createElement('div');
+        root.style.display = "flex";
+        root.style.flexDirection = "column";
+
+        if (typeof this.name === "symbol") root.appendChild(span(`Camera&lt;<u>${this.name.description}</u>&gt;`));
+        else root.appendChild(span(`Camera&lt;${escapeHTML(this.name)}&gt;`));
+
+        const image = document.createElement('img');
+        root.appendChild(image);
+        image.style.width = "240px";
+        image.style.height = "180px";
+        image.style.border = "1px solid #77777777";
+        image.style.borderRadius = "4px";
+
+        vm.renderer.requestCameraSnapshot(this.name, uri => {
+            if (uri === 'data:,') return;
+            image.src = uri;
+            image.style.width = null;
+            image.style.height = null;
+            image.style.maxWidth = "240px";
+            image.style.maxHeight = "180px";
+        });
+
+        return root;
     }
 
     jwArrayHandler() {
