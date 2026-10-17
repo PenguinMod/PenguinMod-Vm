@@ -599,24 +599,10 @@ class RenderedTarget extends Target {
      * this target only has one costume.
      */
     deleteCostume (index) {
-        const originalCostumeCount = this.sprite.costumes.length;
-        if (originalCostumeCount === 1) return null;
-
-        if (index < 0 || index >= originalCostumeCount) {
-            return null;
+        const deletedCostume = this.sprite.deleteCostume(index);
+        if (deletedCostume) {
+            this.runtime.requestTargetsUpdate(this);
         }
-
-        const deletedCostume = this.sprite.deleteCostumeAt(index);
-
-        if (index === this.currentCostume && index === originalCostumeCount - 1) {
-            this.setCostume(index - 1);
-        } else if (index < this.currentCostume) {
-            this.setCostume(this.currentCostume - 1);
-        } else {
-            this.setCostume(this.currentCostume);
-        }
-
-        this.runtime.requestTargetsUpdate(this);
         return deletedCostume;
     }
 
@@ -656,18 +642,10 @@ class RenderedTarget extends Target {
      * @return {object} The deleted sound object, or null if no sound was deleted.
      */
     deleteSound (index) {
-        // Make sure the sound index is not out of bounds
-        if (index < 0 || index >= this.sprite.sounds.length) {
-            return null;
+        const deletedSound = this.sprite.deleteSound(index);
+        if (deletedSound) {
+            this.runtime.requestTargetsUpdate(this);
         }
-
-        // Delete the sound at the given index
-        const deletedSound = this.sprite.sounds.splice(index, 1)[0];
-        this.sprite.soundBank.soundPlayers[deletedSound.soundId].dispose();
-        delete this.sprite.soundBank.soundPlayers[deletedSound.soundId];
-    
-
-        this.runtime.requestTargetsUpdate(this);
         return deletedSound;
     }
 
@@ -772,7 +750,7 @@ class RenderedTarget extends Target {
         if (newIndex === soundIndex) return false;
 
         const sound = this.sprite.sounds[soundIndex];
-        this.deleteSound(soundIndex);
+        this.sprite.deleteSoundAt(soundIndex);
         this.addSound(sound, newIndex);
         return true;
     }
@@ -1281,7 +1259,6 @@ class RenderedTarget extends Target {
         }
         this.runtime.stopForTarget(this);
         this.runtime.removeExecutable(this);
-        this.sprite.removeClone(this);
         if (this.renderer && this.drawableID !== null) {
             this.renderer.destroyDrawable(this.drawableID, this.isStage ?
                 StageLayering.BACKGROUND_LAYER :
@@ -1291,6 +1268,7 @@ class RenderedTarget extends Target {
                 this.runtime.requestRedraw();
             }
         }
+        this.sprite.removeClone(this);
     }
 
     /** @deprecated */

@@ -136,6 +136,7 @@ class JSGenerator {
         this.localVariables = new VariablePool('a');
         this._setupVariablesPool = new VariablePool('b');
         this._setupVariables = {};
+        this.usesTemporaryLocal = false;
 
         this.descendedIntoModulo = false;
         this.isInHat = false;
@@ -205,10 +206,11 @@ class JSGenerator {
             if (node.target.isAlwaysType(InputType.BOOLEAN)) {
                 return `(+${this.descendInput(node.target)})`;
             }
+            this.usesTemporaryLocal = true;
             if (node.target.isAlwaysType(InputType.NUMBER_OR_NAN)) {
-                return `toNotNaN(${this.descendInput(node.target)})`;
+                return `((t = ${this.descendInput(node.target)}) === t ? t : 0)`;
             }
-            return `toNotNaN(+${this.descendInput(node.target)})`;
+            return `((t = +${this.descendInput(node.target)}) === t ? t : 0)`;
         case InputOpcode.CAST_NUMBER_OR_NAN:
             return `(+${this.descendInput(node.target)})`;
         case InputOpcode.CAST_NUMBER_INDEX:
