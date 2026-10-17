@@ -1,4 +1,5 @@
 const log = require('../util/log');
+const Timer = require('../util/timer');
 
 /**
  * Recycle bin for empty stackFrame objects
@@ -264,6 +265,16 @@ class Thread {
     }
 
     /**
+     * Thread status for a paused thread.
+     * Thread is in this state when it has been told to pause and needs to pause 
+     * any new yields from the compiler
+     * @const
+     */
+    static get STATUS_PAUSED () {
+        return 5;
+    }
+
+    /**
      * @param {Target} target The target running the thread.
      * @param {string} topBlock ID of the thread's top block.
      * @returns {string} A unique ID for this target and thread.
@@ -341,6 +352,7 @@ class Thread {
             // Clean up!
             this.requestScriptGlowInFrame = false;
             this.status = Thread.STATUS_DONE;
+            this.target.runtime.emit('THREAD_FINISHED', this);
         }
     }
 
@@ -460,6 +472,37 @@ class Thread {
             if (--callCount < 0) return false;
         }
         return false;
+    }
+
+    /**
+     * pause this thread
+     */
+    pause () {
+        this.pauseTime = Timer.nowObj.now();
+        this.originalStatus = this.status;
+        this.status = Thread.STATUS_PAUSED;
+        if (this.timer) this.timer.pause();
+    }
+
+    /**
+     * unpause this thread
+     */
+    play () {
+        const dt = Timer.nowObj.now() - this.pauseTime;
+        this.status = this.originalStatus;
+
+        // reference the SA/TurboWarp pause addon for this
+        // we need to update compat & execution context timers when unpausing
+        const stackFrame = this.peekStackFrame();
+        if (stackFrame && stackFrame.executionContext && stackFrame.executionContext.timer) {
+            stackFrame.executionContext.timer.startTime += dt;
+        }
+
+        if (this.compatibilityStackFrame && this.compatibilityStackFrame.timer) {
+            this.compatibilityStackFrame.timer.startTime += dt;
+        }
+        
+        if (this.timer) this.timer.play();
     }
 
     /**

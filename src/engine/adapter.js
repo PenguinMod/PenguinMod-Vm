@@ -1,5 +1,5 @@
 const mutationAdapter = require('./mutation-adapter');
-const html = require('htmlparser2');
+const parseDOM = require('../util/parse-dom');
 const uid = require('../util/uid');
 
 /**
@@ -25,7 +25,9 @@ const domToBlock = function (blockDOM, blocks, isTopBlock, parent) {
         next: null, // Next block in the stack, if one exists.
         topLevel: isTopBlock, // If this block starts a stack.
         parent: parent, // Parent block ID, if available.
-        shadow: blockDOM.name === 'shadow', // If this represents a shadow/slot.
+        shadow: blockDOM.name === 'shadow', // If this represents a shadow/slot.,
+        collapsed: blockDOM.attribs.collapsed === 'true',
+        external: blockDOM.attribs.inline !== 'true',
         x: blockDOM.attribs.x, // X position of script, if top-level.
         y: blockDOM.attribs.y // Y position of script, if top-level.
     };
@@ -170,7 +172,7 @@ const adapter = function (e) {
     if (typeof e !== 'object') return;
     if (typeof e.xml !== 'object') return;
 
-    return domToBlocks(html.parseDOM(e.xml.outerHTML, {decodeEntities: true}));
+    return domToBlocks(parseDOM(e.xml.outerHTML, {decodeEntities: true}));
 };
 
 module.exports = adapter;

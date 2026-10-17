@@ -1,4 +1,5 @@
 const MathUtil = require('../util/math-util');
+const { translateScreenPos } = require('../util/pos-math');
 
 const roundToThreeDecimals = number => Math.round(number * 1000) / 1000;
 
@@ -9,7 +10,9 @@ class Mouse {
         this._scratchX = 0;
         this._scratchY = 0;
         this._buttons = new Set();
-        this.usesRightClickDown = false;
+        this._buttonsClicked = new Set();
+        this._buttonsReleased = new Set();
+        this.usesRightClickDown = true; // yea
         this._isDown = false;
         /**
          * Reference to the owning Runtime.
@@ -17,6 +20,13 @@ class Mouse {
          * @type{!Runtime}
          */
         this.runtime = runtime;
+
+        this.cameraBound = null;
+
+        this.runtime.on("RUNTIME_STEP_END", () => {
+            this._buttonsClicked.clear();
+            this._buttonsReleased.clear();
+        });
     }
 
     /**
@@ -34,6 +44,8 @@ class Mouse {
             null, target);
         this.runtime.startHats('event_whenstageclicked',
             null, target);
+        this.runtime.startHats('pmEventsExpansion_whenSpriteClicked',
+            { SPRITE: target.isStage ? '_stage_' : target.sprite.name });
     }
 
     /**
@@ -84,8 +96,10 @@ class Mouse {
             const button = typeof data.button === 'undefined' ? 0 : data.button;
             if (data.isDown) {
                 this._buttons.add(button);
+                this._buttonsClicked.add(button);
             } else {
                 this._buttons.delete(button);
+                this._buttonsReleased.add(button);
             }
 
             const previousDownState = this._isDown;
@@ -139,10 +153,11 @@ class Mouse {
      * @return {number} Clamped and integer rounded X position of the mouse cursor.
      */
     getScratchX () {
+        const mouseX = translateScreenPos(this.runtime, this.cameraBound, this._scratchX, this._scratchY)[0];
         if (this.runtime.runtimeOptions.miscLimits) {
-            return Math.round(this._scratchX);
+            return Math.round(mouseX);
         }
-        return roundToThreeDecimals(this._scratchX);
+        return roundToThreeDecimals(mouseX);
     }
 
     /**
@@ -150,10 +165,11 @@ class Mouse {
      * @return {number} Clamped and integer rounded Y position of the mouse cursor.
      */
     getScratchY () {
+        const mouseY = translateScreenPos(this.runtime, this.cameraBound, this._scratchX, this._scratchY)[1];
         if (this.runtime.runtimeOptions.miscLimits) {
-            return Math.round(this._scratchY);
+            return Math.round(mouseY);
         }
-        return roundToThreeDecimals(this._scratchY);
+        return roundToThreeDecimals(mouseY);
     }
 
     /**
@@ -170,10 +186,23 @@ class Mouse {
      * @return {boolean} Is the mouse button down?
      */
     getButtonIsDown (button) {
-        if (button === 2) {
-            this.usesRightClickDown = true;
-        }
+        if (button === -1) return this._buttons.size > 0;
         return this._buttons.has(button);
+    }
+    getButtonIsClicked (button) {
+        if (button === -1) return this._buttonsClicked.size > 0;
+        return this._buttonsClicked.has(button);
+    }
+    getButtonIsReleased (button) {
+        if (button === -1) return this._buttonsReleased.size > 0;
+        return this._buttonsReleased.has(button);
+    }
+
+    bindToCamera(screen) {
+        this.cameraBound = screen;
+    }
+    removeCameraBinding() {
+        this.cameraBound = this.runtime.renderer.camera.unbindedName;
     }
 }
 

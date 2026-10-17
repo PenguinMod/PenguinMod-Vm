@@ -1,6 +1,7 @@
 class UserData {
     constructor () {
         this._username = '';
+        this._loggedIn = false;
     }
 
     /**
@@ -10,6 +11,10 @@ class UserData {
      */
     postData (data) {
         this._username = data.username;
+        this._loggedIn = false;
+        if (data.loggedIn === true) {
+            this._loggedIn = true;
+        }
     }
 
     /**
@@ -18,6 +23,14 @@ class UserData {
      */
     getUsername () {
         return this._username;
+    }
+
+    /**
+     * Getter for loggedIn. Will be false, until set via postData.
+     * @returns {boolean} The current loggedIn state
+     */
+    getLoggedIn() {
+        return this._loggedIn;
     }
 }
 

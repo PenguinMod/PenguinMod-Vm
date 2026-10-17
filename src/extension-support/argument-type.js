@@ -51,7 +51,32 @@ const ArgumentType = {
     /**
      * Name of sound in the current target
      */
-    SOUND: 'sound'
+    SOUND: 'sound',
+
+    /**
+     * pm: Variable menu
+     */
+    VARIABLE: 'variable',
+
+    /**
+     * pm: List menu
+     */
+    LIST: 'list',
+
+    /**
+     * pm: Broadcast menu
+     */
+    BROADCAST: 'broadcast',
+
+    /**
+     * pm: custom fields
+     */
+    CUSTOM: 'custom',
+
+    /**
+     * pm: expandables
+     */
+    EXPANDABLE: 'expandable'
 };
 
 module.exports = ArgumentType;

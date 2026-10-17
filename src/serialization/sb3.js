@@ -17,10 +17,12 @@ const MathUtil = require('../util/math-util');
 const StringUtil = require('../util/string-util');
 const VariableUtil = require('../util/variable-util');
 const compress = require('./tw-compress-sb3');
+const SemVer = require('../util/semver');
 
 const {loadCostume} = require('../import/load-costume.js');
 const {loadSound} = require('../import/load-sound.js');
 const {deserializeCostume, deserializeSound} = require('./deserialize-assets.js');
+const {compatBlock} = require('./pm-compat.js');
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -219,6 +221,12 @@ const serializeBlock = function (block) {
     }
     if (block.comment) {
         obj.comment = block.comment;
+    }
+    if (block.collapsed) {
+        obj.collapsed = true;
+    }
+    if (block.external) {
+        obj.external = true;
     }
     return obj;
 };
@@ -483,13 +491,32 @@ const serializeSound = function (sound) {
 };
 
 /**
+ * Serializes the value of a variable (handles custom types)
+ */
+const serializeVariableValue = function(value, runtime) {
+    if (value === null) return null;
+
+    if (value.customId) {
+        if (!runtime.serializers[value.customId]) return null;
+        const {serialize} = runtime.serializers[value.customId];
+        return {
+            customType: true,
+            typeId: value.customId,
+            serialized: serialize(value)
+        };
+    }
+
+    return value;
+}
+
+/**
  * Serialize the given variables object.
  * @param {object} variables The variables to be serialized.
  * @return {object} A serialized representation of the variables. They get
  * separated by type to compress the representation of each given variable and
  * reduce duplicate information.
  */
-const serializeVariables = function (variables) {
+const serializeVariables = function (variables, runtime) {
     const obj = Object.create(null);
     // separate out variables into types at the top level so we don't have
     // keep track of a type for each
@@ -503,12 +530,12 @@ const serializeVariables = function (variables) {
             continue;
         }
         if (v.type === Variable.LIST_TYPE) {
-            obj.lists[varId] = [v.name, v.value];
+            obj.lists[varId] = [v.name, v.value.map(w => serializeVariableValue(w, runtime))];
             continue;
         }
 
         // otherwise should be a scalar type
-        obj.variables[varId] = [v.name, v.value];
+        obj.variables[varId] = [v.name, serializeVariableValue(v.value, runtime)];
         // only scalar vars have the potential to be cloud vars
         if (v.isCloud) obj.variables[varId].push(true);
     }
@@ -528,6 +555,7 @@ const serializeComments = function (comments) {
         serializedComment.width = comment.width;
         serializedComment.height = comment.height;
         serializedComment.minimized = comment.minimized;
+        serializedComment.data = comment.data;
 
         if (comment.text.length > UPSTREAM_MAX_COMMENT_LENGTH) {
             // Upstream's scratch-parser will refuse to load projects if the text is too long, so to maximize
@@ -551,12 +579,12 @@ const serializeComments = function (comments) {
  * @param {Set} extensions A set of extensions to add extension IDs to
  * @return {object} A serialized representation of the given target.
  */
-const serializeTarget = function (target, extensions) {
+const serializeTarget = function (target, extensions, runtime) {
     const obj = Object.create(null);
     let targetExtensions = [];
     obj.isStage = target.isStage;
     obj.name = obj.isStage ? 'Stage' : target.name;
-    const vars = serializeVariables(target.variables);
+    const vars = serializeVariables(target.variables, runtime);
     obj.variables = vars.variables;
     obj.lists = vars.lists;
     obj.broadcasts = vars.broadcasts;
@@ -609,13 +637,26 @@ const serializeTarget = function (target, extensions) {
  * @param {Set<string>} extensions extension IDs
  * @returns {Record<string, unknown>|null}
  */
-const serializeExtensionStorage = (extensionStorage, extensions) => {
+const serializeExtensionStorage = (extensionStorage, extensions, target, runtime) => {
     const result = {};
     let isEmpty = true;
     for (const [key, value] of Object.entries(extensionStorage)) {
         if (extensions.has(key) && value !== null && typeof value !== 'undefined') {
             isEmpty = false;
             result[key] = extensionStorage[key];
+        }
+    }
+    for (const key of extensions) {
+        if (target) {
+            if (`ext_${key}` in runtime && (typeof runtime[`ext_${key}`].serializeForTarget === 'function')) {
+                isEmpty = false;
+                result[key] = runtime[`ext_${key}`].serializeForTarget(target);
+            }
+        } else {
+            if (`ext_${key}` in runtime && (typeof runtime[`ext_${key}`].serialize === 'function')) {
+                isEmpty = false;
+                result[key] = runtime[`ext_${key}`].serialize();
+            }
         }
     }
     if (isEmpty) {
@@ -671,6 +712,35 @@ const serializeMonitors = function (monitors, runtime, extensions) {
         });
 };
 
+const serializeConfig = function (runtime) {
+    const config = Object.create(null);
+
+    if (runtime.interpolationEnabled) config.interpolation = true;
+    if (runtime.renderer.useHighQualityRender) config.hqPen = true;
+    if (runtime.compilerOptions.warpTimer) config.warpTimer = true;
+    if (runtime.compilerOptions.strictEquality) config.strictEquality = true;
+    if (runtime.runtimeOptions.miscLimits) config.miscLimits = true;
+    if (runtime.runtimeOptions.fencing) config.fencing = true;
+    if (runtime.runtimeOptions.disableDirectionClamping) config.disableDirectionClamping = true;
+    if (runtime.runtimeOptions.disableOffscreenRendering) config.disableOffscreenRendering = true;
+
+    if (runtime.frameLoop.framerate !== 30) config.frameRate = runtime.frameLoop.framerate;
+    if (runtime.runtimeOptions.maxClones !== runtime.constructor.MAX_CLONES) config.maxClones = (runtime.runtimeOptions.maxClones === Infinity ? -1 : runtime.runtimeOptions.maxClones);
+
+    if (runtime.stageHeight !== 360 || runtime.stageWidth !== 480) {
+        config.stageSize = {
+            width: runtime.stageWidth,
+            height: runtime.stageHeight
+        }
+    }
+
+    if (runtime.vm && runtime.vm._categoryOrdering.length) {
+        config.categoryOrdering = runtime.vm._categoryOrdering;
+    }
+
+    return config;
+}
+
 /**
  * Serializes the specified VM runtime.
  * @param {!Runtime} runtime VM runtime instance to be serialized.
@@ -699,11 +769,11 @@ const serialize = function (runtime, targetId, {allowOptimization = true} = {}) 
         });
     }
 
-    const serializedTargets = flattenedOriginalTargets.map(t => serializeTarget(t, extensions))
+    const serializedTargets = flattenedOriginalTargets.map(t => serializeTarget(t, extensions, runtime))
         .map((serialized, index) => {
             // can't serialize extensionStorage until the list of used extensions is fully known
             const target = originalTargetsToSerialize[index];
-            const targetExtensionStorage = serializeExtensionStorage(target.extensionStorage, extensions);
+            const targetExtensionStorage = serializeExtensionStorage(target.extensionStorage, extensions, target, runtime);
             if (targetExtensionStorage) {
                 serialized.extensionStorage = targetExtensionStorage;
             }
@@ -728,7 +798,7 @@ const serialize = function (runtime, targetId, {allowOptimization = true} = {}) 
         return serializedTargets[0];
     }
 
-    const globalExtensionStorage = serializeExtensionStorage(runtime.extensionStorage, extensions);
+    const globalExtensionStorage = serializeExtensionStorage(runtime.extensionStorage, extensions, null, runtime);
     if (globalExtensionStorage) {
         obj.extensionStorage = globalExtensionStorage;
     }
@@ -747,9 +817,12 @@ const serialize = function (runtime, targetId, {allowOptimization = true} = {}) 
         obj.customFonts = fonts;
     }
 
+    obj.config = serializeConfig(runtime);
+
     // Assemble metadata
     const meta = Object.create(null);
     meta.semver = '3.0.0';
+    meta.pmVersion = runtime.pmVersion.toString();
     // TW: There isn't a good reason to put the full version number in the json, so we don't.
     meta.vm = '0.2.0';
     if (runtime.origin) {
@@ -999,7 +1072,7 @@ const deserializeFields = function (fields) {
 };
 
 /**
- * Covnert serialized INPUT and FIELD primitives back to hydrated block templates.
+ * Convert serialized INPUT and FIELD primitives back to hydrated block templates.
  * Should be able to deserialize a format that has already been deserialized.  The only
  * "east" path to adding new targets/code requires going through deserialize, so it should
  * work with pre-parsed deserialized blocks.
@@ -1007,12 +1080,12 @@ const deserializeFields = function (fields) {
  * @param {object} blocks Serialized SB3 "blocks" property of a target. Will be mutated.
  * @return {object} input is modified and returned
  */
-const deserializeBlocks = function (blocks) {
+const deserializeBlocks = function (blocks, pmVersion = new SemVer('0.0.0')) {
     for (const blockId in blocks) {
         if (!Object.prototype.hasOwnProperty.call(blocks, blockId)) {
             continue;
         }
-        const block = blocks[blockId];
+        let block = blocks[blockId];
         if (Array.isArray(block)) {
             // this is one of the primitives
             // delete the old entry in object.blocks and replace it w/the
@@ -1024,6 +1097,7 @@ const deserializeBlocks = function (blocks) {
         block.id = blockId; // add id back to block since it wasn't serialized
         block.inputs = deserializeInputs(block.inputs, blockId, blocks);
         block.fields = deserializeFields(block.fields);
+        blocks[blockId] = compatBlock(block, pmVersion);
     }
     return blocks;
 };
@@ -1173,7 +1247,7 @@ const fixSporkCompatibility = function (blocks) {
  *   into costumes and sounds
  * @return {!Promise.<Target>} Promise for the target created (stage or sprite), or null for unsupported objects.
  */
-const parseScratchObject = function (object, runtime, extensions, zip, assets) {
+const parseScratchObject = function (object, runtime, pmVersion, extensions, zip, assets) {
     if (!Object.prototype.hasOwnProperty.call(object, 'name')) {
         // Watcher/monitor - skip this object until those are implemented in VM.
         // @todo
@@ -1181,6 +1255,10 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
     }
     // Blocks container for this object.
     const blocks = new Blocks(runtime);
+
+    // After creating the Target, repair instances of global block prototypes
+    // with their respective parent (target) ID.
+    const globalBlocksToRepair = [];
 
     // @todo: For now, load all Scratch objects (stage/sprites) as a Sprite.
     const sprite = new Sprite(blocks, runtime);
@@ -1190,12 +1268,19 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
         sprite.name = object.name;
     }
     if (Object.prototype.hasOwnProperty.call(object, 'blocks')) {
-        deserializeBlocks(object.blocks);
+        deserializeBlocks(object.blocks, pmVersion);
         // Take a second pass to create objects and add extensions
         for (const blockId in object.blocks) {
             if (!Object.prototype.hasOwnProperty.call(object.blocks, blockId)) continue;
             const blockJSON = object.blocks[blockId];
             blocks.createBlock(blockJSON);
+    
+            if (
+                blockJSON.opcode === 'procedures_prototype' &&
+                blockJSON.mutation.global === 'true'
+            ) {
+                globalBlocksToRepair.push(blockJSON.mutation.proccode);
+            }
 
             // If the block is from an extension, record it.
             const extensionID = getExtensionIdForOpcode(blockJSON.opcode);
@@ -1286,7 +1371,8 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
                 comment.y,
                 comment.width,
                 comment.height,
-                comment.minimized
+                comment.minimized,
+                comment.data
             );
             if (comment.blockId) {
                 newComment.blockId = comment.blockId;
@@ -1323,9 +1409,20 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
     if (Object.prototype.hasOwnProperty.call(object, 'draggable')) {
         target.draggable = object.draggable;
     }
+    if (Object.prototype.hasOwnProperty.call(object, 'extensionData')) {
+        target.extensionStorage = object.extensionData;
+    }
     if (Object.prototype.hasOwnProperty.call(object, 'extensionStorage')) {
         target.extensionStorage = object.extensionStorage;
     }
+
+    // Repair global block target links
+    if (globalBlocksToRepair.length) {
+        for (const proccode of globalBlocksToRepair) {
+            runtime._globalProcedureSourceMap[proccode] = target.id;
+        }
+    }
+
     Promise.all(costumePromises).then(costumes => {
         sprite.costumes = costumes;
     });
@@ -1493,7 +1590,7 @@ const checkPlatformCompatibility = (json, runtime) => {
     }
 
     const projectPlatform = json.meta.platform.name;
-    if (projectPlatform === runtime.platform.name) {
+    if (["PenguinMod", "TurboWarp"].includes(projectPlatform)) {
         return;
     }
 
@@ -1512,6 +1609,31 @@ const checkPlatformCompatibility = (json, runtime) => {
     });
 };
 
+const deserializeConfig = function (config, runtime) {
+    runtime.setFramerate(config.frameRate ?? 30);
+    runtime.setInterpolation(!!config.interpolation);
+    runtime.renderer.setUseHighQualityRender(!!config.hqPen);
+
+    runtime.setCompilerOptions({
+        warpTimer: !!config.warpTimer,
+        strictEquality: !!config.strictEquality
+    })
+
+    runtime.setRuntimeOptions({
+        maxClones: (config.maxClones === -1 ? Infinity : config.maxClones) ?? runtime.constructor.MAX_CLONES,
+        miscLimits: !!config.miscLimits,
+        fencing: !!config.fencing,
+        disableDirectionClamping: !!config.disableOffscreenRendering,
+        disableOffscreenRendering: !!config.disableOffscreenRendering,
+    });
+    
+    runtime.setStageSize(config.stageSize?.width, config.stageSize?.height);
+
+    if (runtime.vm && config.categoryOrdering) {
+        runtime.vm._categoryOrdering = config.categoryOrdering;
+    }
+}
+
 /**
  * Deserialize the specified representation of a VM runtime and loads it into the provided runtime instance.
  * @param  {object} json - JSON representation of a VM runtime.
@@ -1528,10 +1650,12 @@ const deserialize = async function (json, runtime, zip, isSingleSprite) {
         extensionURLs: new Map()
     };
 
+    let pmVersion = new SemVer('0.0.0');
     // Store the origin field (e.g. project originated at CSFirst) so that we can save it again.
-    if (json.meta && json.meta.origin) {
+    if (json.meta) {
         // eslint-disable-next-line require-atomic-updates
-        runtime.origin = json.meta.origin;
+        if (json.meta.origin) runtime.origin = json.meta.origin;
+        if (json.meta.pmVersion) pmVersion = new SemVer(json.meta.pmVersion);
     } else {
         // eslint-disable-next-line require-atomic-updates
         runtime.origin = null;
@@ -1562,6 +1686,13 @@ const deserialize = async function (json, runtime, zip, isSingleSprite) {
 
     const monitorObjects = json.monitors || [];
 
+    if (json.config) deserializeConfig(json.config, runtime);
+
+    // Clear old global blocks if we are opening a project
+    if (!isSingleSprite) {
+        runtime._globalProcedureSourceMap = {};
+    }
+  
     let layerOrder;
 
     return fontPromise.then(() => targetObjects.map(target => parseScratchAssets(target, runtime, zip)))
@@ -1570,7 +1701,7 @@ const deserialize = async function (json, runtime, zip, isSingleSprite) {
         .then(assets => Promise.resolve(assets))
         .then(assets => Promise.all(targetObjects
             .map((target, index) =>
-                parseScratchObject(target, runtime, extensions, zip, assets[index]))))
+                parseScratchObject(target, runtime, pmVersion, extensions, zip, assets[index]))))
         .then(targets => {
             // Re-sort targets back into original sprite-pane ordering.
             const reordered = targets
@@ -1586,6 +1717,9 @@ const deserialize = async function (json, runtime, zip, isSingleSprite) {
         .then(targets => replaceUnsafeCharsInVariableIds(targets))
         .then(targets => {
             monitorObjects.map(monitorDesc => deserializeMonitor(monitorDesc, runtime, targets, extensions));
+            if (Object.prototype.hasOwnProperty.call(json, 'extensionData')) {
+                runtime.extensionStorage = json.extensionData;
+            }
             if (Object.prototype.hasOwnProperty.call(json, 'extensionStorage')) {
                 runtime.extensionStorage = json.extensionStorage;
             }

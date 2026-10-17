@@ -1,5 +1,4 @@
-const atob = require('atob');
-const btoa = require('btoa');
+const { decode, encode } = require('./b64-binary');
 
 class Base64Util {
 
@@ -9,13 +8,7 @@ class Base64Util {
      * @return {Uint8Array} - a decoded Uint8Array.
      */
     static base64ToUint8Array (base64) {
-        const binaryString = atob(base64);
-        const len = binaryString.length;
-        const array = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            array[i] = binaryString.charCodeAt(i);
-        }
-        return array;
+        return decode(base64);
     }
 
     /**
@@ -24,12 +17,7 @@ class Base64Util {
      * @return {string} - the base64 encoded string.
      */
     static uint8ArrayToBase64 (array) {
-        let binary = '';
-        const len = array.length;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(array[i]);
-        }
-        return btoa(binary);
+        return encode(array);
     }
 
     /**

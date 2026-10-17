@@ -36,6 +36,60 @@ const isStuck = () => {
     return false;
 };`;
 
+
+/**
+ * Decodes any Base64 string. Will not throw errors for invalid text.
+ * @param {string} input The Base64 to decode
+ * @returns {string} The decoded text
+ */
+runtimeFunctions.decodeBase64ToString = `const decodeBase64ToString = input => {
+    const keyStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    input = input.replace(/[^a-z0-9+/]/gi, '');
+
+    const bytes = Math.floor((input.length / 4) * 3);
+    const out = new Uint8Array(bytes);
+
+    let c = 0;
+    for (let i = 0; i < bytes; i += 3) {
+        // get the 3 octects in 4 ascii chars
+        const enc1 = keyStr.indexOf(input.charAt(c++));
+        const enc2 = keyStr.indexOf(input.charAt(c++));
+        const enc3 = keyStr.indexOf(input.charAt(c++));
+        const enc4 = keyStr.indexOf(input.charAt(c++));
+
+        const chr1 = (enc1 << 2) | (enc2 >> 4);
+        const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+        const chr3 = ((enc3 & 3) << 6) | enc4;
+
+        out[i] = chr1;
+        out[i +1] = chr2;
+        out[i +2] = chr3;
+    }
+
+    return new TextDecoder().decode(out);
+};`;
+
+/**
+ * !! copied from ../util/b64-binary !!
+ * Encodes any string.
+ * @param {string} string The text to encode
+ * @returns {string} The Base64 encoded string
+ */
+runtimeFunctions.encodeStringToBase64 = `const encodeStringToBase64 = string => {
+    const keyStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const bytes = new TextEncoder().encode(string);
+    let out = '';
+    for (let i = 0; i < bytes.length; i += 3) {
+        const num = ((bytes[i] << 16) & 0xFF0000) + ((bytes[i +1] << 8) & 0x00FF00) + (bytes[i +2] & 0x0000FF);
+        out += keyStr[(num >> 18) & 0x3F];
+        out += keyStr[(num >> 12) & 0x3F];
+        out += keyStr[(num >> 6) & 0x3F];
+        out += keyStr[num & 0x3F];
+    }
+
+    return out.replace(/A(?=A*$)/g, '=');
+};`;
+
 /**
  * Start hats by opcode.
  * @param {string} requestedHat The opcode of the hat to start.
@@ -110,6 +164,8 @@ runtimeFunctions.executeInCompatibilityLayer = `let hasResumedFromPromise = fals
 const waitPromise = function*(promise) {
     const thread = globalState.thread;
     let returnValue;
+    let error;
+    let isError = false;
 
     // enter STATUS_PROMISE_WAIT and yield
     // this will stop script execution until the promise handlers reset the thread status
@@ -120,14 +176,17 @@ const waitPromise = function*(promise) {
         .then(value => {
             returnValue = value;
             thread.status = 0; // STATUS_RUNNING
-        }, error => {
-            thread.status = 0; // STATUS_RUNNING
-            globalState.log.warn('Promise rejected in compiled script:', error);
-            returnValue = '' + error;
+        }, err => {
+            error = err;
+            isError = true;
             thread.status = 0; // STATUS_RUNNING
         });
 
     yield;
+
+    if (isError) {
+        throw error;
+    }
 
     return returnValue;
 };
@@ -269,21 +328,6 @@ baseRuntime += `const isNotActuallyZero = val => {
     }
     return true;
 };`;
-
-/**
- * Determine if two values are equal.
- * @param {*} v1 First value
- * @param {*} v2 Second value
- * @returns {boolean} true if v1 is equal to v2
- */
-baseRuntime += `const compareEqualSlow = (v1, v2) => {
-    const n1 = +v1;
-    if (Number.isNaN(n1) || (n1 === 0 && isNotActuallyZero(v1))) return ('' + v1).toLowerCase() === ('' + v2).toLowerCase();
-    const n2 = +v2;
-    if (Number.isNaN(n2) || (n2 === 0 && isNotActuallyZero(v2))) return ('' + v1).toLowerCase() === ('' + v2).toLowerCase();
-    return n1 === n2;
-};
-const compareEqual = (v1, v2) => (typeof v1 === 'number' && typeof v2 === 'number' && !Number.isNaN(v1) && !Number.isNaN(v2) || v1 === v2) ? v1 === v2 : compareEqualSlow(v1, v2);`;
 
 /**
  * Determine if one value is greater than another.
@@ -498,7 +542,7 @@ runtimeFunctions.listContains = `const listContains = (list, item) => {
         return true;
     }
     for (let i = 0; i < list.value.length; i++) {
-        if (compareEqual(list.value[i], item)) {
+        if (vm.runtime.equals(list.value[i], item)) {
             return true;
         }
     }
@@ -513,7 +557,7 @@ runtimeFunctions.listContains = `const listContains = (list, item) => {
  */
 runtimeFunctions.listIndexOf = `const listIndexOf = (list, item) => {
     for (let i = 0; i < list.value.length; i++) {
-        if (compareEqual(list.value[i], item)) {
+        if (vm.runtime.equals(list.value[i], item)) {
             return i + 1;
         }
     }
@@ -571,6 +615,38 @@ runtimeFunctions.tan = `const tan = (angle) => {
 }`;
 
 /**
+ * Joins global procedure target private variables to the caller's variables.
+ * JavaScript aliasing does us a favour here, we don't have to update any values.
+ * @param {VM.Target} target The caller target.
+ * @param {VM.Target.id} sourceId The id of the global source target.
+ */
+runtimeFunctions.setupGlobalProcState = `const setupGlobalProcState = function (target, sourceId) {
+    if (sourceId === target.id) return;
+    const sourceTarget = target.runtime.getTargetById(sourceId);
+    const sourceVariables = sourceTarget.variables;
+    for (const varId in sourceTarget.variables) {
+        const variable = sourceTarget.variables[varId];
+        variable._glob_isFromOtherTarg = true;
+    }
+
+    target.variables = {
+        ...target.variables,
+        ...sourceVariables,
+    };
+}`;
+
+/**
+ * Separates private variables back to their original sprites after a global procedure.
+ * @param {VM.Target.variables} variables The joined variables of a target.
+ */
+runtimeFunctions.resetGlobalProcState = `const resetGlobalProcState = function (variables) {
+    for (varId in variables) {
+        const variable = variables[varId];
+        if (variable._glob_isFromOtherTarg) delete variables[varId];
+    }
+}`;
+
+/**
  * @param {function} callback The function to run
  * @param {...unknown} args The arguments to pass to the function
  * @returns {unknown} A generator that will yield once then call the function and return its value.
@@ -589,6 +665,10 @@ runtimeFunctions.yieldThenCallGenerator = `const yieldThenCallGenerator = functi
     yield;
     return yield* callback(...args);
 }`;
+
+runtimeFunctions.rangeOfNumbers = `const rangeOfNumbers = (...args) => Math.max(...args) - Math.min(...args)`;
+
+runtimeFunctions.stringify = `const stringify = (value) => value === null ? '' : '' + value`;
 
 /**
  * Step a compiled thread.

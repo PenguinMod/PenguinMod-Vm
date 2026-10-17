@@ -35,12 +35,17 @@ class Scratch3MotionBlocks {
             motion_xposition: this.getX,
             motion_yposition: this.getY,
             motion_direction: this.getDirection,
+
             // Legacy no-op blocks:
             motion_scroll_right: () => {},
             motion_scroll_up: () => {},
             motion_align_scene: () => {},
             motion_xscroll: () => {},
-            motion_yscroll: () => {}
+            motion_yscroll: () => {},
+
+            // old pm blocks or something
+            motion_ifonxybounce: this.ifOnXYBounce,
+            motion_ifonspritebounce: this.ifOnSpriteBounce,
         };
     }
 
@@ -65,8 +70,8 @@ class Scratch3MotionBlocks {
         const steps = Cast.toNumber(args.STEPS);
         this._moveSteps(steps, util.target);
     }
-    _moveSteps (steps, target) { // used by compiler
-        const radians = MathUtil.degToRad(90 - target.direction);
+    _moveSteps (steps, target, angleOffset = 0) { // used by compiler
+        const radians = MathUtil.degToRad(90 - target.direction - angleOffset);
         const dx = steps * Math.cos(radians);
         const dy = steps * Math.sin(radians);
         target.setXY(target.x + dx, target.y + dy);
@@ -142,6 +147,13 @@ class Scratch3MotionBlocks {
         const dy = targetY - util.target.y;
         const direction = 90 - MathUtil.radToDeg(Math.atan2(dy, dx));
         util.target.setDirection(direction);
+    }
+
+    _pointTowards(target, x, y) {
+        const dx = x - target.x;
+        const dy = y - target.y;
+        const direction = 90 - MathUtil.radToDeg(Math.atan2(dy, dx));
+        target.setDirection(direction);
     }
 
     glide (args, util) {
@@ -288,6 +300,119 @@ class Scratch3MotionBlocks {
         const limitedCoord = (Math.abs(delta) < 1e-9) ? rounded : coordinate;
 
         return limitedCoord;
+    }
+
+    _moveToStageSide (side, target) {
+        let x = 0;
+        let y = 0;
+        if (side.includes("top")) {
+            y = 1;
+        }
+        if (side.includes("bottom")) {
+            y = -1;
+        }
+        if (side.includes("left")) {
+            x = -1;
+        }
+        if (side.includes("right")) {
+            x = 1;
+        }
+        const bounds = this.runtime.renderer._allDrawables[target.drawableID].getAABB();
+        const width = this.runtime.stageWidth - bounds.width;
+        const height = this.runtime.stageHeight - bounds.height;
+        target.setXY(x * width / 2, y * height / 2);
+    }
+
+    _turnAroundPivot (degrees, x, y, target) {
+        const radians = (Math.PI * degrees) / 180;
+        const cos = Math.cos(radians);
+        const sin = Math.sin(radians);
+        const dx = target.x - x;
+        const dy = target.y - y;
+        target.setXY((cos * dx) - (sin * dy) + x, (cos * dy) + (sin * dx) + y);
+    }
+    
+    ifOnXYBounce(args, util, _, __, ___, touchingCondition) {
+        const x = Cast.toNumber(args.X);
+        const y = Cast.toNumber(args.Y);
+        const target = util.target;
+        const bounds = target.getBounds();
+        if (!bounds) {
+            return;
+        }
+        // Check to see if the point is inside the bounding box.
+        const xInBounds = (x >= bounds.left) && (x <= bounds.right);
+        const yInBounds = (y >= bounds.bottom) && (y <= bounds.top);
+        if (touchingCondition !== true) {
+            if (!(xInBounds && yInBounds)) {
+                return; // Not inside the bounding box.
+            }
+        }
+        // Find the distance to the point for all sides.
+        // We use this to figure out which side to bounce on.
+        let nearestEdge = '';
+        let minDist = Infinity;
+        for (let i = 0; i < 4; i++) {
+            const sides = ['left', 'top', 'right', 'bottom'];
+            let distx;
+            let disty;
+            switch (sides[i]) {
+            case 'left':
+            case 'right':
+                distx = x - bounds[sides[i]];
+                disty = y - target.y;
+                break;
+            case 'top':
+            case 'bottom':
+                distx = x - target.x;
+                disty = y - bounds[sides[i]];
+                break;
+            }
+            const distance = Math.sqrt((distx * distx) + (disty * disty));
+            if (distance < minDist) {
+                minDist = distance;
+                nearestEdge = sides[i];
+            }
+        }
+        // Point away from the nearest edge.
+        const radians = MathUtil.degToRad(90 - target.direction);
+        let dx = Math.cos(radians);
+        let dy = -Math.sin(radians);
+        if (nearestEdge === 'left') {
+            dx = Math.max(0.2, Math.abs(dx));
+        } else if (nearestEdge === 'top') {
+            dy = Math.max(0.2, Math.abs(dy));
+        } else if (nearestEdge === 'right') {
+            dx = 0 - Math.max(0.2, Math.abs(dx));
+        } else if (nearestEdge === 'bottom') {
+            dy = 0 - Math.max(0.2, Math.abs(dy));
+        }
+        const newDirection = MathUtil.radToDeg(Math.atan2(dy, dx)) + 90;
+        target.setDirection(newDirection);
+        // Keep within the stage.
+        const fencedPosition = target.keepInFence(target.x, target.y);
+        target.setXY(fencedPosition[0], fencedPosition[1]);
+    }
+    
+    ifOnSpriteBounce (args, util) {
+        if (args.SPRITE === '_mouse_') {
+            const x = util.ioQuery('mouse', 'getScratchX');
+            const y = util.ioQuery('mouse', 'getScratchY');
+            return this.ifOnXYBounce({ X: x, Y: y }, util);
+        } else if (args.SPRITE === '_random_') {
+            const stageWidth = this.runtime.stageWidth;
+            const stageHeight = this.runtime.stageHeight;
+            const x = Math.round(stageWidth * (Math.random() - 0.5));
+            const y = Math.round(stageHeight * (Math.random() - 0.5));
+            return this.ifOnXYBounce({ X: x, Y: y }, util);
+        } 
+        const spriteName = Cast.toString(args.SPRITE);
+        const bounceTarget = this.runtime.getSpriteTargetByName(spriteName);
+        if (!bounceTarget) return;
+        const point = util.target.spriteTouchingPoint(spriteName);
+        if (!point[0]) return;
+        return this.ifOnXYBounce({ X: point[0], Y: point[1] }, util);
+        
     }
 }
 

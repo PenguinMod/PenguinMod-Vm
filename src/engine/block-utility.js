@@ -237,6 +237,15 @@ class BlockUtility {
             return devObject[func].apply(devObject, args);
         }
     }
+
+    expandableValue(args, fieldName, valueName) {
+        let amount = Number(args[fieldName]);
+        let values = [];
+        for (let i = 1; i <= amount; i++) {
+            values.push(args[`${fieldName}.${i}.${valueName}`]);
+        }
+        return values;
+    }
 }
 
 module.exports = BlockUtility;

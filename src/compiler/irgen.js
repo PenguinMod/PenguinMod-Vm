@@ -70,11 +70,15 @@ class ScriptTreeGenerator {
         /** @private */
         this.stage = this.runtime.getTargetForStage();
 
+        this.debug = this.runtime.debug;
+
         /**
          * This script's intermediate representation.
          */
         this.script = new IntermediateScript();
         this.script.warpTimer = this.target.runtime.compilerOptions.warpTimer;
+        this.script.strictEquality = this.target.runtime.compilerOptions.strictEquality;
+        this.script.stackClicked = thread.stackClick;
 
         /**
          * Cache of variable ID to variable data object.
@@ -118,8 +122,13 @@ class ScriptTreeGenerator {
             throw new Error(`IR: cannot find procedure: ${procedureVariant}`);
         }
 
-        const [paramNames, _paramIds, _paramDefaults] = paramNamesIdsAndDefaults;
+        const [paramNames, paramIds, _paramDefaults] = paramNamesIdsAndDefaults;
         this.script.arguments = paramNames;
+        this.script.argumentIds = paramIds;
+
+        if (this.blocks.isGlobalProcedure(procedureCode)) {
+            this.script.globalProcedureData = this.blocks.getGlobalProcedureData(procedureCode);
+        }
     }
 
     enableWarp () {
@@ -127,6 +136,13 @@ class ScriptTreeGenerator {
     }
 
     getBlockById (blockId) {
+        if (this.script.globalProcedureData) {
+            const container = this.script.globalProcedureData.sourceContainer;
+            const block = container.getBlock(blockId);
+
+            if (block) return block;
+        }
+
         // Flyout blocks are stored in a special container.
         return this.blocks.getBlock(blockId) || this.blocks.runtime.flyoutBlocks.getBlock(blockId);
     }
@@ -148,7 +164,12 @@ class ScriptTreeGenerator {
     }
 
     createConstantInput (constant, preserveStrings = false) {
-        if (constant === null) throw new Error('IR: Constant cannot have a null value.');
+        if (constant === null) {
+            return new IntermediateInput(InputOpcode.CONSTANT, InputType.NULL);
+        }
+        if (typeof constant === "boolean") {
+            return new IntermediateInput(InputOpcode.CONSTANT, InputType.BOOLEAN, {value: constant});
+        }
 
         constant += '';
         const numConstant = +constant;
@@ -184,13 +205,13 @@ class ScriptTreeGenerator {
         const input = parentBlock.inputs[inputName];
         if (!input) {
             log.warn(`IR: ${parentBlock.opcode}: missing input ${inputName}`, parentBlock);
-            return this.createConstantInput(0);
+            return this.createConstantInput(null);
         }
         const inputId = input.block;
         const block = this.getBlockById(inputId);
         if (!block) {
             log.warn(`IR: ${parentBlock.opcode}: could not find input ${inputName} with ID ${inputId}`);
-            return this.createConstantInput(0);
+            return this.createConstantInput(null);
         }
 
         const intermediate = this.descendInput(block, preserveStrings);
@@ -213,6 +234,14 @@ class ScriptTreeGenerator {
             }
         }
 
+        for (let extensionId in IRGenerator.compilerExtensions) {
+            let extension = IRGenerator.compilerExtensions[extensionId]
+            if (extension.reporter) {
+                let returns = extension.reporter.call(this, block, preserveStrings);
+                if (returns) return returns;
+            }
+        }
+
         switch (block.opcode) {
         case 'colour_picker':
             return this.createConstantInput(block.fields.COLOUR.value, true);
@@ -224,6 +253,9 @@ class ScriptTreeGenerator {
             return this.createConstantInput(block.fields.NUM.value, preserveStrings);
         case 'text':
             return this.createConstantInput(block.fields.TEXT.value, preserveStrings);
+        case 'operator_checkboxBoolean': //im lazy
+        case 'checkbox':
+            return this.createConstantInput(block.fields.CHECKBOX.value === 'TRUE');
         case 'argument_reporter_string_number': {
             const name = String(block.fields.VALUE.value);
             // lastIndexOf because multiple parameters with the same name will use the value of the last definition
@@ -251,6 +283,29 @@ class ScriptTreeGenerator {
             }
             return new IntermediateInput(InputOpcode.PROCEDURE_ARGUMENT, InputType.ANY, {index});
         }
+
+        //pm control
+        case 'control_dualblock':
+            return this.createConstantInput("dual block works!");
+        case 'control_error':
+            return new IntermediateInput(InputOpcode.PM_CONTROL_TRY_CATCH_ERROR, InputType.STRING);
+        case 'control_from_to_index':
+            return new IntermediateInput(InputOpcode.PM_CONTROL_FROM_TO_INDEX, InputType.NUMBER_INT);
+        case 'control_if_return_else_return': {
+            let whenTrue = this.descendInputOfBlock(block, 'TEXT1');
+            let whenFalse = this.descendInputOfBlock(block, 'TEXT2');
+            return new IntermediateInput(InputOpcode.PM_CONTROL_IF_ELSE_REPORT, whenTrue.type | whenFalse.type, {
+                condition: this.descendInputOfBlock(block, 'boolean').toType(InputType.BOOLEAN),
+                whenTrue,
+                whenFalse
+            })
+        }
+        case 'control_inline_stack_output': 
+            return new IntermediateInput(InputOpcode.PM_CONTROL_INLINE_BLOCK, InputType.ANY, {
+                code: this.descendSubstack(block, 'SUBSTACK')
+            }, true);
+        case 'control_is_clone':
+            return new IntermediateInput(InputOpcode.PM_CONTROL_IS_CLONE, InputType.BOOLEAN);
 
         case 'data_variable':
             return new IntermediateInput(InputOpcode.VAR_GET, InputType.ANY, {
@@ -280,6 +335,40 @@ class ScriptTreeGenerator {
                 list: this.descendVariable(block, 'LIST', LIST_TYPE)
             });
 
+        //pm variables
+        case 'data_variablevisible':
+            return new IntermediateInput(InputOpcode.PM_VAR_VISIBLE, InputType.BOOLEAN, {
+                variable: this.descendVariable(block, 'VARIABLE', SCALAR_TYPE)
+            });
+        
+        //pm lists
+        case 'data_amountinlist':
+            return new IntermediateStackBlock(InputOpcode.PM_LIST_AMOUNT, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                item: this.descendInputOfBlock(block, 'VALUE', true)
+            });
+        case 'data_filterlistindex':
+            return new IntermediateInput(InputOpcode.PM_LIST_UPVAR_INDEX, InputType.NUMBER_WHOLE);
+        case 'data_filterlistitem':
+            return new IntermediateInput(InputOpcode.PM_LIST_UPVAR_ITEM, InputType.ANY);
+        case 'data_itemexistslist':
+            return new IntermediateInput(InputOpcode.PM_LIST_INDEX_EXISTS, InputType.BOOLEAN, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                index: this.descendInputOfBlock(block, 'INDEX').toType(InputType.NUMBER)
+            });
+        case 'data_listarray':
+            return new IntermediateInput(InputOpcode.PM_LIST_ARRAY_GET, InputType.STRING, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE)
+            });
+        case 'data_listisempty':
+            return new IntermediateInput(InputOpcode.PM_LIST_EMPTY, InputType.BOOLEAN, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE)
+            });
+        case 'data_listvisible':
+            return new IntermediateInput(InputOpcode.PM_VAR_VISIBLE, InputType.BOOLEAN, {
+                variable: this.descendVariable(block, 'LIST', LIST_TYPE)
+            });
+
         case 'event_broadcast_menu': {
             const broadcastOption = block.fields.BROADCAST_OPTION;
             const broadcastVariable = this.target.lookupBroadcastMsg(broadcastOption.id, broadcastOption.value);
@@ -300,6 +389,41 @@ class ScriptTreeGenerator {
             return new IntermediateInput(InputOpcode.LOOKS_COSTUME_NAME, InputType.STRING);
         case 'looks_size':
             return new IntermediateInput(InputOpcode.LOOKS_SIZE_GET, InputType.NUMBER_POS | InputType.NUMBER_ZERO);
+        
+        //pm looks
+        case 'looks_getEffectValue':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_GET_EFFECT, InputType.NUMBER, {
+                effect: block.fields.EFFECT.value.toLowerCase()
+            });
+        case 'looks_getinputofcostume':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_GET_COSTUME_VALUE, InputType.STRING | InputType.NUMBER, {
+                costume: this.descendInputOfBlock(block, 'COSTUME', true),
+                value: this.descendInputOfBlock(block, 'INPUT').toType(InputType.STRING),
+                old: true
+            });
+        case 'looks_getinputofcostumenew':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_GET_COSTUME_VALUE, InputType.STRING | InputType.NUMBER, {
+                costume: this.descendInputOfBlock(block, 'COSTUME', true),
+                value: this.descendInputOfBlock(block, 'INPUT').toType(InputType.STRING)
+            });
+        case 'looks_getOtherSpriteVisible':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_VISIBLE_SPRITE, InputType.BOOLEAN, {
+                option: this.descendInputOfBlock(block, 'VISIBLE_OPTION').toType(InputType.STRING)
+            });
+        case 'looks_getSpriteVisible':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_VISIBLE_GET, InputType.BOOLEAN);
+        case 'looks_layersGetLayer':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_LAYER_GET, InputType.NUMBER_WHOLE);
+        case 'looks_sayHeight':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_BUBBLE_HEIGHT, InputType.NUMBER);
+        case 'looks_sayWidth':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_BUBBLE_WIDTH, InputType.NUMBER);
+        case 'looks_stretchGetX':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_STRETCH_X, InputType.NUMBER);
+        case 'looks_stretchGetY':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_STRETCH_Y, InputType.NUMBER);
+        case 'looks_tintColor':
+            return new IntermediateInput(InputOpcode.PM_LOOKS_GET_TINT, InputType.STRING);
 
         case 'motion_direction':
             return new IntermediateInput(InputOpcode.MOTION_DIRECTION_GET, InputType.NUMBER_REAL);
@@ -364,6 +488,7 @@ class ScriptTreeGenerator {
             case 'abs': return new IntermediateInput(InputOpcode.OP_ABS, InputType.NUMBER_POS | InputType.NUMBER_ZERO, {value});
             case 'floor': return new IntermediateInput(InputOpcode.OP_FLOOR, InputType.NUMBER_INT | InputType.NUMBER_INF, {value});
             case 'ceiling': return new IntermediateInput(InputOpcode.OP_CEILING, InputType.NUMBER_INT | InputType.NUMBER_INF, {value});
+            case 'sign': return new IntermediateInput(InputOpcode.PM_OP_SIGN, InputType.NUMBER, {value});
             case 'sqrt': return new IntermediateInput(InputOpcode.OP_SQRT, InputType.NUMBER_OR_NAN, {value});
             case 'sin': return new IntermediateInput(InputOpcode.OP_SIN, InputType.NUMBER_OR_NAN, {value});
             case 'cos': return new IntermediateInput(InputOpcode.OP_COS, InputType.NUMBER_OR_NAN, {value});
@@ -373,6 +498,7 @@ class ScriptTreeGenerator {
             case 'atan': return new IntermediateInput(InputOpcode.OP_ATAN, InputType.NUMBER, {value});
             case 'ln': return new IntermediateInput(InputOpcode.OP_LOG_E, InputType.NUMBER_OR_NAN, {value});
             case 'log': return new IntermediateInput(InputOpcode.OP_LOG_10, InputType.NUMBER_OR_NAN, {value});
+            case 'log2': return new IntermediateInput(InputOpcode.PM_OP_LOG_2, InputType.NUMBER_OR_NAN, {value});
             case 'e ^': return new IntermediateInput(InputOpcode.OP_POW_E, InputType.NUMBER, {value});
             case '10 ^': return new IntermediateInput(InputOpcode.OP_POW_10, InputType.NUMBER, {value});
             default: return this.createConstantInput(0);
@@ -467,6 +593,309 @@ class ScriptTreeGenerator {
                 right: this.descendInputOfBlock(block, 'NUM2').toType(InputType.NUMBER)
             });
 
+        //pm operators
+        case 'operator_advlog':
+            return new IntermediateInput(InputOpcode.PM_OP_LOG, InputType.NUMBER_OR_NAN, {
+                left: this.descendInputOfBlock(block, 'NUM1').toType(InputType.NUMBER),
+                right: this.descendInputOfBlock(block, 'NUM2').toType(InputType.NUMBER)
+            });
+        case 'operator_advMath':
+        case 'operator_advMathExpanded': {
+            const expanded = block.opcode === 'operator_advMathExpanded';
+            const left = this.descendInputOfBlock(block, expanded ? 'TWO' : 'ONE').toType(InputType.NUMBER);
+            const right = this.descendInputOfBlock(block, expanded ? 'THREE' : 'TWO').toType(InputType.NUMBER);
+
+            const output = (() => {
+                switch (block.fields.OPTION.value) {
+                    case '^': return new IntermediateInput(InputOpcode.PM_OP_POWER, InputType.NUMBER_OR_NAN, { left, right });
+                    case 'root': return new IntermediateInput(InputOpcode.PM_OP_ROOT, InputType.NUMBER_OR_NAN, { left, right });
+                    case 'log': return new IntermediateInput(InputOpcode.PM_OP_LOG, InputType.NUMBER_OR_NAN, { left, right });
+                }
+            })();
+
+            return !expanded ? output : new IntermediateInput(InputOpcode.OP_MULTIPLY, InputType.NUMBER_OR_NAN, {
+                left: output,
+                right: this.descendInputOfBlock(block, 'ONE').toType(InputType.NUMBER)
+            });
+        }
+        case 'operator_boolify':
+            return this.descendInputOfBlock(block, 'ONE').toType(InputType.BOOLEAN);
+        case 'operator_character_to_code':
+            return new IntermediateInput(InputOpcode.PM_OP_CHARACTER_TO_CODE, InputType.NUMBER_INT, {
+                one: this.descendInputOfBlock(block, 'ONE').toType(InputType.STRING)
+            });
+        case 'operator_code_to_character':
+            return new IntermediateInput(InputOpcode.PM_OP_CODE_TO_CHARACTER, InputType.STRING, {
+                one: this.descendInputOfBlock(block, 'ONE').toType(InputType.NUMBER)
+            });
+        case 'operator_countAppearTimes':
+            return new IntermediateInput(InputOpcode.PM_OP_COUNT_APPEAR_TIMES, InputType.NUMBER, {
+                text1: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
+                text2: this.descendInputOfBlock(block, 'TEXT2').toType(InputType.STRING)
+            });
+        case 'operator_constrainnumber':
+            return new IntermediateInput(InputOpcode.PM_OP_CONSTRAIN, InputType.NUMBER, {
+                input: this.descendInputOfBlock(block, 'inp').toType(InputType.NUMBER),
+                min: this.descendInputOfBlock(block, 'min').toType(InputType.NUMBER),
+                max: this.descendInputOfBlock(block, 'max').toType(InputType.NUMBER)
+            });
+        case 'operator_decode': {
+            let encoding = null;
+            switch (block.fields.ENCODING.value) {
+                case 'base16': encoding = InputOpcode.PM_OP_DECODE_B16; break;
+                case 'base64': encoding = InputOpcode.PM_OP_DECODE_B64; break;
+                case 'uri': encoding = InputOpcode.PM_OP_DECODE_URI; break;
+                default: return this.createConstantInput("");
+            }
+
+            return new IntermediateInput(encoding, InputType.STRING, {
+                text: this.descendInputOfBlock(block, "TEXT").toType(InputType.STRING)
+            });
+        }
+        case 'operator_encode': {
+            let encoding = null;
+            switch (block.fields.ENCODING.value) {
+                case 'base16': encoding = InputOpcode.PM_OP_ENCODE_B16; break;
+                case 'base64': encoding = InputOpcode.PM_OP_ENCODE_B64; break;
+                case 'uri': encoding = InputOpcode.PM_OP_ENCODE_URI; break;
+                default: return this.createConstantInput("");
+            }
+
+            return new IntermediateInput(encoding, InputType.STRING, {
+                text: this.descendInputOfBlock(block, "TEXT").toType(InputType.STRING)
+            });
+        }
+        case 'operator_expandableBool': {
+            let amount = Number(block.fields.EXPANDABLE.value);
+            let inputs = [];
+            let operations = [];
+            for (let i = 0; i < amount; i++) {
+                inputs.push(this.descendInputOfBlock(block, 'BOOL' + (i + 1)).toType(InputType.BOOLEAN));
+                if (i >= 1) operations.push(block.fields['OP' + (i + 1)].value);
+            }
+            return new IntermediateInput(InputOpcode.PM_OP_BOOL_EXPANDABLE, InputType.BOOLEAN, {
+                inputs,
+                operations
+            });
+        }
+        case 'operator_expandableCompare': {
+            let amount = Number(block.fields.EXPANDABLE.value);
+            let inputs = [];
+            let operations = [];
+            for (let i = 0; i < amount; i++) {
+                inputs.push(this.descendInputOfBlock(block, 'INPUT' + (i + 1)));
+                if (i >= 1) operations.push(block.fields['OP' + (i + 1)].value);
+            }
+            if (inputs.length <= 1) return this.createConstantInput(false);
+            return new IntermediateInput(InputOpcode.PM_OP_COMPARE_EXPANDABLE, InputType.BOOLEAN, {
+                inputs,
+                operations
+            }, true);
+        }
+        case 'operator_expandableMath': {
+            let amount = Number(block.fields.EXPANDABLE.value);
+            let inputs = [];
+            let operations = [];
+            for (let i = 1; i <= amount; i++) {
+                inputs.push(this.descendInputOfBlock(block, 'NUM' + i).toType(InputType.NUMBER));
+                if (i >= 2) operations.push(block.fields['OP' + i].value);
+            }
+            return new IntermediateInput(InputOpcode.PM_OP_MATH_EXPANDABLE, InputType.NUMBER, {
+                inputs,
+                operations
+            });
+        }
+        case 'operator_expandablejoininputs': {
+            let amount = Number(block.fields.EXPANDABLE.value);
+            let inputs = [];
+            for (let i = 0; i < amount; i++) {
+                inputs.push(this.descendInputOfBlock(block, 'INPUT' + (i + 1)).toType(InputType.STRING));
+            }
+            return new IntermediateInput(InputOpcode.PM_OP_JOIN_EXPANDABLE, InputType.STRING, {
+                inputs
+            });
+        }
+        case 'operator_falseBoolean':
+            return this.createConstantInput(false);
+        case 'operator_getLettersFromIndexToIndexInText':
+        case 'operator_getLettersFromIndexToIndexInTextFixed':
+            return new IntermediateInput(InputOpcode.PM_OP_LETTERS_OF, InputType.STRING, {
+                from: this.descendInputOfBlock(block, 'INDEX1').toType(InputType.NUMBER_INDEX),
+                to: this.descendInputOfBlock(block, 'INDEX2').toType(InputType.NUMBER_INDEX),
+                text: this.descendInputOfBlock(block, 'TEXT').toType(InputType.STRING),
+                notFixed: block.opcode === 'operator_getLettersFromIndexToIndexInText'
+            });
+        case 'operator_gtorequal':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.OP_LESS, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1'),
+                    right: this.descendInputOfBlock(block, 'OPERAND2')
+                })
+            });
+        case 'operator_indexOfTextInText':
+            return new IntermediateInput(InputOpcode.PM_OP_INDEX_OF_TEXT_IN_TEXT, InputType.NUMBER, {
+                text1: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
+                text2: this.descendInputOfBlock(block, 'TEXT2').toType(InputType.STRING)
+            });
+        case 'operator_join3':
+            return new IntermediateInput(InputOpcode.OP_JOIN, InputType.STRING, {
+                left: new IntermediateInput(InputOpcode.OP_JOIN, InputType.STRING, {
+                    left: this.descendInputOfBlock(block, 'STRING1').toType(InputType.STRING),
+                    right: this.descendInputOfBlock(block, 'STRING2').toType(InputType.STRING)
+                }),
+                right: this.descendInputOfBlock(block, 'STRING3').toType(InputType.STRING)
+            });
+        case 'operator_lastIndexOfTextInText':
+            return new IntermediateInput(InputOpcode.PM_OP_LAST_INDEX_OF_TEXT_IN_TEXT, InputType.NUMBER, {
+                text1: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
+                text2: this.descendInputOfBlock(block, 'TEXT2').toType(InputType.STRING)
+            });
+        case 'operator_lerpFunc':
+            return new IntermediateInput(InputOpcode.PM_OP_INTERPOLATE, InputType.NUMBER, {
+                from: this.descendInputOfBlock(block, 'ONE').toType(InputType.NUMBER),
+                to: this.descendInputOfBlock(block, 'TWO').toType(InputType.NUMBER),
+                amount: this.descendInputOfBlock(block, 'AMOUNT').toType(InputType.NUMBER)
+            });
+        case 'operator_ltorequal':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.OP_GREATER, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1'),
+                    right: this.descendInputOfBlock(block, 'OPERAND2')
+                })
+            });
+        case 'operator_nand':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.OP_AND, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1').toType(InputType.BOOLEAN),
+                    right: this.descendInputOfBlock(block, 'OPERAND2').toType(InputType.BOOLEAN)
+                })
+            });
+        case 'operator_newLine':
+            return this.createConstantInput('\n');
+        case 'operator_nor':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.OP_OR, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1').toType(InputType.BOOLEAN),
+                    right: this.descendInputOfBlock(block, 'OPERAND2').toType(InputType.BOOLEAN)
+                })
+            });
+        case 'operator_notequal':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.OP_EQUALS, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1'),
+                    right: this.descendInputOfBlock(block, 'OPERAND2')
+                })
+            });
+        case 'operator_null':
+            return this.createConstantInput(null);
+        case 'operator_power':
+            return new IntermediateInput(InputOpcode.PM_OP_POWER, InputType.NUMBER_OR_NAN, {
+                left: this.descendInputOfBlock(block, 'NUM1').toType(InputType.NUMBER),
+                right: this.descendInputOfBlock(block, 'NUM2').toType(InputType.NUMBER)
+            });
+        case 'operator_randomBoolean':
+            return new IntermediateInput(InputOpcode.PM_OP_RANDOMBOOL, InputType.BOOLEAN);
+        case 'operator_range_expandable': {
+            let amount = Number(block.fields.EXPANDABLE.value);
+            let inputs = [];
+            for (let i = 0; i < amount; i++) {
+                inputs.push(this.descendInputOfBlock(block, 'INPUT' + (i + 1)).toType(InputType.NUMBER));
+            }
+
+            switch (block.fields.RANGE.value) {
+                case 'maximum': return new IntermediateInput(InputOpcode.PM_OP_MAXIMUM, InputType.NUMBER, {inputs});
+                case 'average': return new IntermediateInput(InputOpcode.PM_OP_AVERAGE, InputType.NUMBER, {inputs});
+                case 'minimum': return new IntermediateInput(InputOpcode.PM_OP_MINIMUM, InputType.NUMBER, {inputs});
+                case 'range': return new IntermediateInput(InputOpcode.PM_OP_RANGE, InputType.NUMBER_POS, {inputs});
+                default: return this.createConstantInput(0);
+            }
+        }
+        case 'operator_readLineInMultilineText':
+            return new IntermediateInput(InputOpcode.PM_OP_READ_LINE, InputType.STRING, {
+                line: this.descendInputOfBlock(block, 'LINE').toType(InputType.NUMBER_INDEX),
+                text: this.descendInputOfBlock(block, 'TEXT').toType(InputType.STRING)
+            });
+        case 'operator_regexmatch':
+            return new IntermediateInput(InputOpcode.PM_OP_REGEX_MATCH, InputType.STRING, {
+                text: this.descendInputOfBlock(block, 'text').toType(InputType.STRING),
+                regex: this.descendInputOfBlock(block, 'reg').toType(InputType.STRING),
+                flags: this.descendInputOfBlock(block, 'regrule').toType(InputType.STRING)
+            });
+        case 'operator_replaceAll':
+            return new IntermediateInput(InputOpcode.PM_OP_REPLACEALL, InputType.STRING, {
+                text: this.descendInputOfBlock(block, 'text').toType(InputType.STRING),
+                find: this.descendInputOfBlock(block, 'term').toType(InputType.STRING),
+                replace: this.descendInputOfBlock(block, 'res').toType(InputType.STRING)
+            });
+        case 'operator_replaceFirst':
+            return new IntermediateInput(InputOpcode.PM_OP_REPLACEFIRST, InputType.STRING, {
+                text: this.descendInputOfBlock(block, 'text').toType(InputType.STRING),
+                find: this.descendInputOfBlock(block, 'term').toType(InputType.STRING),
+                replace: this.descendInputOfBlock(block, 'res').toType(InputType.STRING)
+            });
+        case 'operator_stringify':
+            return this.descendInputOfBlock(block, 'ONE').toType(InputType.STRING);
+        case 'operator_tabCharacter':
+            return this.createConstantInput('\t');
+        case 'operator_textIncludesLetterFrom':
+            return new IntermediateInput(InputOpcode.PM_OP_TEXT_INCLUDES_LETTER_FROM, InputType.BOOLEAN, {
+                text1: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
+                text2: this.descendInputOfBlock(block, 'TEXT2').toType(InputType.STRING)
+            });
+        case 'operator_textStartsOrEndsWith':
+            return new IntermediateInput(block.fields.OPTION.value === 'ends' ? InputOpcode.PM_OP_ENDS_WITH : InputOpcode.PM_OP_STARTS_WITH, InputType.BOOLEAN, {
+                text: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
+                term: this.descendInputOfBlock(block, 'TEXT2').toType(InputType.STRING)
+            })
+        case 'operator_toUpperLowerCase': {
+            let text = this.descendInputOfBlock(block, 'TEXT').toType(InputType.STRING);
+            switch (block.fields.OPTION.value) {
+                case 'lower': return new IntermediateInput(InputOpcode.PM_OP_LOWER_CASE, InputType.STRING, {text});
+                case 'upper': return new IntermediateInput(InputOpcode.PM_OP_UPPER_CASE, InputType.STRING, {text});
+                default: return text;
+            }
+        }
+        case 'operator_trueBoolean':
+            return this.createConstantInput(true);
+        case 'operator_xnor':
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.PM_OP_XOR, InputType.BOOLEAN, {
+                    left: this.descendInputOfBlock(block, 'OPERAND1').toType(InputType.BOOLEAN),
+                    right: this.descendInputOfBlock(block, 'OPERAND2').toType(InputType.BOOLEAN)
+                })
+            });
+        case 'operator_xor':
+            return new IntermediateInput(InputOpcode.PM_OP_XOR, InputType.BOOLEAN, {
+                left: this.descendInputOfBlock(block, 'OPERAND1').toType(InputType.BOOLEAN),
+                right: this.descendInputOfBlock(block, 'OPERAND2').toType(InputType.BOOLEAN)
+            });
+        case 'operator_valid_type':
+            const value = this.descendInputOfBlock(block, 'TEXT')
+            const operator = block.fields.TYPE.value.toLowerCase();
+            switch (operator) {
+                case "boolean":
+                    return new IntermediateInput(InputOpcode.PM_OP_IS_BOOLEAN, InputType.BOOLEAN, {value});
+                case "number":
+                    return new IntermediateInput(InputOpcode.PM_OP_IS_NUMBER, InputType.BOOLEAN, {value});
+                case "string":
+                    return new IntermediateInput(InputOpcode.PM_OP_IS_STRING, InputType.BOOLEAN, {value});
+                default: return this.createConstantInput(false);
+            }
+        case 'operator_directionTo':
+            return new IntermediateInput(InputOpcode.PM_OP_DIRECTION_COORDINATES, InputType.NUMBER, {
+                x1: this.descendInputOfBlock(block, 'x1'),
+                y1: this.descendInputOfBlock(block, 'y1'),
+                x2: this.descendInputOfBlock(block, 'x2'),
+                y2: this.descendInputOfBlock(block, 'y2')
+            });
+        case 'operator_distanceTo':
+            return new IntermediateInput(InputOpcode.PM_OP_DISTANCE_COORDINATES, InputType.NUMBER_POS | InputType.NUMBER_ZERO, {
+                x1: this.descendInputOfBlock(block, 'x1'),
+                y1: this.descendInputOfBlock(block, 'y1'),
+                x2: this.descendInputOfBlock(block, 'x2'),
+                y2: this.descendInputOfBlock(block, 'y2')
+            });
+
         case 'procedures_call': {
             const procedureInfo = this.getProcedureInfo(block);
             return new IntermediateInput(procedureInfo.opcode, InputType.ANY, procedureInfo.inputs, procedureInfo.yields);
@@ -489,6 +918,7 @@ class ScriptTreeGenerator {
             case 'hour': return new IntermediateInput(InputOpcode.SENSING_TIME_HOUR, InputType.NUMBER_POS_INT | InputType.NUMBER_ZERO);
             case 'minute': return new IntermediateInput(InputOpcode.SENSING_TIME_MINUTE, InputType.NUMBER_POS_INT | InputType.NUMBER_ZERO);
             case 'second': return new IntermediateInput(InputOpcode.SENSING_TIME_SECOND, InputType.NUMBER_POS_INT | InputType.NUMBER_ZERO);
+            case 'timestamp': return new IntermediateInput(InputOpcode.PM_SENSING_TIME_TIMESTAMP, InputType.NUMBER_POS_INT);
             default: return this.createConstantInput(0);
             }
         case 'sensing_dayssince2000':
@@ -516,7 +946,7 @@ class ScriptTreeGenerator {
             }
 
             if (property === 'volume') {
-                return new IntermediateInput(InputOpcode.SENSING_OF_VOLUME, InputType.NUMBER_POS_REAL | InputType.NUMBER_ZERO, {object, property});
+                return new IntermediateInput(InputOpcode.SENSING_OF_VOLUME, InputType.NUMBER_POS_REAL | InputType.NUMBER_ZERO, {object});
             }
 
             if (object.isConstant('_stage_')) {
@@ -562,6 +992,117 @@ class ScriptTreeGenerator {
         case 'sensing_username':
             return new IntermediateInput(InputOpcode.SENSING_USERNAME, InputType.STRING);
 
+        //pm sensing
+        case 'sensing_fingerdown':
+            return new IntermediateInput(InputOpcode.PM_SENSING_FINGER_DOWN, InputType.BOOLEAN, {
+                finger: this.descendInputOfBlock(block, 'FINGER_OPTION').toType(InputType.NUMBER)
+            });
+        case 'sensing_fingertapped':
+            return new IntermediateInput(InputOpcode.PM_SENSING_FINGER_TAPPED, InputType.BOOLEAN, {
+                finger: this.descendInputOfBlock(block, 'FINGER_OPTION').toType(InputType.NUMBER)
+            });
+        case 'sensing_fingerx':
+            return new IntermediateInput(InputOpcode.PM_SENSING_FINGER_X, InputType.NUMBER, {
+                finger: this.descendInputOfBlock(block, 'FINGER_OPTION').toType(InputType.NUMBER)
+            });
+        case 'sensing_fingery':
+            return new IntermediateInput(InputOpcode.PM_SENSING_FINGER_Y, InputType.NUMBER, {
+                finger: this.descendInputOfBlock(block, 'FINGER_OPTION').toType(InputType.NUMBER)
+            });
+        case 'sensing_getbrowser':
+            return new IntermediateInput(InputOpcode.PM_SENSING_BROWSER, InputType.STRING);
+        case 'sensing_getdragmode':
+            return new IntermediateInput(InputOpcode.PM_SENSING_DRAGGABLE, InputType.BOOLEAN);
+        case 'sensing_getspritewithattrib':
+            return new IntermediateInput(InputOpcode.PM_SENSING_SPRITE_WITH_ATTRIB, InputType.STRING, {
+                varName: this.descendInputOfBlock(block, 'var').toType(InputType.STRING),
+                varValue: this.descendInputOfBlock(block, 'val')
+            });
+        case 'sensing_getoperatingsystem':
+            return new IntermediateInput(InputOpcode.PM_SENSING_OS, InputType.STRING);
+        case 'sensing_geturl':
+            return new IntermediateInput(InputOpcode.PM_SENSING_URL, InputType.STRING);
+        case 'sensing_getxyoftouchingsprite':
+            return new IntermediateInput(
+                block.fields.XY.value === "y" ? InputOpcode.PM_SENSING_TOUCHING_POINT_Y : InputOpcode.PM_SENSING_TOUCHING_POINT_X,
+                InputType.NUMBER | InputType.NULL, {
+                object: this.descendInputOfBlock(block, 'SPRITE').toType(InputType.STRING)
+            });
+        case 'sensing_isUpperCase':
+            return new IntermediateInput(InputOpcode.PM_SENSING_UPPERCASE_TEXT, InputType.BOOLEAN, {
+                text: this.descendInputOfBlock(block, 'text').toType(InputType.STRING)
+            });
+        case 'sensing_keyhit':
+            return new IntermediateInput(InputOpcode.PM_SENSING_KEY_HIT, InputType.BOOLEAN, {
+                key: this.descendInputOfBlock(block, 'KEY_OPTION', true)
+            });
+        case 'sensing_loggedin':
+            return new IntermediateInput(InputOpcode.PM_SENSING_LOGGED_IN, InputType.BOOLEAN);
+        case 'sensing_mobile':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOBILE, InputType.BOOLEAN);
+        case 'sensing_mouse_button_clicked':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOUSEBTN_CLICKED, InputType.BOOLEAN, {
+                button: ["left", "middle", "right"].indexOf(block.fields.BUTTON_OPTION.value)
+            });
+        case 'sensing_mouse_button_down':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOUSEBTN_DOWN, InputType.BOOLEAN, {
+                button: ["left", "middle", "right"].indexOf(block.fields.BUTTON_OPTION.value)
+            });
+        case 'sensing_mouse_button_released':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOUSEBTN_RELEASED, InputType.BOOLEAN, {
+                button: ["left", "middle", "right"].indexOf(block.fields.BUTTON_OPTION.value)
+            });
+        case 'sensing_mouseclicked':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOUSEBTN_CLICKED, InputType.BOOLEAN, {
+                button: -1 //any
+            });
+        case 'sensing_mousescrolling':
+            return new IntermediateInput(InputOpcode.PM_SENSING_MOUSE_SCROLLING, InputType.BOOLEAN, {
+                option: this.descendInputOfBlock(block, 'SCROLL_OPTION')
+            });
+        case 'sensing_objecttouchingclonesprite':
+            return new IntermediateInput(InputOpcode.PM_SENSING_OBJECT_TOUCHING_CLONE, InputType.BOOLEAN, {
+                object1: this.descendInputOfBlock(block, 'FULLTOUCHINGOBJECTMENU').toType(InputType.STRING),
+                object2: this.descendInputOfBlock(block, 'SPRITETOUCHINGOBJECTMENU').toType(InputType.STRING)
+            });
+        case 'sensing_objecttouchingobject':
+            return new IntermediateInput(InputOpcode.PM_SENSING_OBJECT_TOUCHING_OBJECT, InputType.BOOLEAN, {
+                object1: this.descendInputOfBlock(block, 'FULLTOUCHINGOBJECTMENU').toType(InputType.STRING),
+                object2: this.descendInputOfBlock(block, 'SPRITETOUCHINGOBJECTMENU').toType(InputType.STRING)
+            });
+        case 'sensing_regextest':
+            return new IntermediateInput(InputOpcode.PM_SENSING_REGEX_TEST, InputType.BOOLEAN, {
+                text: this.descendInputOfBlock(block, 'text').toType(InputType.STRING),
+                regex: this.descendInputOfBlock(block, 'reg').toType(InputType.STRING),
+                flags: this.descendInputOfBlock(block, 'regrule').toType(InputType.STRING)
+            });
+        case 'sensing_thing_has_number': {
+            let text = this.descendInputOfBlock(block, 'TEXT1');
+            if (text.isSubtypeOf(InputType.NUMBER)) return this.createConstantInput(true);
+            return new IntermediateInput(InputOpcode.PM_SENSING_HAS_NUMBER, InputType.BOOLEAN, {
+                text
+            });
+        }
+        case 'sensing_thing_has_text':
+            // ts has no code in pre-port pm, soo im just gonna make it always return true
+            return this.createConstantInput(true);
+        case 'sensing_thing_is_number': {
+            let text = this.descendInputOfBlock(block, 'TEXT1');
+            if (text.isSubtypeOf(InputType.NUMBER)) return this.createConstantInput(true);
+            return new IntermediateInput(InputOpcode.OP_NOT, InputType.BOOLEAN, {
+                operand: new IntermediateInput(InputOpcode.PM_SENSING_IS_TEXT, InputType.BOOLEAN, {
+                    text
+                })
+            });
+        }
+        case 'sensing_thing_is_text': {
+            let text = this.descendInputOfBlock(block, 'TEXT1');
+            if (text.isSubtypeOf(InputType.NUMBER)) return this.createConstantInput(false);
+            return new IntermediateInput(InputOpcode.PM_SENSING_IS_TEXT, InputType.BOOLEAN, {
+                text
+            });
+        }
+
         case 'sound_sounds_menu':
             // This menu is special compared to other menus -- it actually has an opcode function.
             return this.createConstantInput(block.fields.SOUND_MENU.value, true);
@@ -573,6 +1114,31 @@ class ScriptTreeGenerator {
             return new IntermediateInput(InputOpcode.TW_KEY_LAST_PRESSED, InputType.STRING);
 
         default: {
+            // pm: old extension compiler support
+            const extensionId = String(block.opcode).split('_')[0];
+            const blockId = String(block.opcode).replace(extensionId + '_', '');
+            if (oldCompilerCompatiblity.IRGeneratorStub.hasExtensionIr(extensionId) && oldCompilerCompatiblity.IRGeneratorStub.getExtensionIr(extensionId)[blockId]) {
+                // this is an extension block that wants to be compiled
+                const irFunc = oldCompilerCompatiblity.IRGeneratorStub.getExtensionIr(extensionId)[blockId];
+                let irData = null;
+                // make sure irFunc isnt broken
+                try {
+                    irData = irFunc(this, block);
+                } catch (err) {
+                    log.warn(extensionId + '_' + blockId, 'failed to create IR data;', err);
+                }
+                if (irData) {
+                    // check if it is this type, we dont want to descend a stack as an input
+                    if (irData.kind === 'input') {
+                        // set proper kind
+                        irData.kind = extensionId + '.' + blockId;
+                        return new IntermediateInput(InputOpcode.OLD_COMPILER_COMPATIBILITY_LAYER, InputType.ANY, {
+                            oldNode: irData
+                        }, true);
+                    }
+                }
+            }
+
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
             if (opcodeFunction) {
                 // It might be a non-compiled primitive from a standard category
@@ -590,13 +1156,14 @@ class ScriptTreeGenerator {
             }
 
             // It might be a menu.
-            const inputs = Object.keys(block.inputs);
-            const fields = Object.keys(block.fields);
-            if (inputs.length === 0 && fields.length === 1) {
-                return this.createConstantInput(block.fields[fields[0]].value, preserveStrings);
+            if (block.id !== this.script.topBlockId) {
+                const inputs = Object.keys(block.inputs);
+                const fields = Object.keys(block.fields);
+                if (inputs.length === 0 && fields.length === 1) {
+                    return this.createConstantInput(block.fields[fields[0]].value, preserveStrings);
+                }
             }
 
-            log.warn(`IR: Unknown input: ${block.opcode}`, block);
             throw new Error(`IR: Unknown input: ${block.opcode}`);
         }
         }
@@ -616,14 +1183,22 @@ class ScriptTreeGenerator {
             }
         }
 
+        for (let extensionId in IRGenerator.compilerExtensions) {
+            let extension = IRGenerator.compilerExtensions[extensionId]
+            if (extension.command) {
+                let returns = extension.command.call(this, block);
+                if (returns) return returns;
+            }
+        }
+
         switch (block.opcode) {
-        case 'control_all_at_once':
-            // In Scratch 3, this block behaves like "if 1 = 1"
-            return new IntermediateStackBlock(StackOpcode.CONTROL_IF_ELSE, {
-                condition: this.createConstantInput(true).toType(InputType.BOOLEAN),
-                whenTrue: this.descendSubstack(block, 'SUBSTACK'),
-                whenFalse: new IntermediateStack()
-            });
+        //pm branched procedures
+        case 'argument_reporter_command': {
+            const name = block.fields.VALUE.value;
+            const index = this.script.arguments.lastIndexOf(name);
+            return new IntermediateStackBlock(StackOpcode.PM_PROCEDURE_COMMANDARG, {index}, true);
+        }
+
         case 'control_create_clone_of':
             return new IntermediateStackBlock(StackOpcode.CONTROL_CLONE_CREATE, {
                 target: this.descendInputOfBlock(block, 'CLONE_OPTION').toType(InputType.STRING)
@@ -680,6 +1255,8 @@ class ScriptTreeGenerator {
                 return new IntermediateStackBlock(StackOpcode.CONTROL_STOP_OTHERS);
             } else if (level === 'this script') {
                 return new IntermediateStackBlock(StackOpcode.CONTROL_STOP_SCRIPT);
+            } else if (level === 'this thread') {
+                return new IntermediateStackBlock(StackOpcode.PM_CONTROL_STOP_THREAD, {}, true);
             }
             return new IntermediateStackBlock(StackOpcode.NOP);
         }
@@ -702,6 +1279,131 @@ class ScriptTreeGenerator {
             return new IntermediateStackBlock(StackOpcode.CONTROL_CLEAR_COUNTER);
         case 'control_incr_counter':
             return new IntermediateStackBlock(StackOpcode.CONTORL_INCR_COUNTER);
+
+        //pm control
+        case 'control_all_at_once':
+            // In PenguinMod, this runs the substack as run without screen refresh.
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_ALL_AT_ONCE, {
+                stack: this.descendSubstack(block, 'SUBSTACK'),
+                value: true
+            });
+        case 'control_case':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_THROW_ERROR, {
+                error: this.createConstantInput('All "case" blocks must be inside of a "switch" block.')
+            });
+        case 'control_case_next':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_THROW_ERROR, {
+                error: this.createConstantInput('All "case" blocks must be inside of a "switch" block.')
+            });
+        case 'control_continueLoop':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_CONTINUE_LOOP, {}, true);
+        case 'control_decr_counter':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_DECR_COUNTER);
+        case 'control_delete_clones_of':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_DELETE_CLONES, {
+                target: this.descendInputOfBlock(block, 'CLONE_OPTION').toType(InputType.STRING)
+            });
+        case 'control_do_while':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_DO_WHILE, {
+                condition: this.descendInputOfBlock(block, 'CONDITION').toType(InputType.BOOLEAN),
+                do: this.descendSubstack(block, 'SUBSTACK'),
+                // We should consider analyzing this like we do for control_repeat_until
+                warpTimer: false
+            }, this.analyzeLoop());
+        case 'control_dualblock':
+            return new IntermediateStackBlock(StackOpcode.LOOKS_SAY, {
+                message: this.createConstantInput("dual block works!")
+            });
+        case 'control_expandableIf': {
+            const EXPANDABLE = Number(block.fields.EXPANDABLE.value);
+            let ifCount = Math.ceil(EXPANDABLE / 2);
+            let elseDo = EXPANDABLE % 2 === 0 ? this.descendSubstack(block, 'SUBSTACK' + (ifCount + 1)) : null;
+
+            let ifs = [];
+            for (let i = 0; i < ifCount; i++) {
+                ifs.push({
+                    condition: this.descendInputOfBlock(block, 'BOOL' + (i + 1)).toType(InputType.BOOLEAN),
+                    do: this.descendSubstack(block, 'SUBSTACK' + (i + 1))
+                });
+            }
+
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_EXPANDABLE_IF, {
+                ifs,
+                elseDo
+            });
+        }
+        case 'control_exitLoop':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_ESCAPE_LOOP);
+        case 'control_exitCase':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_EXIT_CASE);
+        case 'control_from_to':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_FROM_TO, {
+                from: this.descendInputOfBlock(block, 'FROM').toType(InputType.NUMBER),
+                to: this.descendInputOfBlock(block, 'TO').toType(InputType.NUMBER),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            }, this.analyzeLoop());
+        case 'control_repeatForSeconds':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_REPEAT_SECONDS, {
+                seconds: this.descendInputOfBlock(block, 'TIMES').toType(InputType.NUMBER),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            }, this.analyzeLoop());
+        case 'control_restartproject':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_RESTART_PROJECT);
+        case 'control_run_as_sprite':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_RUN_AS, {
+                sprite: this.descendInputOfBlock(block, 'RUN_AS_OPTION').toType(InputType.STRING),
+                substack: this.descendSubstack(block, 'SUBSTACK')
+            });
+        case 'control_runwithoutscreenrefresh':
+            // In PenguinMod, this runs the substack as run without screen refresh.
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_ALL_AT_ONCE, {
+                stack: this.descendSubstack(block, 'SUBSTACK'),
+                value: block.fields.CHECKBOX.value === 'TRUE'
+            });
+        case 'control_set_counter':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_SET_COUNTER, {
+                value: this.descendInputOfBlock(block, 'VALUE').toType(InputType.NUMBER)
+            });
+        case 'control_stop_sprite':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_STOP_SPRITE, {
+                sprite: this.descendInputOfBlock(block, 'STOP_OPTION').toType(InputType.STRING)
+            });
+        case 'control_switch':
+        case 'control_switch_default':
+            let cases = this.getSubstackChildren(block, block.opcode === 'control_switch_default' ? 'SUBSTACK1' : 'SUBSTACK');
+            cases = cases.map(v => {
+                switch (v.opcode) {
+                    case 'control_case': return [
+                        this.descendInputOfBlock(v, 'CONDITION').toType(InputType.STRING),
+                        this.descendSubstack(v, 'SUBSTACK')
+                    ];
+                    case 'control_case_next': return [
+                        this.descendInputOfBlock(v, 'CONDITION').toType(InputType.STRING)
+                    ]
+                    default: return undefined;
+                }
+            }).filter(v => v !== undefined);
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_SWITCH, {
+                condition: this.descendInputOfBlock(block, 'CONDITION').toType(InputType.STRING),
+                cases,
+                default: block.opcode === 'control_switch_default' ? this.descendSubstack(block, 'SUBSTACK2') : undefined
+            });
+        case 'control_throw_error':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_THROW_ERROR, {
+                error: this.descendInputOfBlock(block, 'ERROR').toType(InputType.STRING)
+            });
+        case 'control_try_catch':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_TRY_CATCH, {
+                try: this.descendSubstack(block, 'SUBSTACK'),
+                catch: this.descendSubstack(block, 'SUBSTACK2')
+            });
+        case 'control_waitsecondsoruntil':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_WAIT_OR_UNTIL, {
+                seconds: this.descendInputOfBlock(block, 'DURATION').toType(InputType.NUMBER),
+                condition: this.descendInputOfBlock(block, 'CONDITION').toType(InputType.BOOLEAN)
+            }, true);
+        case 'control_waittick':
+            return new IntermediateStackBlock(StackOpcode.PM_CONTROL_WAIT_TICK, {}, true);
 
         case 'data_addtolist':
             return new IntermediateStackBlock(StackOpcode.LIST_ADD, {
@@ -766,6 +1468,56 @@ class ScriptTreeGenerator {
         case 'data_showvariable':
             return new IntermediateStackBlock(StackOpcode.VAR_SHOW, {
                 variable: this.descendVariable(block, 'VARIABLE', SCALAR_TYPE)
+            });
+
+        //pm variables
+        case 'data_setvariablevisible':
+            return new IntermediateStackBlock(StackOpcode.PM_VAR_SET_VISIBLE, {
+                variable: this.descendVariable(block, 'VARIABLE', SCALAR_TYPE),
+                visible: this.descendInputOfBlock(block, 'VISIBILITY').toType(InputType.BOOLEAN)
+            });
+
+        //pm lists
+        case 'data_arraylist':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_ARRAY_SET, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                array: this.descendInputOfBlock(block, 'VALUE')
+            });
+        case 'data_filterlist':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_FILTER, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                condition: this.descendInputOfBlock(block, 'BOOL').toType(InputType.BOOLEAN)
+            });
+        case 'data_listforeach':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_FOREACH, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            });
+        case 'data_listforeachitem':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_FOREACH, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                itemVariable: this.descendVariable(block, 'VARIABLE', SCALAR_TYPE),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            });
+        case 'data_listforeachnum':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_FOREACH, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                indexVariable: this.descendVariable(block, 'VARIABLE', SCALAR_TYPE),
+                do: this.descendSubstack(block, 'SUBSTACK')
+            });
+        case 'data_reverselist':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_REVERSE, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE)
+            });
+        case 'data_setlistvisible':
+            return new IntermediateStackBlock(StackOpcode.PM_VAR_SET_VISIBLE, {
+                variable: this.descendVariable(block, 'LIST', LIST_TYPE),
+                visible: this.descendInputOfBlock(block, 'VISIBILITY').toType(InputType.BOOLEAN)
+            });
+        case 'data_shiftlist':
+            return new IntermediateStackBlock(StackOpcode.PM_LIST_SHIFT, {
+                list: this.descendVariable(block, 'LIST', LIST_TYPE),
+                index: this.descendInputOfBlock(block, 'INDEX').toType(InputType.NUMBER)
             });
 
         case 'event_broadcast':
@@ -836,6 +1588,57 @@ class ScriptTreeGenerator {
                 message: this.descendInputOfBlock(block, 'MESSAGE')
             });
 
+        //pm looks
+        case 'looks_changeStretch':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_CHANGE_STRETCH, {
+                x: this.descendInputOfBlock(block, 'X').toType(InputType.NUMBER),
+                y: this.descendInputOfBlock(block, 'Y').toType(InputType.NUMBER)
+            });
+        case 'looks_changeVisibilityOfSprite':
+            return new IntermediateStackBlock(block.fields.VISIBLE_TYPE.value === "show" ? StackOpcode.PM_LOOKS_SHOW_SPRITE : StackOpcode.PM_LOOKS_HIDE_SPRITE, {
+                option: this.descendInputOfBlock(block, 'VISIBLE_OPTION').toType(InputType.STRING)
+            });
+        case 'looks_changeVisibilityOfSpriteHide':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_HIDE_SPRITE, {
+                option: this.descendInputOfBlock(block, 'VISIBLE_OPTION').toType(InputType.STRING)
+            });
+        case 'looks_changeVisibilityOfSpriteShow':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_SHOW_SPRITE, {
+                option: this.descendInputOfBlock(block, 'VISIBLE_OPTION').toType(InputType.STRING)
+            });
+        case 'looks_goTargetLayer':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_LAYER_TARGET, {
+                option: this.descendInputOfBlock(block, 'VISIBLE_OPTION').toType(InputType.STRING),
+                infront: block.fields.FORWARD_BACKWARD.value === "infront"
+            });
+        case 'looks_layersSetLayer':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_LAYER_SET, {
+                layer: this.descendInputOfBlock(block, 'NUM').toType(InputType.NUMBER)
+            });
+        case 'looks_previousbackdrop':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_BACKDROP_PREVIOUS);
+        case 'looks_previouscostume':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_COSTUME_PREVIOUS);
+        case 'looks_set_blend_mode':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_SET_BLENDMODE, {
+                mode: block.fields.BLENDMODE.value.toLowerCase()
+            });
+        case 'looks_setSpriteVisible':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_VISIBLE_SET, {
+                visible: this.descendInputOfBlock(block, 'VISIBILITY').toType(InputType.BOOLEAN)
+            });
+        case 'looks_setStretch':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_SET_STRETCH, {
+                x: this.descendInputOfBlock(block, 'X').toType(InputType.NUMBER),
+                y: this.descendInputOfBlock(block, 'Y').toType(InputType.NUMBER)
+            });
+        case 'looks_stoptalking':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_STOP_SPEAKING, {});
+        case 'looks_setTintColor':
+            return new IntermediateStackBlock(StackOpcode.PM_LOOKS_SET_TINT, {
+                tint: this.descendInputOfBlock(block, 'color').toType(InputType.STRING)
+            });
+
         case 'motion_changexby':
             return new IntermediateStackBlock(StackOpcode.MOTION_X_CHANGE, {
                 dx: this.descendInputOfBlock(block, 'DX').toType(InputType.NUMBER)
@@ -884,6 +1687,65 @@ class ScriptTreeGenerator {
                     left: new IntermediateInput(InputOpcode.MOTION_DIRECTION_GET, InputType.NUMBER),
                     right: this.descendInputOfBlock(block, 'DEGREES').toType(InputType.NUMBER)
                 })
+            });
+
+        // pm motion
+        case 'motion_changebyxy':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_XY_CHANGE, {
+                dx: this.descendInputOfBlock(block, 'DX').toType(InputType.NUMBER),
+                dy: this.descendInputOfBlock(block, 'DY').toType(InputType.NUMBER)
+            });
+        case 'motion_movebacksteps':
+            return new IntermediateStackBlock(StackOpcode.MOTION_STEP, {
+                steps: new IntermediateInput(InputOpcode.OP_SUBTRACT, InputType.NUMBER, {
+                    left: this.createConstantInput(0),
+                    right: this.descendInputOfBlock(block, 'STEPS').toType(InputType.NUMBER)
+                })
+            });
+        case 'motion_moveupdownsteps':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_STEPUPDOWN, {
+                steps: this.descendInputOfBlock(block, 'STEPS').toType(InputType.NUMBER),
+                direction: block.fields.DIRECTION.value
+            })
+        case 'motion_move_sprite_to_scene_side':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_MOVESTAGESIDE, {
+                side: block.fields.ALIGNMENT.value
+            });
+        case 'motion_pointinrandomdirection':
+            return new IntermediateStackBlock(StackOpcode.MOTION_DIRECTION_SET, {
+                direction: new IntermediateInput(InputOpcode.OP_RANDOM, InputType.NUMBER, {
+                    low: this.createConstantInput(-179),
+                    high: this.createConstantInput(180),
+                    useInts: true,
+                    useFloats: false
+                })
+            });
+        case 'motion_pointtowardsxy':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_POINTTOWARDS_XY, {
+                x: this.descendInputOfBlock(block, 'X').toType(InputType.NUMBER),
+                y: this.descendInputOfBlock(block, 'Y').toType(InputType.NUMBER)
+            });
+        case 'motion_turnaround':
+            return new IntermediateStackBlock(StackOpcode.MOTION_DIRECTION_SET, {
+                direction: new IntermediateInput(InputOpcode.OP_ADD, InputType.NUMBER, {
+                    left: new IntermediateInput(InputOpcode.MOTION_DIRECTION_GET, InputType.NUMBER),
+                    right: this.createConstantInput(180)
+                })
+            });
+        case 'motion_turnleftaroundxy':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_ROTATE_AROUND_PIVOT, {
+                degrees: new IntermediateInput(InputOpcode.OP_SUBTRACT, InputType.NUMBER, {
+                    left: this.createConstantInput(0),
+                    right: this.descendInputOfBlock(block, 'DEGREES').toType(InputType.NUMBER)
+                }),
+                x: this.descendInputOfBlock(block, 'X').toType(InputType.NUMBER),
+                y: this.descendInputOfBlock(block, 'Y').toType(InputType.NUMBER)
+            });
+        case 'motion_turnrightaroundxy':
+            return new IntermediateStackBlock(StackOpcode.PM_MOTION_ROTATE_AROUND_PIVOT, {
+                degrees: this.descendInputOfBlock(block, 'DEGREES').toType(InputType.NUMBER),
+                x: this.descendInputOfBlock(block, 'X').toType(InputType.NUMBER),
+                y: this.descendInputOfBlock(block, 'Y').toType(InputType.NUMBER)
             });
 
         case 'pen_clear':
@@ -935,14 +1797,6 @@ class ScriptTreeGenerator {
 
         case 'procedures_call': {
             const procedureCode = block.mutation.proccode;
-
-            if (block.mutation.return) {
-                const visualReport = this.descendVisualReport(block);
-                if (visualReport) {
-                    return visualReport;
-                }
-            }
-
             if (procedureCode === 'tw:debugger;') {
                 return new IntermediateStackBlock(StackOpcode.DEBUGGER);
             }
@@ -955,10 +1809,123 @@ class ScriptTreeGenerator {
                 value: this.descendInputOfBlock(block, 'VALUE')
             });
 
+        case 'procedures_reevaluate':
+            let param = this.descendInputOfBlock(block, 'PARAM');
+            if (param.opcode !== InputOpcode.PROCEDURE_ARGUMENT) {
+                return new IntermediateStackBlock(StackOpcode.NOP);
+            }
+
+            return new IntermediateStackBlock(StackOpcode.PM_PROCEDURE_REEVALUATE, {
+                index: param.inputs.index
+            }, true)
+        case 'procedures_set': {
+            let param = this.descendInputOfBlock(block, 'PARAM');
+            if (param.opcode !== InputOpcode.PROCEDURE_ARGUMENT) {
+                return new IntermediateStackBlock(StackOpcode.NOP);
+            }
+
+            return new IntermediateStackBlock(StackOpcode.PM_PROCEDURE_SET, {
+                index: param.inputs.index,
+                value: this.descendInputOfBlock(block, 'VALUE')
+            })
+        }
+
         case 'sensing_resettimer':
             return new IntermediateStackBlock(StackOpcode.SENSING_TIMER_RESET);
 
+        // pm sensing
+        case 'sensing_set_of': {
+            const property = block.fields.PROPERTY.value;
+            const object = this.descendInputOfBlock(block, 'OBJECT').toType(InputType.STRING);
+            const value = this.descendInputOfBlock(block, 'VALUE');
+
+            if (object.opcode !== InputOpcode.CONSTANT) {
+                return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF, {
+                    object,
+                    property,
+                    value
+                });
+            }
+
+            if (property === 'volume') {
+                return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_VOLUME, {
+                    object,
+                    value: value.toType(InputType.NUMBER)
+                });
+            }
+
+            if (object.isConstant('_stage_')) {
+                // We assume that the stage always exists, so these don't need to be able to return 0.
+                switch (property) {
+                case 'backdrop':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_BACKDROP, {
+                        value
+                    });
+                }
+            } else {
+                // If the target sprite does not exist, these may all return 0, even the costume name one.
+                switch (property) {
+                case 'x position':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_POS_X, {
+                        object,
+                        value: value.toType(InputType.NUMBER)
+                    });
+                case 'y position':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_POS_Y, {
+                        object,
+                        value: value.toType(InputType.NUMBER)
+                    });
+                case 'direction':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_DIRECTION, {
+                        object,
+                        value: value.toType(InputType.NUMBER)
+                    });
+                case 'costume':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_COSTUME, {
+                        object,
+                        value
+                    });
+                case 'size':
+                    return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_SIZE, {
+                        object,
+                        value: value.toType(InputType.NUMBER)
+                    });
+                }
+            }
+
+            return new IntermediateStackBlock(StackOpcode.PM_SENSING_SET_OF_VAR, {
+                object,
+                property,
+                value
+            });
+        }
+
         default: {
+            // pm: old extension compiler support
+            const extensionId = String(block.opcode).split('_')[0];
+            const blockId = String(block.opcode).replace(extensionId + '_', '');
+            if (oldCompilerCompatiblity.IRGeneratorStub.hasExtensionIr(extensionId) && oldCompilerCompatiblity.IRGeneratorStub.getExtensionIr(extensionId)[blockId]) {
+                // this is an extension block that wants to be compiled
+                const irFunc = oldCompilerCompatiblity.IRGeneratorStub.getExtensionIr(extensionId)[blockId];
+                let irData = null;
+                // make sure irFunc isnt broken
+                try {
+                    irData = irFunc(this, block);
+                } catch (err) {
+                    log.warn(extensionId + '_' + blockId, 'failed to create IR data;', err);
+                }
+                if (irData) {
+                    // check if it is this type, we dont want to descend a stack as an input
+                    if (irData.kind === 'stack') {
+                        // set proper kind
+                        irData.kind = extensionId + '.' + blockId;
+                        return new IntermediateInput(InputOpcode.OLD_COMPILER_COMPATIBILITY_LAYER, InputType.ANY, {
+                            oldNode: irData
+                        }, true);
+                    }
+                }
+            }
+
             const opcodeFunction = this.runtime.getOpcodeFunction(block.opcode);
             if (opcodeFunction) {
                 // It might be a non-compiled primitive from a standard category
@@ -969,18 +1936,12 @@ class ScriptTreeGenerator {
                 const blockInfo = this.getBlockInfo(block.opcode);
                 if (blockInfo) {
                     const type = blockInfo.info.blockType;
-                    if (type === BlockType.COMMAND || type === BlockType.CONDITIONAL || type === BlockType.LOOP) {
+                    if (type === BlockType.COMMAND || type === BlockType.CONDITIONAL || type === BlockType.LOOP || blockInfo.info.dualBlock) {
                         return this.descendCompatLayerStack(block);
                     }
                 }
             }
 
-            const asVisualReport = this.descendVisualReport(block);
-            if (asVisualReport) {
-                return asVisualReport;
-            }
-
-            log.warn(`IR: Unknown stacked block: ${block.opcode}`, block);
             throw new Error(`IR: Unknown stacked block: ${block.opcode}`);
         }
         }
@@ -995,11 +1956,45 @@ class ScriptTreeGenerator {
      */
     descendSubstack (parentBlock, substackName) {
         const input = parentBlock.inputs[substackName];
+        let output;
         if (!input) {
-            return new IntermediateStack();
+            output = new IntermediateStack();
+        } else {
+            const stackId = input.block;
+            output = this.walkStack(stackId);
         }
-        const stackId = input.block;
-        return this.walkStack(stackId);
+
+        for (let extensionId in IRGenerator.compilerExtensions) {
+            let extension = IRGenerator.compilerExtensions[extensionId]
+            if (extension.stack) {
+                let returns = extension.stack.call(this, output, parentBlock, substackName);
+                if (returns) output = returns;
+            }
+        }
+
+        return output;
+    }
+
+    /**
+     * @param {*} parentBlock 
+     * @param {string} substackName 
+     * @returns {Array}
+     */
+    getSubstackChildren(parentBlock, substackName) {
+        const input = parentBlock.inputs[substackName];
+        if (!input) return [];
+
+        let blockId = input.block;
+        const children = [];
+        while (blockId !== null) {
+            const block = this.getBlockById(blockId);
+            if (!block) {
+                break;
+            }
+            children.push(block);
+            blockId = block.next;
+        }
+        return children;
     }
 
     /**
@@ -1020,6 +2015,9 @@ class ScriptTreeGenerator {
 
             const node = this.descendStackedBlock(block);
             this.script.yields = this.script.yields || node.yields;
+            if(this.script.isProcedure && node.opcode === StackOpcode.PM_PROCEDURE_REEVALUATE) {
+                this.script.reevaled.add(node.inputs.index)
+            }
             result.blocks.push(node);
 
             blockId = block.next;
@@ -1039,6 +2037,8 @@ class ScriptTreeGenerator {
     getProcedureInfo (block) {
         const procedureCode = block.mutation.proccode;
         const paramNamesIdsAndDefaults = this.blocks.getProcedureParamNamesIdsAndDefaults(procedureCode);
+        const isGlobalProcedure = this.blocks.isGlobalProcedure(procedureCode);
+        const globalProcedureData = this.blocks.getGlobalProcedureData(procedureCode);
 
         if (paramNamesIdsAndDefaults === null) {
             return {opcode: StackOpcode.NOP, yields: false};
@@ -1070,12 +2070,21 @@ class ScriptTreeGenerator {
             };
         }
 
-        const definitionId = this.blocks.getProcedureDefinition(procedureCode);
-        const definitionBlock = this.blocks.getBlock(definitionId);
+        let definitionBlock;
+        if (isGlobalProcedure) {
+            definitionBlock = globalProcedureData.definitionBlock;
+        } else {
+            const definitionId = this.blocks.getProcedureDefinition(procedureCode);
+            definitionBlock = this.blocks.getBlock(definitionId);
+        }
+
         if (!definitionBlock) {
             return {opcode: StackOpcode.NOP, yields: false};
         }
-        const innerDefinition = this.blocks.getBlock(definitionBlock.inputs.custom_block.block);
+
+        const innerDefinition = isGlobalProcedure
+            ? globalProcedureData.prototypeBlock
+            : this.blocks.getBlock(definitionBlock.inputs.custom_block.block);
 
         let isWarp = this.script.isWarp;
         if (!isWarp) {
@@ -1098,7 +2107,9 @@ class ScriptTreeGenerator {
         const args = [];
         for (let i = 0; i < paramIds.length; i++) {
             let value;
-            if (block.inputs[paramIds[i]] && block.inputs[paramIds[i]].block) {
+            if (paramIds[i].startsWith("SUBSTACK")) {
+                value = this.descendSubstack(block, paramIds[i]);
+            } else if (block.inputs[paramIds[i]] && block.inputs[paramIds[i]].block) {
                 value = this.descendInputOfBlock(block, paramIds[i], true);
             } else {
                 value = this.createConstantInput(paramDefaults[i], true);
@@ -1111,10 +2122,30 @@ class ScriptTreeGenerator {
             inputs: {
                 code: procedureCode,
                 variant,
-                arguments: args
+                arguments: args,
             },
             yields: !this.script.isWarp && procedureCode === this.script.procedureCode
         };
+    }
+
+    descendExpandableValue (block, fieldName, valueName, cast) {
+        let amount = Number(block.fields[fieldName].value);
+        let inputs = [];
+        for (let i = 1; i <= amount; i++) {
+            let input = this.descendInputOfBlock(block, `${fieldName}.${i}.${valueName}`);
+            if (cast) input = input.toType(cast);
+            inputs.push(input);
+        }
+        return inputs;
+    }
+
+    descendExpandableField (block, fieldName, valueName) {
+        let amount = Number(block.fields[fieldName].value);
+        let values = [];
+        for (let i = 1; i <= amount; i++) {
+            values.push(block.fields[`${fieldName}.${i}.${valueName}`].value);
+        }
+        return values;
     }
 
     /**
@@ -1300,10 +2331,7 @@ class ScriptTreeGenerator {
         if (blockType === BlockType.CONDITIONAL || blockType === BlockType.LOOP) {
             for (const inputName in block.inputs) {
                 if (!inputName.startsWith('SUBSTACK')) continue;
-                const branchNum = inputName === 'SUBSTACK' ? 1 : +inputName.substring('SUBSTACK'.length);
-                if (!isNaN(branchNum)) {
-                    substacks[branchNum] = this.descendSubstack(block, inputName);
-                }
+                substacks[inputName] = this.descendSubstack(block, inputName);
             }
         }
 
@@ -1412,6 +2440,12 @@ class ScriptTreeGenerator {
 
         this.script.topBlockId = topBlockId;
 
+        let blockId = topBlockId;
+        while (this.getBlockById(this.getBlockById(blockId).next)) {
+            blockId = this.getBlockById(blockId).next;
+        }
+        this.script.bottomBlockId = blockId;
+
         const topBlock = this.getBlockById(topBlockId);
         if (!topBlock) {
             if (this.script.isProcedure) {
@@ -1441,7 +2475,13 @@ class ScriptTreeGenerator {
             }
 
             if (entryBlock) {
-                this.script.stack = this.walkStack(entryBlock);
+                let visualReport =
+                    this.script.stackClicked &&
+                    !this.script.isProcedure &&
+                    !(this.getBlockById(entryBlock).opcode === 'procedures_call' && !this.getBlockById(entryBlock).mutation.return) &&
+                    this.descendVisualReport(this.getBlockById(entryBlock));
+
+                this.script.stack = visualReport ? new IntermediateStack([visualReport]) : this.walkStack(entryBlock);
             }
         }
 
@@ -1454,6 +2494,8 @@ class IRGenerator {
         this.thread = thread;
         this.blocks = thread.blockContainer;
 
+        this.debug = this.thread.target.runtime.debug;
+
         this.proceduresToCompile = new Map();
         this.compilingProcedures = new Map();
         /** @type {Object.<string, IntermediateScript>} */
@@ -1461,6 +2503,9 @@ class IRGenerator {
 
         this.analyzedProcedures = new Set();
     }
+
+    /** @type {Object.<string, Object.<string, Function>>} */
+    static compilerExtensions = {};
 
     addProcedureDependencies (dependencies) {
         for (const procedureVariant of dependencies) {
@@ -1540,6 +2585,9 @@ class IRGenerator {
                     generator.setProcedureVariant(procedureVariant);
                     if (isWarp) generator.enableWarp();
                     const compiledProcedure = this.generateScriptTree(generator, definitionId);
+                    if (this.debug) {
+                        log.info(`IR: ${this.thread.target.getName()}: interpreted ${compiledProcedure.procedureCode}`, compiledProcedure);
+                    }
                     this.procedures[procedureVariant] = compiledProcedure;
                     procedureTreeCache[procedureVariant] = compiledProcedure;
                 }
@@ -1552,7 +2600,13 @@ class IRGenerator {
             this.analyzedProcedures = new Set();
         }
 
-        return new IntermediateRepresentation(entry, this.procedures);
+        let output = new IntermediateRepresentation(entry, this.procedures);
+
+        if (this.debug) {
+            log.info(`IR: ${this.thread.target.getName()}: interpreted script`, entry);
+        }
+
+        return output;
     }
 }
 

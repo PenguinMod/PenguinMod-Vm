@@ -23,9 +23,11 @@ if (typeof TextEncoder === 'undefined') {
 const HTML_COMMENT_START = `<!${'-'.repeat(2)}`;
 const HTML_COMMENT_END = `${'-'.repeat(2)}>`;
 
-const regex = new RegExp(
+const ROT_CENTER_REGEX = new RegExp(
     `${HTML_COMMENT_START}rotationCenter:(-?[\\d\\.]+):(-?[\\d\\.]+)${HTML_COMMENT_END}$`
 );
+
+const SVG_INNER_REGEX = new RegExp(`<svg[^>]*?>`);
 
 /**
  * @param {string} svgString SVG source
@@ -33,7 +35,8 @@ const regex = new RegExp(
  */
 const parseVectorMetadata = svgString => {
     // TODO: see if this is slow on large strings
-    const match = svgString.match(regex);
+    // Note: This can be done at the end of strings, since thats where its injected
+    const match = svgString.match(ROT_CENTER_REGEX);
     if (!match) {
         return null;
     }
@@ -48,10 +51,35 @@ const parseVectorMetadata = svgString => {
 };
 
 /**
+ * @param {Array<Asset>} fonts array of fonts to compile.
+ * @returns {string} css string for custom fonts.
+ */
+const generateCustomFontCSS = (fonts) => {
+    let fontCSS = '';
+    for (const font of fonts) {
+        const base64 = uint8ToBase64(font.asset.data);
+
+        // Normalize format for browser compatibility.
+        let format = font.asset.dataFormat.toLowerCase();
+        if (format === 'otf') format = 'opentype';
+        if (format === 'ttf') format = 'truetype';
+
+        fontCSS += '@font-face {';
+        fontCSS += `font-family: "${font.family}";`;
+        fontCSS += `src: url('data:font/${format};base64,${base64}') format('${format}');`;
+        fontCSS += '}';
+    }
+
+    return fontCSS;
+};
+
+/**
  * @param {Costume} costume scratch-vm costume object
+ * @param {boolean} [optIncludeExtras] determines if we add things like custom fonts to the export
+ * @param {VM} [vm] only needed if 'optIncludeExtras' is true, adds a VM context to read fonts from.
  * @returns {Uint8Array} Binary data to export
  */
-const exportCostume = costume => {
+const exportCostume = (costume, optIncludeExtras, vm) => {
     /** @type {Uint8Array} */
     const originalData = costume.asset.data;
 
@@ -62,12 +90,27 @@ const exportCostume = costume => {
     let decodedData = new _TextDecoder().decode(originalData);
 
     // It's okay that the regex isn't global because it can only match one item anyways.
-    decodedData = decodedData.replace(regex, '');
+    decodedData = decodedData.replace(ROT_CENTER_REGEX, '');
 
     const centerX = costume.rotationCenterX;
     const centerY = costume.rotationCenterY;
     const extraData = `${HTML_COMMENT_START}rotationCenter:${centerX}:${centerY}${HTML_COMMENT_END}`;
     decodedData += extraData;
+
+    if (optIncludeExtras) {
+        if (vm && vm.runtime.fontManager?.fonts) {
+            const fonts = vm.runtime.fontManager.fonts.filter(f => !f.system)
+                .filter(f => decodedData.includes(`font-family="&quot;${f.family}&quot;, ${f.fallback}"`))
+
+            const cssText = generateCustomFontCSS(fonts);
+            if (cssText) {
+                const styleElement = `<style type="text/css">${cssText}</style>`;
+                decodedData = decodedData.replace(SVG_INNER_REGEX, match => `${match}${styleElement}`);
+            }
+        } else {
+            console.warn('No VM context provided, cannot read custom fonts!');
+        }
+    }
 
     return new _TextEncoder().encode(decodedData);
 };

@@ -24,10 +24,6 @@ class Target extends EventEmitter {
     constructor (runtime, blocks) {
         super();
 
-        if (!blocks) {
-            blocks = new Blocks(runtime);
-        }
-
         /**
          * Reference to the runtime.
          * @type {Runtime}
@@ -75,6 +71,11 @@ class Target extends EventEmitter {
          * @type {Object.<string, object>}
          */
         this.extensionStorage = {};
+
+        if (!blocks) {
+            // Initialize the blocks class with this target as the parent.
+            blocks = new Blocks(runtime, undefined, this.id);
+        }
     }
 
     /**
@@ -291,11 +292,12 @@ class Target extends EventEmitter {
      * @param {number} width The width of the comment when it is full size
      * @param {number} height The height of the comment when it is full size
      * @param {boolean} minimized Whether the comment is minimized.
+     * @param {object} data Visual comment data.
      */
-    createComment (id, blockId, text, x, y, width, height, minimized) {
+    createComment (id, blockId, text, x, y, width, height, minimized, data) {
         if (!Object.prototype.hasOwnProperty.call(this.comments, id)) {
             const newComment = new Comment(id, text, x, y,
-                width, height, minimized);
+                width, height, minimized, data);
             if (blockId) {
                 newComment.blockId = blockId;
                 const blockWithComment = this.blocks.getBlock(blockId);
@@ -340,6 +342,8 @@ class Target extends EventEmitter {
                         });
                         // Request workspace change only if sensing_of blocks were actually updated.
                         if (blockUpdated) this.runtime.requestBlocksUpdate();
+                    } else if (variable.type === Variable.BROADCAST_MESSAGE_TYPE) {
+                        variable.value = variable.name; // value must be same as name
                     }
 
                     const blocks = this.runtime.monitorBlocks;

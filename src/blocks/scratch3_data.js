@@ -235,6 +235,36 @@ class Scratch3DataBlocks {
         }
         return false;
     }
+
+    _listSetArray(list, array) {
+        try {
+            if (array instanceof Array) {
+                list.value = array;
+            } else if (typeof array === 'object') {
+                if (typeof array.toJSON === 'function') {
+                    const json = array.toJSON();
+                    list.value = json instanceof Array ? json : Object.values(json);
+                } else {
+                    list.value = Object.values(array);
+                }
+            } else {
+                const json = JSON.parse(array);
+                list.value = json instanceof Array ? json : Object.values(json);
+            }
+        } catch {
+            list.value = [];
+        }
+    }
+
+    _listAmountOf(list, item) {
+        let count = 0;
+        for (let i = 0; i < list.value.length; i++) {
+            if (this.runtime.equals(list.value[i], item)) {
+                count++;
+            }
+        }
+        return count;
+    }
 }
 
 module.exports = Scratch3DataBlocks;

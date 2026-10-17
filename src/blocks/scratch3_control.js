@@ -38,6 +38,7 @@ class Scratch3ControlBlocks {
             control_get_counter: this.getCounter,
             control_incr_counter: this.incrCounter,
             control_clear_counter: this.clearCounter,
+            control_backToGreenFlag: this.backToGreenFlag,
             control_all_at_once: this.allAtOnce
         };
     }
@@ -48,6 +49,28 @@ class Scratch3ControlBlocks {
                 restartExistingThreads: false
             }
         };
+    }
+    
+    backToGreenFlag(_, util) {
+        const thisThread = util.thread.topBlock;
+        this.runtime.emit("PROJECT_START_BEFORE_RESET");
+        this.runtime.threads
+            .filter(thread => thread.topBlock !== thisThread)
+            .forEach(thread => thread.stopThisScript());
+        // green flag behaviour
+        this.runtime.emit("PROJECT_START");
+        this.runtime.updateCurrentMSecs();
+        this.runtime.ioDevices.clock.resetProjectTimer();
+        this.runtime.targets.forEach(target => target.clearEdgeActivatedValues());
+        for (let i = this.runtime.targets.length - 1; i >= 0; i--) {
+            const thisTarget = this.runtime.targets[i];
+            thisTarget.onGreenFlag();
+            if (!thisTarget.isOriginal) {
+                this.runtime.disposeTarget(thisTarget);
+                this.runtime.stopForTarget(thisTarget);
+            }
+        }
+        this.runtime.startHats("event_whenflagclicked");
     }
 
     repeat (args, util) {
@@ -200,6 +223,40 @@ class Scratch3ControlBlocks {
         // "run without screen refresh" custom blocks do now, but this was
         // removed before the release of 2.0.)
         util.startBranch(1, false);
+    }
+
+    _deleteClones(cloneOption, target) {
+        // Set clone target
+        let cloneTarget;
+        if (cloneOption === '_myself_') {
+            cloneTarget = target;
+        } else {
+            cloneTarget = this.runtime.getSpriteTargetByName(cloneOption);
+        }
+
+        // If clone target is not found, return
+        if (!cloneTarget) return;
+        const sprite = cloneTarget.sprite;
+        if (!sprite) return;
+        if (!sprite.clones) return;
+        for (let clone of [...sprite.clones]) {
+            if (clone.isOriginal) continue;
+            this.runtime.disposeTarget(clone);
+            this.runtime.stopForTarget(clone);
+        }
+    }
+
+    _stopSprite (option, myself) {
+        let target;
+        if (option === '_myself_') {
+            target = myself;
+        } else if (option === '_stage_') {
+            target = this.runtime.getTargetForStage();
+        } else {
+            target = this.runtime.getSpriteTargetByName(option);
+        }
+        if (!target) return;
+        this.runtime.stopForTarget(target);
     }
 }
 

@@ -1,9 +1,11 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
+const BlockShape = require('../../extension-support/block-shape');
 const TargetType = require('../../extension-support/target-type');
 const Cast = require('../../util/cast');
 const Clone = require('../../util/clone');
 const Color = require('../../util/color');
+const { translateForCamera } = require('../../util/pos-math');
 const formatMessage = require('format-message');
 const MathUtil = require('../../util/math-util');
 const log = require('../../util/log');
@@ -35,6 +37,67 @@ const ColorParam = {
     SATURATION: 'saturation',
     BRIGHTNESS: 'brightness',
     TRANSPARENCY: 'transparency'
+};
+
+/**
+ * Enum for default font families.
+ * @readonly
+ * @enum {string}
+ */
+const Font = {
+    SANS_SERIF_ID: 'Sans Serif',
+    SERIF_ID: 'Serif',
+    HANDWRITING_ID: 'Handwriting',
+    MARKER_ID: 'Marker',
+    CURLY_ID: 'Curly',
+    PIXEL_ID: 'Pixel',
+
+    /* PenguinMod Fonts */
+    PLAYFUL_ID: 'Playful',
+    BUBBLY_ID: 'Bubbly',
+    BITSANDBYTES_ID: 'Bits and Bytes',
+    TECHNOLOGICAL_ID: 'Technological',
+    ARCADE_ID: 'Arcade',
+    ARCHIVO_ID: 'Archivo',
+    ARCHIVOBLACK_ID: 'Archivo Black',
+    SCRATCH_ID: 'Scratch',
+    RANDOM_ID: 'Random'
+};
+
+/**
+ * Enum for text italics.
+ * @readonly
+ * @enum {string}
+ */
+const ItalicsParam = {
+    ON: 'on',
+    OFF: 'off'
+};
+
+/**
+ * Default image url for the 'draw image' blocks.
+ */
+const DEFAULT_IMAGE_SRC = 'https://...'; 
+
+/**
+ * Parses a user-entered string representation of an array.
+ * @param {string} string String array to parse.
+ * @returns {Array<*>} Parsed array.
+ */
+const parseArray = (string) => {
+    try {
+        if (Array.isArray(string)) return string;
+        if (typeof string.toJSON === 'function') {
+            const potentialArray = string.toJSON();
+            if (Array.isArray(potentialArray)) return potentialArray;
+        }
+
+        const parsed = JSON.parse(Cast.toString(string));
+        if (Array.isArray(parsed)) return parsed;
+        else return [];
+    } catch {
+       return [];
+    }
 };
 
 /**
@@ -72,11 +135,51 @@ class Scratch3PenBlocks {
          */
         this._penSkinId = -1;
 
+        /**
+         * The attributes for printed text.
+         * @type {object}
+         */
+        this.printTextAttributes = {
+            weight: '400',
+            italic: false,
+            size: '28',
+            font: 'Arial',
+            color: '#000000',
+            strokeColor: '#000000',
+            strokeWidth: 0
+        };
+
+        /**
+         * Map containing preloaded images for printing.
+         * @type {Map<string, Image>}
+         */
+        this.preloadedImages = new Map();
+
+        /**
+         * The camera this pen paper is bound to.
+         */
+        this.cameraBound = -1;
+
+        this.bitmapCanvas = document.createElement('canvas');
+        this.bitmapContext = this.bitmapCanvas.getContext('2d', { willReadFrequently: true });
+        this.bitmapCanvas.width = runtime.stageWidth;
+        this.bitmapCanvas.height = runtime.stageHeight;
+        this.bitmapSkinID = runtime.renderer.createBitmapSkin(this.bitmapCanvas, 1);
+        this.bitmapDrawableID = runtime.renderer.createDrawable(StageLayering.PEN_LAYER);
+        runtime.renderer.updateDrawableSkinId(this.bitmapDrawableID, this.bitmapSkinID);
+        runtime.renderer.updateDrawableVisible(this.bitmapDrawableID, false);
+
         this._onTargetCreated = this._onTargetCreated.bind(this);
         this._onTargetMoved = this._onTargetMoved.bind(this);
+        this._onCameraMoved = this._onCameraMoved.bind(this);
 
         runtime.on('targetWasCreated', this._onTargetCreated);
         runtime.on('RUNTIME_DISPOSED', this.clear.bind(this));
+        runtime.on("STAGE_SIZE_CHANGED", (width, height) => {
+            // This will clear the canvas if the value is changed from the previous size.
+            this.bitmapCanvas.width = width;
+            this.bitmapCanvas.height = height;
+        });
     }
 
     /**
@@ -106,7 +209,7 @@ class Scratch3PenBlocks {
      * @type {{min: number, max: number}}
      */
     static get PEN_SIZE_RANGE () {
-        return {min: 1, max: 1200};
+        return {min: 1, max: 1e308};
     }
 
     /**
@@ -205,10 +308,146 @@ class Scratch3PenBlocks {
             const penSkinId = this._getPenLayerID();
             if (penSkinId >= 0) {
                 const penState = this._getPenState(target);
-                this.runtime.renderer.penLine(penSkinId, penState.penAttributes, oldX, oldY, target.x, target.y);
+                if (
+                    this.runtime.extensionManager.isExtensionLoaded("pmCamera") ||
+                    this.runtime.extensionManager.isExtensionLoaded("jwCamera")
+                ) {
+                    // Use the rendered camera position of the sprite rather than the sprite's position.
+                    const [newX, newY] = target._translatePossitionToCamera();
+                    if (target.cameraBound >= 0) {
+                        [oldX, oldY] = translateForCamera(this.runtime, target.cameraBound, oldX, oldY);
+                    }
+
+                    this.runtime.renderer.penLine(penSkinId, penState.penAttributes, oldX, oldY, newX, newY);
+                } else {
+                    this.runtime.renderer.penLine(penSkinId, penState.penAttributes, oldX, oldY, target.x, target.y);
+                }
+
                 this.runtime.requestRedraw();
             }
         }
+    }
+
+    /**
+     * Callback for when the binded camera moves.
+     * @param {number} screen Camera ID.
+     */
+    _onCameraMoved (screen) {
+        if (screen !== this.cameraBound) return;
+
+        const cameraState = this.runtime.cameraStates[screen];
+        const penSkinId = this._getPenLayerID();
+        if (penSkinId >= 0) {
+            this.runtime.renderer.penTranslate(penSkinId, ...cameraState.pos, cameraState.scale, cameraState.dir);
+        }
+        this.runtime.requestRedraw();
+    }
+
+    /**
+     * Binds this pen paper to a given gamera.
+     * @param {number} screen Camera ID.
+     */
+    bindToCamera (screen) {
+        this.cameraBound = screen;
+        this._onCameraMoved();
+    }
+
+    /**
+     * Removes the camera binding from this pen paper.
+     */
+    removeCameraBinding () {
+        this.cameraBound = -1;
+        const penSkinId = this._getPenLayerID();
+        if (penSkinId >= 0) {
+            this.runtime.renderer.penTranslate(penSkinId, 0, 0, 1, 0);
+        }
+    }
+
+    /**
+     * Convert a Scratch RGB(A) color object to a canvas color string.
+     * If rgb.a exists use it, otherwise fallback to the pen transparency.
+     * @param {object} rgb
+     * @param {Target} [target]
+     * @returns {string} rgba string.
+     * @private
+     */
+    _toCanvasColor (rgb, target) {
+        let alpha = 1;
+
+        if (Object.prototype.hasOwnProperty.call(rgb, 'a')) {
+            alpha = rgb.a / 255;
+        } else if (target) {
+            const penState = this._getPenState(target);
+            alpha = this._transparencyToAlpha(penState.transparency);
+        }
+
+        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+    }
+
+    /**
+     * Returns the context of the pen paper bitmap context.
+     */
+    _getBitmapCanvas () {
+        const penSkinId = this._getPenLayerID();
+        const penSkin = this.runtime.renderer._allSkins[penSkinId];
+
+        const width = Math.max(1, penSkin._size[0]);
+        const height = Math.max(1, penSkin._size[1]);
+
+        this.bitmapCanvas.width = width;
+        this.bitmapCanvas.height = height;
+
+        const ctx = this.bitmapContext;
+
+        ctx.save();
+
+        ctx.translate(width / 2, height / 2);
+        ctx.scale(
+            penSkin.renderQuality,
+            penSkin.renderQuality
+        );
+
+        return ctx;
+    }
+
+    /**
+     * Draws a canvas context to the pen paper.
+     * @param {CanvasContext2d} ctx Context to draw.
+     */
+    _drawContextToPen (ctx) {
+        const penSkinId = this._getPenLayerID();
+        const width = this.bitmapCanvas.width;
+        const height = this.bitmapCanvas.height;
+
+        ctx.restore();
+
+        const printSkin = this.runtime.renderer._allSkins[this.bitmapSkinID];
+        const imageData = ctx.getImageData(
+            0,
+            0,
+            width,
+            height
+        );
+
+        printSkin._setTexture(imageData);
+
+        this.runtime.renderer.penStamp(penSkinId, this.bitmapDrawableID);
+        this.runtime.requestRedraw();
+    }
+
+    /**
+     * Gets this drawing target's pen color.
+     * @param {VM.Target} target
+     * @returns Pen color as hex code.
+     */
+    _getPenColor (target) {
+        const rgba = {};
+        const penState = this._getPenState(target);
+        rgba.r = penState.penAttributes.color4f[0] * 255;
+        rgba.g = penState.penAttributes.color4f[1] * 255;
+        rgba.b = penState.penAttributes.color4f[2] * 255;
+        rgba.a = this._alphaToTransparency(penState.penAttributes.color4f[3]);
+        return Color.rgbToHex(rgba);
     }
 
     /**
@@ -260,6 +499,106 @@ class Scratch3PenBlocks {
                 }),
                 value: ColorParam.TRANSPARENCY
 
+            }
+        ];
+    }
+
+    /**
+     * Initialize italic toggler menu with localized strings.
+     * @returns {array} of the localized text and values for each menu element.
+     * @private
+     */
+    _initItalicsToggleParam () {
+        return [
+            {
+                text: formatMessage({
+                    id: 'pm.pen.italicsToggle.on',
+                    default: 'on',
+                    description: 'label for on'
+                }),
+                value: ItalicsParam.ON
+            },
+            {
+                text: formatMessage({
+                    id: 'pm.pen.italicsToggle.off',
+                    default: 'off',
+                    description: 'label for off'
+                }),
+                value: ItalicsParam.OFF
+            }
+        ];
+    }
+
+    /**
+     * Initialize font selection menu.
+     * @returns {array} of text and values for each menu element.
+     * @private
+     */
+    _getFonts () {
+        return [
+            {
+                text: 'Sans Serif',
+                value: Font.SANS_SERIF_ID
+            },
+            {
+                text: 'Serif',
+                value: Font.SERIF_ID
+            },
+            {
+                text: 'Handwriting',
+                value: Font.HANDWRITING_ID
+            },
+            {
+                text: 'Marker',
+                value: Font.MARKER_ID
+            },
+            {
+                text: 'Curly',
+                value: Font.CURLY_ID
+            },
+            {
+                text: 'Pixel',
+                value: Font.PIXEL_ID
+            },
+            {
+                text: 'Playful',
+                value: Font.PLAYFUL_ID
+            },
+            {
+                text: 'Bubbly',
+                value: Font.BUBBLY_ID
+            },
+            {
+                text: 'Arcade',
+                value: Font.ARCADE_ID
+            },
+            {
+                text: 'Bits and Bytes',
+                value: Font.BITSANDBYTES_ID
+            },
+            {
+                text: 'Technological',
+                value: Font.TECHNOLOGICAL_ID
+            },
+            {
+                text: 'Scratch',
+                value: Font.SCRATCH_ID
+            },
+            {
+                text: 'Archivo',
+                value: Font.ARCHIVO_ID
+            },
+            {
+                text: 'Archivo Black',
+                value: Font.ARCHIVOBLACK_ID
+            },
+            ...this.runtime.fontManager.getFonts().map(i => ({
+                text: i.name,
+                value: i.family
+            })),
+            {
+                text: 'random font',
+                value: Font.RANDOM_ID
             }
         ];
     }
@@ -449,7 +788,344 @@ class Scratch3PenBlocks {
                     },
                     filter: [TargetType.SPRITE]
                 },
+                "---",
+                {
+                    opcode: 'drawRect',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.drawRect',
+                        default: 'use [COLOR] to draw a square on x:[X] y:[Y] width:[WIDTH] height:[HEIGHT]',
+                        description: 'draw a square'
+                    }),
+                    arguments: {
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        WIDTH: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 10
+                        },
+                        HEIGHT: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 10
+                        }
+                    }
+                },
+                {
+                    opcode: 'drawArrayComplexShape',
+                    blockType: BlockType.COMMAND,
+                    text: 'draw polygon from points [SHAPE] with fill [COLOR]',
+                    arguments: {
+                        SHAPE: {
+                            type: ArgumentType.STRING,
+                            shape: BlockShape.SQUARE,
+                            defaultValue: '[-20, 20, 20, 20, 0, -20]'
+                        },
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        }
+                    },
+                },
+                "---",
+                {
+                    opcode: 'preloadUriImage',
+                    blockType: BlockType.COMMAND,
+                    text: 'preload image [URI] as [NAME]',
+                    arguments: {
+                        URI: {
+                            type: ArgumentType.STRING,
+                            defaultValue: DEFAULT_IMAGE_SRC
+                        },
+                        NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "my image"
+                        }
+                    }
+                },
+                {
+                    opcode: 'unloadUriImage',
+                    blockType: BlockType.COMMAND,
+                    text: 'remove image [NAME]',
+                    arguments: {
+                        NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "my image"
+                        }
+                    }
+                },
+                {
+                    opcode: 'drawUriImage',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.drawUriImage',
+                        default: 'draw image [URI] at x:[X] y:[Y]',
+                        description: 'draw image'
+                    }),
+                    arguments: {
+                        URI: {
+                            type: ArgumentType.STRING,
+                            defaultValue: DEFAULT_IMAGE_SRC
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        }
+                    }
+                },
+                {
+                    opcode: 'drawUriImageWHR',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.drawUriImageWHR',
+                        default: 'draw image [URI] at x:[X] y:[Y] width:[WIDTH] height:[HEIGHT] pointed at: [ROTATE]',
+                        description: 'draw image width height rotation'
+                    }),
+                    arguments: {
+                        URI: {
+                            type: ArgumentType.STRING,
+                            defaultValue: DEFAULT_IMAGE_SRC
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        WIDTH: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 64
+                        },
+                        HEIGHT: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 64
+                        },
+                        ROTATE: {
+                            type: ArgumentType.ANGLE,
+                            defaultValue: 90
+                        }
+                    }
+                },
+                {
+                    opcode: 'drawUriImageWHCX1Y1X2Y2R',
+                    blockType: BlockType.COMMAND,
+                    text: 'draw image [URI] at x:[X] y:[Y] width:[WIDTH] height:[HEIGHT] cropping from x:[CROPX] y:[CROPY] width:[CROPW] height:[CROPH] pointed at: [ROTATE]',
+                    arguments: {
+                        URI: {
+                            type: ArgumentType.STRING,
+                            defaultValue: DEFAULT_IMAGE_SRC
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        WIDTH: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 64
+                        },
+                        HEIGHT: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 64
+                        },
+                        CROPX: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        CROPY: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        CROPW: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 100
+                        },
+                        CROPH: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 100
+                        },
+                        ROTATE: {
+                            type: ArgumentType.ANGLE,
+                            defaultValue: 90
+                        }
+                    }
+                },
+                "---",
+                {
+                    opcode: 'printText',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.printText',
+                        default: 'print [TEXT] on x:[X] y:[Y]',
+                        description: 'print text'
+                    }),
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'Hello world!'
+                        },
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFont',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFont',
+                        default: 'set print font to [FONT]',
+                        description: 'set print font'
+                    }),
+                    arguments: {
+                        FONT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'Arial',
+                            menu: 'FONT'
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontSize',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontSize',
+                        default: 'set print font size to [SIZE]',
+                        description: 'set print font size'
+                    }),
+                    arguments: {
+                        SIZE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 24
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontColor',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontColor',
+                        default: 'set print font color to [COLOR]',
+                        description: 'set print font color'
+                    }),
+                    arguments: {
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontStrokeColor',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontStrokeColor',
+                        default: 'set print stroke color to [COLOR]',
+                        description: 'set print stroke color'
+                    }),
+                    arguments: {
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontStrokeWidth',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontStrokeWidth',
+                        default: 'set print stroke width to [WIDTH]',
+                        description: 'set print stroke width'
+                    }),
+                    arguments: {
+                        WIDTH: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 5
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontWeight',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontWeight',
+                        default: 'set print font weight to [WEIGHT]',
+                        description: 'set print font weight'
+                    }),
+                    arguments: {
+                        WEIGHT: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 700
+                        }
+                    }
+                },
+                {
+                    opcode: 'setPrintFontItalics',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.setPrintFontItalics',
+                        default: 'turn print font italics [OPTION]',
+                        description: 'toggle print font italics'
+                    }),
+                    arguments: {
+                        OPTION: {
+                            type: ArgumentType.STRING,
+                            menu: 'italicsToggleParam',
+                            defaultValue: ItalicsParam.ON
+                        }
+                    }
+                },
                 /* Legacy blocks, should not be shown in flyout */
+                {
+                    opcode: 'drawComplexShape',
+                    blockType: BlockType.COMMAND,
+                    text: 'draw triangle [SHAPE] with fill [COLOR]',
+                    arguments: {
+                        SHAPE: {
+                            /*type: ArgumentType.POLYGON,
+                            nodes: 3*/
+                        },
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        }
+                    },
+                    hideFromPalette: true
+                },
+                {
+                    opcode: 'draw4SidedComplexShape',
+                    blockType: BlockType.COMMAND,
+                    text: 'draw quadrilateral [SHAPE] with fill [COLOR]',
+                    arguments: {
+                        SHAPE: {
+                            /*type: ArgumentType.POLYGON,
+                            nodes: 4*/
+                        },
+                        COLOR: {
+                            type: ArgumentType.COLOR
+                        }
+                    },
+                    hideFromPalette: true
+                },
                 {
                     opcode: 'setPenShadeToNumber',
                     blockType: BlockType.COMMAND,
@@ -513,13 +1189,41 @@ class Scratch3PenBlocks {
                         }
                     },
                     hideFromPalette: true
+                },
+                {
+                    opcode: 'goPenLayer',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'pen.GoPenLayer',
+                        default: 'go to [OPTION] layer',
+                        description: 'go to front layer(pen)'
+                    }),
+                    arguments: {
+                        OPTION: {
+                            type: ArgumentType.STRING,
+                            menu: 'layerParam'
+                        }
+                    },
+                    hideFromPalette: true,
                 }
             ],
             menus: {
                 colorParam: {
                     acceptReporters: true,
                     items: this._initColorParam()
-                }
+                },
+                italicsToggleParam: {
+                    acceptReporters: false,
+                    items: this._initItalicsToggleParam()
+                },
+                FONT: {
+                    items: '_getFonts',
+                    isTypeable: true
+                },
+                layerParam: {
+                    acceptReporters: false,
+                    items: [''] // This is deprecated.
+                },
             }
         };
     }
@@ -857,6 +1561,235 @@ class Scratch3PenBlocks {
         penState.brightness = 100 * hsv.v;
 
         this._updatePenColor(penState);
+    }
+
+    /** PM Extra Blocks */
+    setPrintFont (args) {
+        this.printTextAttributes.font = Cast.toString(args.FONT);
+    }
+
+    setPrintFontSize (args) {
+        this.printTextAttributes.size = Cast.toNumber(args.SIZE);
+    }
+
+    setPrintFontColor (args, util) {
+        const rgb = Cast.toRgbColorObject(args.COLOR);
+        this.printTextAttributes.color = this._toCanvasColor(rgb, util.target);
+    }
+
+    setPrintFontStrokeColor (args, util) {
+        const rgb = Cast.toRgbColorObject(args.COLOR);
+        this.printTextAttributes.strokeColor = this._toCanvasColor(rgb, util.target);
+    }
+
+    setPrintFontStrokeWidth (args) {
+        this.printTextAttributes.strokeWidth = Cast.toNumber(args.WIDTH);
+    }
+
+    setPrintFontWeight (args) {
+        this.printTextAttributes.weight = Cast.toNumber(args.WEIGHT);
+    }
+
+    setPrintFontItalics (args) {
+        this.printTextAttributes.italic = args.OPTION === ItalicsParam.ON;
+    }
+
+    printText (args) {
+        const x = Cast.toNumber(args.X);
+        const y = -Cast.toNumber(args.Y);
+        const ctx = this._getBitmapCanvas();
+
+        let resultFont = '';
+        resultFont += `${this.printTextAttributes.italic ? 'italic ' : ''}`;
+        resultFont += `${this.printTextAttributes.weight} `;
+        resultFont += `${this.printTextAttributes.size}px `;
+        resultFont += this.printTextAttributes.font;
+        ctx.font = resultFont;
+
+        ctx.strokeStyle = this.printTextAttributes.strokeWidth > 0 ? this.printTextAttributes.strokeColor : this.printTextAttributes.color;
+        ctx.lineWidth = this.printTextAttributes.strokeWidth;
+        ctx.fillStyle = this.printTextAttributes.color;
+
+        if (this.printTextAttributes.strokeWidth > 0) {
+            ctx.strokeText(args.TEXT, x, y);
+        }
+
+        ctx.fillText(args.TEXT, x, y);
+
+        this._drawContextToPen(ctx);
+    }
+
+    async _drawUriImage({URI, X, Y, WIDTH, HEIGHT, ROTATE, CROPX, CROPY, CROPW, CROPH}) {
+        const isPreloadedImg = this.preloadedImages.has(URI);
+
+        const image = isPreloadedImg
+            ? this.preloadedImages.get(URI)
+            : await new Promise((resolve, reject) => {
+                const image = new Image();
+                image.crossOrigin = "anonymous";
+                image.onload = () => resolve(image);
+                image.onerror = err => {
+                    console.error('failed to load', URI, err);
+                    reject('Image failed to load');
+                };
+                image.src = URI;
+            });
+
+        // Protect the user from uninteligable errors that may be thrown but probably never will.
+        if (!image.complete) throw new Error('the provided image never loaded');
+        if (image.width <= 0) throw new Error(`the image has an invalid width of ${image.width}`);
+        if (image.height <= 0) throw new Error(`the image has an invalid height of ${image.height}`);
+
+        const ctx = this._getBitmapCanvas();
+        ctx.rotate(MathUtil.degToRad(Cast.toNumber(ROTATE) - 90));
+
+        // Use size from the image if none specified.
+        const width = WIDTH ? Cast.toNumber(WIDTH) : image.width;
+        const height = HEIGHT ? Cast.toNumber(HEIGHT) : image.height;
+        const realX = Cast.toNumber(X) - (width / 2);
+        const realY = -Cast.toNumber(Y) - (height / 2);
+
+        const hasCrop = CROPX !== undefined &&
+            CROPY !== undefined &&
+            CROPW !== undefined &&
+            CROPH !== undefined;
+
+        if (hasCrop) {
+            ctx.drawImage(
+                image,
+                Cast.toNumber(CROPX), Cast.toNumber(CROPY),
+                Cast.toNumber(CROPW), Cast.toNumber(CROPH),
+                realX, realY,
+                width, height
+            );
+        } else {
+            ctx.drawImage(image, realX, realY, width, height);
+        }
+
+        this._drawContextToPen(ctx);
+    }
+
+    drawUriImage (args) {
+        const isPreloadedImg = this.preloadedImages.has(args.URI);
+        const possiblePromise = this._drawUriImage(args);
+
+        if (!isPreloadedImg) {
+            return possiblePromise;
+        }
+    }
+    drawUriImageWHR (args) {
+        return this.drawUriImage(args);
+    }
+    drawUriImageWHCX1Y1X2Y2R (args) {
+        return this.drawUriImage(args);
+    }
+
+    preloadUriImage ({ URI, NAME }) {
+        return new Promise(resolve => {
+            const image = new Image();
+            image.crossOrigin = "anonymous";
+            image.onload = () => {
+                this.preloadedImages.set(Cast.toString(NAME), image);
+                resolve();
+            };
+            image.onerror = resolve;
+            image.src = Cast.toString(URI);
+        });
+    }
+
+    unloadUriImage ({ NAME }) {
+        const name = Cast.toString(NAME);
+        if (this.preloadedImages.has(name)) {
+            this.preloadedImages.get(name).remove();
+        }
+
+        this.preloadedImages.delete(name);
+    }
+
+    drawRect (args, util) {
+        const ctx = this._getBitmapCanvas();
+
+        const rgb = Cast.toRgbColorObject(args.COLOR);
+        const color = this._toCanvasColor(rgb, util.target);
+
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+
+        ctx.fillRect(
+            Cast.toNumber(args.X),
+            -Cast.toNumber(args.Y),
+            Cast.toNumber(args.WIDTH),
+            Cast.toNumber(args.HEIGHT)
+        );
+
+        this._drawContextToPen(ctx);
+    }
+
+    drawComplexShape (args, util) {
+        const target = util.target;
+        const penState = this._getPenState(target);
+        const penAttributes = penState.penAttributes;
+        const penColor = this._getPenColor(util.target);
+        const points = args.SHAPE;
+        const firstPos = points.at(-1);
+
+        const ctx = this._getBitmapCanvas();
+        const rgb = Cast.toRgbColorObject(args.COLOR);
+
+        ctx.fillStyle = this._toCanvasColor(rgb, util.target);
+        ctx.strokeStyle = penColor;
+        ctx.lineWidth = penAttributes.diameter;
+
+        ctx.beginPath();
+        ctx.moveTo(firstPos.x, -firstPos.y);
+        for (let i = 0; i < points.length; i++) {
+            ctx.lineTo(points[i].x, -points[i].y);
+        }
+        ctx.closePath();
+
+        if (penState.penDown) ctx.stroke();
+        ctx.fill();
+
+        this._drawContextToPen(ctx);
+    }
+
+    draw4SidedComplexShape (args, util) {
+        this.drawComplexShape(args, util);
+    }
+
+    drawArrayComplexShape (args, util) {
+        const providedData = Cast.toString(args.SHAPE);
+        const providedPoints = parseArray(args.SHAPE);
+        if (providedPoints.length < 6) return; // We need to make a triangle at minimum.
+
+        // The last point is missing a Y value, Y will be 0 for that point.
+        if (providedPoints.length % 2 !== 0) providedPoints.push(0);
+
+        const points = [];
+        let currentPoint = {};
+        let isXCoord = true;
+        for (let i = 0; i < providedPoints.length; i++) {
+            if (isXCoord) {
+                currentPoint.x = providedPoints[i];
+                isXCoord = false;
+            } else {
+                currentPoint.y = providedPoints[i];
+                points.push(currentPoint);
+
+                // Move to next point.
+                currentPoint = {};
+                isXCoord = true;
+            }
+        }
+
+        this.drawComplexShape({
+            ...args,
+            SHAPE: points
+        }, util);
+    }
+
+    goPenLayer () {
+        console.warn('This pen block is deprecated!');
     }
 }
 

@@ -1,4 +1,4 @@
-const html = require('htmlparser2');
+const parseDOM = require('../util/parse-dom');
 const decodeHtml = require('decode-html');
 
 /**
@@ -40,7 +40,7 @@ const mutationAdpater = function (mutation) {
     if (typeof mutation === 'object') {
         mutationParsed = mutation;
     } else {
-        mutationParsed = html.parseDOM(mutation)[0];
+        mutationParsed = parseDOM(mutation)[0];
     }
     return mutatorTagToObject(mutationParsed);
 };

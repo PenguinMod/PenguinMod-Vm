@@ -15,7 +15,10 @@ const defaults = {
     faceSensing: 'https://extensions.turbowarp.org/lab/face-sensing.js',
 
     // Video Sprites - https://lab.scratch.mit.edu/videosprites/
-    videoSprites: 'https://extensions.turbowarp.org/lab/video-sprites.js'
+    videoSprites: 'https://extensions.turbowarp.org/lab/video-sprites.js',
+
+    // pm pre-port unmodified extensions
+    xeltallivclipblend: 'https://extensions.turbowarp.org/Xeltalliv/clippingblending.js'
 };
 
 module.exports = defaults;

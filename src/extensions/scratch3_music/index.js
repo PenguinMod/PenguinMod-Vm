@@ -703,14 +703,14 @@ class Scratch3MusicBlocks {
      * @type {{min: number, max: number}}
      */
     static get BEAT_RANGE () {
-        return {min: 0, max: 100};
+        return {min: 0, max: 1024};
     }
 
     /** The minimum and maximum tempo values, in bpm.
      * @type {{min: number, max: number}}
      */
     static get TEMPO_RANGE () {
-        return {min: 20, max: 500};
+        return {min: 10, max: 1024};
     }
 
     /**
@@ -718,7 +718,7 @@ class Scratch3MusicBlocks {
      * @type {number}
      */
     static get CONCURRENCY_LIMIT () {
-        return 30;
+        return 1024;
     }
 
     /**

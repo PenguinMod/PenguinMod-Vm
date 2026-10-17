@@ -27,6 +27,7 @@ const {serializeSounds, serializeCostumes} = require('./serialization/serialize-
 require('canvas-toBlob');
 const {exportCostume} = require('./serialization/tw-costume-import-export');
 const Base64Util = require('./util/base64-util');
+const pmSymbol = require('./util/symbol');
 
 const RESERVED_NAMES = ['_mouse_', '_stage_', '_edge_', '_myself_', '_random_'];
 
@@ -66,7 +67,7 @@ class VirtualMachine extends EventEmitter {
          * VM runtime, to store blocks, I/O devices, sprites/targets, etc.
          * @type {!Runtime}
          */
-        this.runtime = new Runtime();
+        this.runtime = new Runtime(this);
         centralDispatch.setService('runtime', createRuntimeService(this.runtime)).catch(e => {
             log.error(`Failed to register runtime service: ${JSON.stringify(e)}`);
         });
@@ -83,6 +84,11 @@ class VirtualMachine extends EventEmitter {
          * @type {Target}
          */
         this._dragTarget = null;
+
+        /**
+         * Ordering of toolbox categories by their respective IDs.
+         */
+        this._categoryOrdering = [];
 
         // Runtime emits are passed along as VM emits.
         this.runtime.on(Runtime.SCRIPT_GLOW_ON, glowData => {
@@ -169,6 +175,15 @@ class VirtualMachine extends EventEmitter {
         this.runtime.on(Runtime.RUNTIME_STOPPED, () => {
             this.emit(Runtime.RUNTIME_STOPPED);
         });
+        this.runtime.on(Runtime.RUNTIME_PAUSED, () => {
+            this.emit(Runtime.RUNTIME_PAUSED);
+        });
+        this.runtime.on(Runtime.RUNTIME_UNPAUSED, () => {
+            this.emit(Runtime.RUNTIME_UNPAUSED);
+        });
+        this.runtime.on(Runtime.RUNTIME_STOPPED, () => {
+            this.emit(Runtime.RUNTIME_STOPPED);
+        });
         this.runtime.on(Runtime.HAS_CLOUD_DATA_UPDATE, hasCloudData => {
             this.emit(Runtime.HAS_CLOUD_DATA_UPDATE, hasCloudData);
         });
@@ -204,6 +219,11 @@ class VirtualMachine extends EventEmitter {
         this.securityManager = this.extensionManager.securityManager;
         this.runtime.extensionManager = this.extensionManager;
 
+        this.customPrompt = function () {
+            // Defined by GUI.
+            console.warn("Custom Prompt is not implemented!");
+        }
+
         // Load core extensions
         for (const id of CORE_EXTENSIONS) {
             this.extensionManager.loadExtensionIdSync(id);
@@ -222,6 +242,10 @@ class VirtualMachine extends EventEmitter {
             RenderedTarget,
             JSZip,
             Variable,
+            pmSymbol,
+
+            // pm exported some of these before
+            Thread: require('./engine/thread.js'),
 
             these_broke_before_and_will_break_again: () => {
                 console.warn('You are using unsupported APIs. WHEN your code breaks, do not expect help.');
@@ -286,6 +310,20 @@ class VirtualMachine extends EventEmitter {
      */
     greenFlag () {
         this.runtime.greenFlag();
+    }
+
+    /**
+     * Pause running scripts
+     */
+    pause () {
+        this.runtime.pause();
+    }
+
+    /**
+     * Unpause running scripts
+     */
+    play () {
+        this.runtime.play();
     }
 
     /**
@@ -776,7 +814,7 @@ class VirtualMachine extends EventEmitter {
                 // Already loaded
             } else if (this.extensionManager.isBuiltinExtension(extensionID)) {
                 // Builtin extension
-                this.extensionManager.loadExtensionIdSync(extensionID);
+                await this.extensionManager.loadExtensionIdSync(extensionID);
             } else {
                 // Custom extension
                 let url = extensionURLs.get(extensionID);
@@ -820,6 +858,16 @@ class VirtualMachine extends EventEmitter {
         targets = targets.filter(target => !!target);
 
         return this._loadExtensions(extensions.extensionIDs, extensions.extensionURLs).then(() => {
+            for (const extension of extensions.extensionIDs) {
+                if (!this.runtime.extensionStorage[extension]) continue;
+                if (
+                    `ext_${extension}` in this.runtime &&
+                    typeof this.runtime[`ext_${extension}`].deserialize === 'function'
+                ) {
+                    this.runtime[`ext_${extension}`].deserialize(this.runtime.extensionStorage[extension]);
+                }
+            }
+
             targets.forEach(target => {
                 this.runtime.addTarget(target);
                 (/** @type RenderedTarget */ target).updateAllDrawableProperties();
@@ -830,6 +878,38 @@ class VirtualMachine extends EventEmitter {
                 // Sort the executable targets by layer order.
                 this.runtime.executableTargets.sort((a, b) => layerOrders.get(a) - layerOrders.get(b));
             }
+            targets.forEach(target => {
+                delete target.layerOrder;
+
+                for (const extension of extensions.extensionIDs) {
+                    if (!target.extensionStorage[extension]) continue;
+                    if (
+                        `ext_${extension}` in this.runtime &&
+                        typeof this.runtime[`ext_${extension}`].deserialize === 'function'
+                    ) {
+                        this.runtime[`ext_${extension}`].deserializeForTarget(target.extensionStorage[extension], target);
+                    }
+                }
+
+                //deserialize custom typed variables Now!
+                for (const varId in target.variables) {
+                    const variable = target.variables[varId];
+                    if (variable.type === Variable.LIST_TYPE) {
+                        for (const idx in variable.value) {
+                            const item = variable.value[idx];
+                            if (item.customType) {
+                                const {deserialize} = this.runtime.serializers[item.typeId];
+                                variable.value[idx] = deserialize(item.serialized, target, variable);
+                            }
+                        }
+                    }
+                    if (variable.value?.customType) {
+                        const customData = variable.value;
+                        const {deserialize} = this.runtime.serializers[customData.typeId];
+                        variable.value = deserialize(customData.serialized, target, variable);
+                    }
+                }
+            });
 
             // Select the first target for editing, e.g., the first sprite.
             if (wholeProject && (targets.length > 1)) {
@@ -845,7 +925,7 @@ class VirtualMachine extends EventEmitter {
             if (wholeProject) {
                 this.runtime.parseProjectOptions();
             }
-
+            
             // Update the VM user's knowledge of targets and blocks on the workspace.
             this.emitTargetsUpdate(false /* Don't emit project change */);
             this.emitWorkspaceUpdate();
@@ -1191,10 +1271,11 @@ class VirtualMachine extends EventEmitter {
     /**
      * TW: Get the raw binary data to use when exporting a costume to the user's local file system.
      * @param {Costume} costumeObject scratch-vm costume object
+     * @param {Boolean} [optIncludeExtras] if true and costume is an SVG, will add things like custom fonts to the export
      * @returns {Uint8Array}
      */
-    getExportedCostume (costumeObject) {
-        return exportCostume(costumeObject);
+    getExportedCostume (costumeObject, optIncludeExtras) {
+        return exportCostume(costumeObject, optIncludeExtras, this);
     }
 
     /**

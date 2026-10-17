@@ -124,7 +124,7 @@ class MonitorRecord {
             didChange = true;
         }
 
-        if (defined(delta.value) && !Object.is(this.value, delta.value)) {
+        if (/*defined(delta.value) &&*/ !Object.is(this.value, delta.value)) {
             this.value = delta.value;
             didChange = true;
         }

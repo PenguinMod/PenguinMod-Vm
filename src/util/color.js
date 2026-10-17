@@ -7,6 +7,14 @@ class Color {
      */
 
     /**
+     * @typedef {object} RGBAObject - An object representing a color in RGBA format.
+     * @property {number} r - the red component, in the range [0, 255].
+     * @property {number} g - the green component, in the range [0, 255].
+     * @property {number} b - the blue component, in the range [0, 255].
+     * @property {number} a - the alpha component, in the range [0, 255].
+     */
+
+    /**
      * @typedef {object} HSVObject - An object representing a color in HSV format.
      * @property {number} h - hue, in the range [0-359).
      * @property {number} s - saturation, in the range [0,1].
@@ -51,35 +59,43 @@ class Color {
     }
 
     /**
-     * Convert a hex color (e.g., F00, #03F, #0033FF) to an RGB color object.
+     * Convert a hex color (e.g., F00, #03F, #0033FF) to an RGBA color object.
      * @param {!string} hex Hex representation of the color.
-     * @return {RGBObject} null on failure, or rgb: {r: red [0,255], g: green [0,255], b: blue [0,255]}.
+     * @return {RGBAObject} null on failure, or rgba: {r: red [0,255], g: green [0,255], b: blue [0,255], a: alpha [0,255]}.
      */
     static hexToRgb (hex) {
         if (hex.startsWith('#')) {
             hex = hex.substring(1);
         }
+
         const parsed = parseInt(hex, 16);
         if (isNaN(parsed)) {
             return null;
         }
-        if (hex.length === 6) {
-            return {
-                r: (parsed >> 16) & 0xff,
-                g: (parsed >> 8) & 0xff,
-                b: parsed & 0xff
-            };
-        } else if (hex.length === 3) {
-            const r = ((parsed >> 8) & 0xf);
-            const g = ((parsed >> 4) & 0xf);
-            const b = parsed & 0xf;
-            return {
-                r: (r << 4) | r,
-                g: (g << 4) | g,
-                b: (b << 4) | b
-            };
+
+        if (hex.length === 3 || hex.length === 4) {
+            const r = parseInt(hex[0] + hex[0], 16);
+            const g = parseInt(hex[1] + hex[1], 16);
+            const b = parseInt(hex[2] + hex[2], 16);
+
+            const result = {r, g, b};
+            if (hex.length === 4) {
+                result.a = parseInt(hex[3] + hex[3], 16);
+            }
+
+            return result;
         }
-        return null;
+
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+
+        const result = {r, g, b};
+        if (hex.length === 8) {
+            result.a = parseInt(hex.substring(6, 8), 16);
+        }
+
+        return result;
     }
 
     /**

@@ -162,6 +162,22 @@ class SecurityManager {
     canDownload (resourceURL, name) {
         return Promise.resolve(true);
     }
+
+    /**
+     * pm: Used to prompt the user if they would like to unsandbox a feature in the extension.
+     * @returns {Promise<boolean>|boolean} -
+     */
+    canUnsandbox() {
+        return Promise.resolve(true);
+    }
+
+    /**
+     * pm: Used to prompt the user if they would allow screenshotting the camera.
+     * @returns {Promise<boolean>|boolean} -
+     */
+    canScreenshotCamera() {
+        return Promise.resolve(true);
+    }
 }
 
 module.exports = SecurityManager;

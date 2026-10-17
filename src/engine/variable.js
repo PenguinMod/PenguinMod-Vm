@@ -23,7 +23,7 @@ class Variable {
         this.isCloud = isCloud;
         switch (this.type) {
         case Variable.SCALAR_TYPE:
-            this.value = 0;
+            this.value = null;
             break;
         case Variable.LIST_TYPE:
             this.value = [];

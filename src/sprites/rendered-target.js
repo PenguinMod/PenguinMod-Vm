@@ -55,8 +55,26 @@ class RenderedTarget extends Target {
             pixelate: 0,
             mosaic: 0,
             brightness: 0,
-            ghost: 0
+            ghost: 0,
+            red: 0,
+            green: 0,
+            blue: 0,
+            opaque: 0,
+            saturation: 0,
+            horizontal_shear: 0,
+            vertical_shear: 0,
+            repeat_x: 0,
+            repeat_y: 0,
+
+            //special
+            tintColor: 0xffffff + 1
         };
+
+        /**
+         * blend mode
+         * see scratch-render Drawable.BlendMode
+         */
+        this.blendMode = 0;
 
         /**
          * Whether this represents an "original" non-clone rendered-target for a sprite,
@@ -106,6 +124,12 @@ class RenderedTarget extends Target {
          * @type {number}
          */
         this.size = 100;
+
+        /**
+         * The stretch percent on each axis
+         * @type {array}
+         */
+        this.stretch = [100, 100];
 
         /**
          * Currently selected costume index.
@@ -168,6 +192,8 @@ class RenderedTarget extends Target {
         this.onTargetVisualChange = null;
 
         this.interpolationData = null;
+
+        this.cameraBound = 'default';
     }
 
     /**
@@ -226,6 +252,14 @@ class RenderedTarget extends Target {
      */
     static get ROTATION_STYLE_LEFT_RIGHT () {
         return 'left-right';
+    }
+
+    static get ROTATION_STYLE_UP_DOWN () {
+        return 'up-down';
+    }
+
+    static get ROTATION_STYLE_LOOK_AT () {
+        return 'look at';
     }
 
     /**
@@ -295,16 +329,57 @@ class RenderedTarget extends Target {
         // Default: no changes to `this.direction` or `this.scale`.
         let finalDirection = this.direction;
         let finalScale = [this.size, this.size];
-        if (this.rotationStyle === RenderedTarget.ROTATION_STYLE_NONE) {
-            // Force rendered direction to be 90.
-            finalDirection = 90;
-        } else if (this.rotationStyle === RenderedTarget.ROTATION_STYLE_LEFT_RIGHT) {
-            // Force rendered direction to be 90, and flip drawable if needed.
-            finalDirection = 90;
-            const scaleFlip = (this.direction < 0) ? -1 : 1;
-            finalScale = [scaleFlip * this.size, this.size];
+
+        switch (this.rotationStyle) {
+            case RenderedTarget.ROTATION_STYLE_NONE:
+                finalDirection = 90;
+                break;
+            case RenderedTarget.ROTATION_STYLE_LEFT_RIGHT: {
+                finalDirection = 90;
+                const scaleFlip = (this.direction < 0) ? -1 : 1;
+                finalScale = [scaleFlip * this.size, this.size];
+                break;
+            }
+            case RenderedTarget.ROTATION_STYLE_UP_DOWN: {
+                finalDirection = 90;
+                const scaleFlip = (Math.abs(this.direction) > 90) ? -1 : 1;
+                finalScale = [this.size, scaleFlip * this.size];
+                break;
+            }
+            case RenderedTarget.ROTATION_STYLE_LOOK_AT: {
+                const scaleFlip = (this.direction < 0) ? -1 : 1;
+                finalScale = [this.size, scaleFlip * this.size];
+                break;
+            }
         }
+
+        // stretch
+        finalScale[0] *= this.stretch[0] / 100;
+        finalScale[1] *= this.stretch[1] / 100;
+
         return {direction: finalDirection, scale: finalScale};
+    }
+
+    /**
+     * set the stretch of this sprite
+     * @param {number} x the stretch percentage on the x axis
+     * @param {number} y the stretch percentage on the y axis
+     */
+    setStretch (x, y) {
+        if (this.isStage) {
+            return;
+        }
+
+        this.stretch = [x, y];
+        if (this.renderer) {
+            const {direction: renderedDirection, scale} = this._getRenderedDirectionAndScale();
+            this.renderer.updateDrawableDirectionScale(this.drawableID, renderedDirection, scale);
+            if (this.visible) {
+                this.emitVisualChange();
+                this.runtime.requestRedraw();
+            }
+        }
+        this.runtime.requestTargetsUpdate(this);
     }
 
     /**
@@ -319,7 +394,9 @@ class RenderedTarget extends Target {
             return;
         }
         // Keep direction between -179 and +180.
-        this.direction = MathUtil.wrapClamp(direction, -179, 180);
+        this.direction = this.runtime.runtimeOptions.disableDirectionClamping
+            ? direction
+            : MathUtil.wrapClamp(direction, -179, 180);
         if (this.renderer) {
             const {direction: renderedDirection, scale} = this._getRenderedDirectionAndScale();
             this.renderer.updateDrawableDirectionScale(this.drawableID, renderedDirection, scale);
@@ -412,6 +489,11 @@ class RenderedTarget extends Target {
         }
     }
 
+    getEffect (effectName) {
+        if (!Object.prototype.hasOwnProperty.call(this.effects, effectName)) return 0;
+        return this.effects[effectName];
+    }
+
     /**
      * Clear all graphic effects on this rendered target.
      */
@@ -425,6 +507,17 @@ class RenderedTarget extends Target {
                 if (!Object.prototype.hasOwnProperty.call(this.effects, effectName)) continue;
                 this.renderer.updateDrawableEffect(this.drawableID, effectName, 0);
             }
+            if (this.visible) {
+                this.emitVisualChange();
+                this.runtime.requestRedraw();
+            }
+        }
+    }
+
+    setBlendMode (mode) {
+        this.blendMode = mode;
+        if (this.renderer) {
+            this.renderer.setDrawableBlendMode(this.drawableID, mode);
             if (this.visible) {
                 this.emitVisualChange();
                 this.runtime.requestRedraw();
@@ -561,13 +654,24 @@ class RenderedTarget extends Target {
      * @param {!string} rotationStyle New rotation style.
      */
     setRotationStyle (rotationStyle) { // used by compiler
-        if (rotationStyle === RenderedTarget.ROTATION_STYLE_NONE) {
-            this.rotationStyle = RenderedTarget.ROTATION_STYLE_NONE;
-        } else if (rotationStyle === RenderedTarget.ROTATION_STYLE_ALL_AROUND) {
-            this.rotationStyle = RenderedTarget.ROTATION_STYLE_ALL_AROUND;
-        } else if (rotationStyle === RenderedTarget.ROTATION_STYLE_LEFT_RIGHT) {
-            this.rotationStyle = RenderedTarget.ROTATION_STYLE_LEFT_RIGHT;
+        switch (rotationStyle) {
+            case RenderedTarget.ROTATION_STYLE_NONE:
+                this.rotationStyle = RenderedTarget.ROTATION_STYLE_NONE;
+                break;
+            case RenderedTarget.ROTATION_STYLE_ALL_AROUND:
+                this.rotationStyle = RenderedTarget.ROTATION_STYLE_ALL_AROUND;
+                break;
+            case RenderedTarget.ROTATION_STYLE_LEFT_RIGHT:
+                this.rotationStyle = RenderedTarget.ROTATION_STYLE_LEFT_RIGHT;
+                break;
+            case RenderedTarget.ROTATION_STYLE_UP_DOWN:
+                this.rotationStyle = RenderedTarget.ROTATION_STYLE_UP_DOWN;
+                break;
+            case RenderedTarget.ROTATION_STYLE_LOOK_AT:
+                this.rotationStyle = RenderedTarget.ROTATION_STYLE_LOOK_AT;
+                break;
         }
+
         if (this.renderer) {
             const {direction, scale} = this._getRenderedDirectionAndScale();
             this.renderer.updateDrawableDirectionScale(this.drawableID, direction, scale);
@@ -677,6 +781,15 @@ class RenderedTarget extends Target {
                 if (!Object.prototype.hasOwnProperty.call(this.effects, effectName)) continue;
                 this.renderer.updateDrawableEffect(this.drawableID, effectName, this.effects[effectName]);
             }
+            this.renderer.setDrawableBlendMode(this.drawableID, this.blendMode);
+
+            let screen;
+            switch (this.cameraBound) {
+                case "default": screen = this.renderer.camera.defaultName; break;
+                case null: screen = this.renderer.camera.unbindedName; break;
+                default: screen = this.cameraBound;
+            }
+            this.renderer._allDrawables[this.drawableID].setCameraState(screen);
 
             if (this.visible) {
                 this.emitVisualChange();
@@ -745,10 +858,24 @@ class RenderedTarget extends Target {
     }
 
     /**
+     * @returns {Array.<number?>}
+     */
+    objectTouchingPoint (requestedObject) {
+        if (requestedObject === '_mouse_') {
+            if (!this.runtime.ioDevices.mouse) return [null, null];
+            const mouseX = this.runtime.ioDevices.mouse.getClientX();
+            const mouseY = this.runtime.ioDevices.mouse.getClientY();
+            if (!this.isTouchingPoint(mouseX, mouseY)) return [null, null];
+            return [mouseX, mouseY];
+        }
+        return this.spriteTouchingPoint(requestedObject);
+    }
+
+    /**
      * Return whether touching a point.
      * @param {number} x X coordinate of test point.
      * @param {number} y Y coordinate of test point.
-     * @return {boolean} True iff the rendered target is touching the point.
+     * @return {boolean} True if the rendered target is touching the point.
      */
     isTouchingPoint (x, y) {
         if (this.renderer) {
@@ -794,6 +921,39 @@ class RenderedTarget extends Target {
             .map(clone => clone.drawableID);
         return this.renderer.isTouchingDrawables(
             this.drawableID, drawableCandidates);
+    }
+
+    /**
+     * @return {Array.<number?>}
+     */
+    spriteTouchingPoint (spriteName) {
+        spriteName = Cast.toString(spriteName);
+        const firstClone = this.runtime.getSpriteTargetByName(spriteName);
+        if (!firstClone || !this.renderer) {
+            return [null, null];
+        }
+        // Filter out dragging targets. This means a sprite that is being dragged
+        // can detect other sprites using touching <sprite>, but cannot be detected
+        // by other sprites while it is being dragged. This matches Scratch 2.0 behavior.
+        const drawableCandidates = firstClone.sprite.clones.filter(clone => !clone.dragging)
+            .map(clone => clone.drawableID);
+        return this.renderer.getTouchingDrawablesPoint(
+            this.drawableID, drawableCandidates);
+    }
+
+    /**
+     * Return whether touching a target.
+     * @param {string} targetId ID of the target
+     * @return {boolean} True if touching the target
+     */
+    isTouchingTarget (targetId) {
+        targetId = Cast.toString(targetId);
+        const target = this.runtime.getTargetById(targetId);
+        if (!target || !this.renderer || target.dragging) {
+            return false;
+        }
+        return this.renderer.isTouchingDrawables(
+            this.drawableID, [target.drawableID]);
     }
 
     /**
@@ -957,9 +1117,11 @@ class RenderedTarget extends Target {
         newClone.draggable = this.draggable;
         newClone.visible = this.visible;
         newClone.size = this.size;
+        newClone.stretch = Clone.simple(this.stretch);
         newClone.currentCostume = this.currentCostume;
         newClone.rotationStyle = this.rotationStyle;
         newClone.effects = Clone.simple(this.effects);
+        newClone.blendMode = this.blendMode;
         newClone.variables = this.duplicateVariables();
         newClone._edgeActivatedHatValues = Clone.simple(this._edgeActivatedHatValues);
         newClone.initDrawable(StageLayering.SPRITE_LAYER);
@@ -982,9 +1144,11 @@ class RenderedTarget extends Target {
             newTarget.draggable = this.draggable;
             newTarget.visible = this.visible;
             newTarget.size = this.size;
+            newTarget.stretch = Clone.simple(this.stretch);
             newTarget.currentCostume = this.currentCostume;
             newTarget.rotationStyle = this.rotationStyle;
-            newTarget.effects = JSON.parse(JSON.stringify(this.effects));
+            newTarget.effects = Clone.simple(this.effects);
+            newTarget.blendMode = this.blendMode;
             newTarget.variables = this.duplicateVariables(newTarget.blocks);
             newTarget.updateAllDrawableProperties();
             return newTarget;
@@ -997,6 +1161,7 @@ class RenderedTarget extends Target {
      */
     onGreenFlag () {
         this.clearEffects();
+        this.setBlendMode(0);
     }
 
     /**
@@ -1005,6 +1170,7 @@ class RenderedTarget extends Target {
      */
     onStopAll () {
         this.clearEffects();
+        this.setBlendMode(0);
     }
 
     /**
@@ -1103,6 +1269,34 @@ class RenderedTarget extends Target {
             }
         }
         this.sprite.removeClone(this);
+    }
+
+    /** @deprecated */
+    bindToCamera(screen) {
+        this.cameraBound = screen;
+        this.updateAllDrawableProperties();
+    }
+
+    /** @deprecated */
+    removeCameraBinding() {
+        this.cameraBound = null;
+        this.updateAllDrawableProperties();
+    }
+
+    getCameraState() {
+        if (this.renderer) {
+            return this.renderer._allDrawables[this.drawableID].cameraState;
+        }
+    }
+
+    setCameraState(name) {
+        if (this.renderer) {
+            this.renderer._allDrawables[this.drawableID].setCameraState(name);
+            if (this.visible) {
+                this.emitVisualChange();
+                this.runtime.requestRedraw();
+            }
+        }
     }
 }
 

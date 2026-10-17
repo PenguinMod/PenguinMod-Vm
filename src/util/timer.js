@@ -80,6 +80,10 @@ class Timer {
         return this.nowObj.now() - this.startTime;
     }
 
+    valueOf () {
+        return this.timeElapsed();
+    }
+
     /**
      * Call a handler function after a specified amount of time has elapsed.
      * @param {function} handler - function to call after the timeout

@@ -24,6 +24,18 @@ const {IntermediateInput, IntermediateStackBlock, IntermediateStack} = require('
 class IRGeneratorStub {
     // Doesn't seem like extensions override anything, though the class may
     // still need to exist to avoid type errors.
+
+    // pm: old extension compiler support
+    static _extensionIRInfo = {};
+    static setExtensionIr(id, data) {
+        IRGeneratorStub._extensionIRInfo[id] = data;
+    }
+    static hasExtensionIr(id) {
+        return Boolean(IRGeneratorStub._extensionIRInfo[id]);
+    }
+    static getExtensionIr(id) {
+        return IRGeneratorStub._extensionIRInfo[id];
+    }
 }
 
 class ScriptTreeGeneratorStub {
@@ -223,9 +235,11 @@ class VariablePool {
  * Part of the old compiler's API.
  */
 class Frame {
-    constructor (isLoop) {
+    constructor (isLoop, parent) {
         this.isLoop = isLoop;
+        this.parent = parent;
         this.isLastBlock = false;
+        this.allowReturns = false;
     }
 }
 
@@ -277,6 +291,14 @@ class JSGeneratorStub {
                 real.descendStack(stack, frame);
             },
 
+            pushFrame (frame) {
+                real.pushFrame(frame);
+            },
+            
+            popFrame () {
+                real.popFrame();
+            },
+
             yieldLoop: () => real.yieldLoop(),
             yieldNotWarp: () => real.yieldNotWarp(),
             yieldStuckOrNotWarp: () => real.yieldStuckOrNotWarp(),
@@ -310,6 +332,24 @@ class JSGeneratorStub {
      */
     descendInputFromNewCompiler (intermediate) {
         const oldNode = intermediate.inputs.oldNode;
+
+        // pm: old extension compiler support
+        const extensionId = String(oldNode.kind).split('.')[0];
+        const blockId = String(oldNode.kind).replace(extensionId + '.', '');
+        if (JSGeneratorStub.hasExtensionJs(extensionId) && JSGeneratorStub.getExtensionJs(extensionId)[blockId]) {
+            // this is an extension block that wants to be compiled
+            const imports = JSGeneratorStub.unstable_exports;
+            const jsFunc = JSGeneratorStub.getExtensionJs(extensionId)[blockId];
+            // return the input
+            let input = null;
+            try {
+                input = jsFunc(oldNode, this.fakeThis, imports);
+            } catch (err) {
+                console.log(err)
+            }
+            return input.asSafe();
+        }
+
         const typedInput = this.descendInput.call(this.fakeThis, oldNode);
         return typedInput.asSafe();
     }
@@ -320,7 +360,37 @@ class JSGeneratorStub {
      */
     descendStackedBlockFromNewCompiler (intermediate) {
         const oldNode = intermediate.inputs.oldNode;
+
+        // pm: old extension compiler support
+        const extensionId = String(oldNode.kind).split('.')[0];
+        const blockId = String(oldNode.kind).replace(extensionId + '.', '');
+        if (JSGeneratorStub.hasExtensionJs(extensionId) && JSGeneratorStub.getExtensionJs(extensionId)[blockId]) {
+            // this is an extension block that wants to be compiled
+            const imports = JSGeneratorStub.unstable_exports;
+            const jsFunc = JSGeneratorStub.getExtensionJs(extensionId)[blockId];
+            // return the input
+            let input = null;
+            try {
+                input = jsFunc(oldNode, this.fakeThis, imports);
+            } catch (err) {
+                console.log(error)
+            }
+            return;
+        }
+
         this.descendStackedBlock.call(this.fakeThis, oldNode);
+    }
+
+    // pm: old extension compiler support
+    static _extensionJSInfo = {};
+    static setExtensionJs(id, data) {
+        JSGeneratorStub._extensionJSInfo[id] = data;
+    }
+    static hasExtensionJs(id) {
+        return Boolean(JSGeneratorStub._extensionJSInfo[id]);
+    }
+    static getExtensionJs(id) {
+        return JSGeneratorStub._extensionJSInfo[id];
     }
 }
 

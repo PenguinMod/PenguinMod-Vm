@@ -110,6 +110,12 @@ class Sequencer {
                     stoppedThread = true;
                     continue;
                 }
+                if (activeThread.status === Thread.STATUS_PAUSED) {
+                    if (activeThread.timer && !activeThread.timer._pausedTime) {
+                        activeThread.timer.pause();
+                    }
+                    continue;
+                }
                 if (activeThread.status === Thread.STATUS_YIELD_TICK &&
                     !ranFirstTick) {
                     // Clear single-tick yield from the last call of `stepThreads`.
@@ -189,6 +195,7 @@ class Sequencer {
             // Did the null follow a hat block?
             if (thread.stack.length === 0) {
                 thread.status = Thread.STATUS_DONE;
+                this.runtime.emit('THREAD_FINISHED', thread);
                 return;
             }
         }
@@ -254,6 +261,7 @@ class Sequencer {
                 if (thread.stack.length === 0) {
                     // No more stack to run!
                     thread.status = Thread.STATUS_DONE;
+                    this.runtime.emit('THREAD_FINISHED', thread);
                     return;
                 }
 
@@ -367,6 +375,7 @@ class Sequencer {
         thread.stackFrame = [];
         thread.requestScriptGlowInFrame = false;
         thread.status = Thread.STATUS_DONE;
+        this.runtime.emit('THREAD_FINISHED', thread);
         if (thread.isCompiled) {
             thread.procedures = null;
             thread.generator = null;

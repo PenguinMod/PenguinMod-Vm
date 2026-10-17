@@ -87,6 +87,8 @@ Object.assign(global.Scratch, ScratchCommon, {
     canGeolocate: () => Promise.resolve(false),
     canEmbed: () => Promise.resolve(false),
     canDownload: () => Promise.resolve(false),
+    canUnsandbox: () => Promise.resolve(false),
+    canScreenshotCamera: () => Promise.resolve(false),
     download: () => Promise.reject(new Error('Scratch.download not supported in sandboxed extensions')),
     translate
 });
@@ -96,6 +98,7 @@ Object.assign(global.Scratch, ScratchCommon, {
  */
 const extensionWorker = new ExtensionWorker();
 global.Scratch.extensions = {
+    isPenguinMod: true,
     register: extensionWorker.register.bind(extensionWorker)
 };
 

@@ -114,9 +114,7 @@ const convert = (name, descriptor, functions) => {
         id: extensionId,
         name: descriptor.displayName || name,
         blocks: [],
-        color1: '#4a4a5e',
-        color2: '#31323f',
-        color3: '#191a21'
+        color: '#4a4a5e',
     };
     const scratch3Extension = {
         getInfo: () => info,

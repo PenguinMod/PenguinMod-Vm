@@ -1,5 +1,6 @@
 const Cast = require('../util/cast');
 const Timer = require('../util/timer');
+const MathUtil = require('../util/math-util.js');
 const getMonitorIdForBlockWithArgs = require('../util/get-monitor-id');
 
 class Scratch3SensingBlocks {
@@ -73,7 +74,17 @@ class Scratch3SensingBlocks {
             sensing_answer: this.getAnswer,
             sensing_username: this.getUsername,
             sensing_userid: () => {}, // legacy no-op block
-            sensing_online: this.isOnline
+            sensing_online: this.isOnline,
+
+            // pm
+            sensing_getclipboard: this.getClipboard,
+            sensing_getdragmode: (_, util) => util.target.draggable,
+            sensing_loggedin: (_, util) => util.ioQuery('userdata', 'getLoggedIn'),
+            sensing_mouse_button_clicked: (args, util) => util.ioQuery('mouse', 'getButtonIsClicked', [(['left', 'middle', 'right'].indexOf(args.BUTTON_OPTION))]),
+            sensing_mouse_button_down: (args, util) => util.ioQuery('mouse', 'getButtonIsDown', [(['left', 'middle', 'right'].indexOf(args.BUTTON_OPTION))]),
+            sensing_mouse_button_released: (args, util) => util.ioQuery('mouse', 'getButtonIsReleased', [(['left', 'middle', 'right'].indexOf(args.BUTTON_OPTION))]),
+            sensing_mouseclicked: (_, util) => util.ioQuery('mouse', 'getButtonIsClicked', [-1]),
+            sensing_setclipboard: this.setClipboard,
         };
     }
 
@@ -108,6 +119,30 @@ class Scratch3SensingBlocks {
             },
             sensing_online: {
                 getId: () => 'online'
+            },
+
+            //pm
+            sensing_getclipboard: {
+                getId: () => 'clipboard'
+            },
+            sensing_getdragmode: {
+                isSpriteSpecific: true,
+                getId: targetId => `${targetId}_getdragmode`
+            },
+            sensing_loggedin: {
+                getId: () => 'loggedin'
+            },
+            sensing_mouse_button_clicked: {
+                getId: (_, fields) => getMonitorIdForBlockWithArgs('mouse_button_clicked', fields)
+            },
+            sensing_mouse_button_down: {
+                getId: (_, fields) => getMonitorIdForBlockWithArgs('mouse_button_down', fields)
+            },
+            sensing_mouse_button_released: {
+                getId: (_, fields) => getMonitorIdForBlockWithArgs('mouse_button_released', fields)
+            },
+            sensing_mouseclicked: {
+                getId: () => 'mouseclicked'
             }
         };
     }
@@ -257,6 +292,7 @@ class Scratch3SensingBlocks {
         case 'hour': return date.getHours();
         case 'minute': return date.getMinutes();
         case 'second': return date.getSeconds();
+        case 'timestamp': return Date.now();
         }
         return 0;
     }
@@ -344,6 +380,39 @@ class Scratch3SensingBlocks {
         return 0;
     }
 
+    _setAttributeOf (object, property, value) {
+        let attrTarget;
+
+        if (object === '_stage_') {
+            attrTarget = this.runtime.getTargetForStage();
+        } else {
+            attrTarget = this.runtime.getSpriteTargetByName(Cast.toString(object));
+        }
+
+        if (!attrTarget) return;
+
+        if (attrTarget.isStage) {
+            switch (args.PROPERTY) {
+            case 'backdrop': return this.runtime.ext_scratch3_looks._setBackdrop(attrTarget, value);
+            case 'volume': return this.runtime.ext_scratch3_sound._updateVolume(Cast.toNumber(value), attrTarget);
+            }
+        } else {
+            switch (args.PROPERTY) {
+            case 'x position': return attrTarget.setXY(Cast.toNumber(value), attrTarget.y);
+            case 'y position': return attrTarget.setXY(attrTarget.x, Cast.toNumber(value));
+            case 'direction': return attrTarget.setDirection(Cast.toNumber(value));
+            case 'costume': return this.runtime.ext_scratch3_looks._setCostume(attrTarget, value);
+            case 'size': return attrTarget.setSize(Cast.toNumber(value));
+            case 'volume': return this.runtime.ext_scratch3_sound._updateVolume(Cast.toNumber(value), attrTarget);
+            }
+        }
+        
+        const variable = attrTarget.lookupVariableByNameAndType(property, '', true);
+        if (variable) {
+            variable.value = value;
+        }
+    }
+
     getUsername (args, util) {
         return util.ioQuery('userData', 'getUsername');
     }
@@ -355,6 +424,138 @@ class Scratch3SensingBlocks {
         }
         // We're running in some non-browser environment. We probably have internet.
         return true;
+    }
+
+    _mouseScrolling (option, delta) {
+        switch (option) {
+            case "up":
+                return delta < 0;
+            case "down":
+                return delta > 0;
+            default:
+                return false;
+        }
+    }
+
+    async getClipboard (args, util) {
+        return await util.ioQuery('clipboard', 'readText');
+    }
+
+    async setClipboard (args, util) {
+        await util.ioQuery('clipboard', 'writeText', [Cast.toString(args.ITEM)]);
+    }
+
+    _getOS () {
+        if (!('userAgent' in navigator)) return 'Unknown';
+        const agent = navigator.userAgent;
+        if (agent.includes('Windows')) {
+            return 'Windows';
+        }
+        if (agent.includes('Android')) {
+            return 'Android';
+        }
+        if (agent.includes('iPad') || agent.includes('iPod') || agent.includes('iPhone')) {
+            return 'iOS';
+        }
+        if (agent.includes('Linux')) {
+            return 'Linux';
+        }
+        if (agent.includes('CrOS')) {
+            return 'ChromeOS';
+        }
+        if (agent.includes('Mac OS')) {
+            return 'MacOS';
+        }
+        return 'Unknown';
+    }
+
+    _getBrowser () {
+        if (!('userAgent' in navigator)) return 'Unknown';
+        const agent = navigator.userAgent;
+        if ('userAgentData' in navigator) {
+            const agentData = JSON.stringify(navigator.userAgentData.brands);
+            if (agentData.includes('Google Chrome')) {
+                return 'Chrome';
+            }
+            if (agentData.includes('Opera')) {
+                return 'Opera';
+            }
+            if (agentData.includes('Microsoft Edge')) {
+                return 'Edge';
+            }
+        }
+        if (agent.includes('Chrome')) {
+            return 'Chrome';
+        }
+        if (agent.includes('Firefox')) {
+            return 'Firefox';
+        }
+        // PenguinMod cannot be loaded in IE 11 (the last supported version)
+        // if (agent.includes('MSIE') || agent.includes('rv:')) {
+        //     return 'Internet Explorer';
+        // }
+        if (agent.includes('Safari')) {
+            return 'Safari';
+        }
+        return 'Unknown';
+    }
+
+    _spriteWithAttrib(name, value) {
+        let target = this.runtime.targets.find(v => Object.values(v.variables).some(w => w.name === name && this.runtime.equals(w.value, value)));
+        if (!target) return "No sprites found";
+        return `{"id": "${target.id}", "name": "${target.sprite.name}"}`
+    }
+
+    _getDirectionToFrom (x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return MathUtil.wrapClamp(90 - MathUtil.radToDeg(Math.atan2(dy, dx)), -179, 180);
+    }
+
+    _regexTest(text, regex, flags) {
+        if (!validateRegex(regex, flags)) return false;
+        return new RegExp(regex, flags).test(text);
+    }
+
+    _isTextUppercase(text) {
+        return text === text.toUpperCase();
+    }
+
+    _objectTouchingObject (object1, object2, myself) {
+        if (object1 === "_myself_") {
+            object1 = myself.getName();
+        }
+        if (object2 === "_myself_") {
+            return myself.isTouchingObject(object1);
+        }
+        const target = this.runtime.getSpriteTargetByName(object2);
+        if (!target) return false;
+        return target.isTouchingObject(object1);
+    }
+    _objectTouchingCloneOfSprite (object1, object2, myself) {
+        if (object2 === "_myself_") {
+            object2 = myself.getName();
+        }
+        if (object1 === "_myself_") {
+            return myself.isTouchingObject(object2, true);
+        }
+
+        const target = this.runtime.getSpriteTargetByName(object2);
+        if (!target) return false;
+        if (object1 === "_mouse_") {
+            if (!this.runtime.ioDevices.mouse) return false;
+            const mouseX = this.runtime.ioDevices.mouse.getClientX();
+            const mouseY = this.runtime.ioDevices.mouse.getClientY();
+            const clones = target.sprite.clones.filter(clone => !clone.isOriginal && clone.isTouchingPoint(mouseX, mouseY));
+            return clones.length > 0;
+        } else if (object1 === '_edge_') {
+            const clones = target.sprite.clones.filter(clone => !clone.isOriginal && clone.isTouchingEdge());
+            return clones.length > 0;
+        }
+
+        const originalSprite = this.runtime.getSpriteTargetByName(object1);
+        if (!originalSprite) return false;
+        return originalSprite.isTouchingObject(object2, true);
     }
 }
 

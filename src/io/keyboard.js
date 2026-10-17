@@ -45,6 +45,13 @@ class Keyboard {
          */
         this._keysPressed = [];
         /**
+         * pm: ditto of above, but only when hit on that step
+         * @type{Array.<string>}
+         */
+        this._keysHit = [];
+        this._keysHitOnStep = {}; // key: the key pressed, value: the step they were pressed on
+        this._keyTimestamps = {};
+        /**
          * Reference to the owning Runtime.
          * Can be used, for example, to activate hats.
          * @type{!Runtime}
@@ -57,6 +64,19 @@ class Keyboard {
          * Set of Scratch keys used by the project.
          */
         this._usedKeys = new Set();
+        
+        this.runtime.on("RUNTIME_STEP_END", () => {
+            const newHitKeys = [];
+            for (const key of this._keysHit) {
+                const stepKeyPressedOn = this._keysHitOnStep[key] || -1;
+                if (this.runtime.frameLoop._stepCounter <= stepKeyPressedOn) {
+                    newHitKeys.push(key);
+                }
+            }
+
+            // replace with the keys that are now pressed
+            this._keysHit = newHitKeys;
+        });
     }
 
     /**
@@ -171,10 +191,18 @@ class Keyboard {
             // If not already present, add to the list.
             if (index < 0) {
                 this._keysPressed.push(scratchKey);
+                this._keyTimestamps[scratchKey] = Date.now();
+                
+                this._keysHit.push(scratchKey);
+                this._keysHitOnStep[scratchKey] = this.runtime.frameLoop._stepCounter;
+                this.runtime.emit('KEY_HIT', scratchKey);
             }
         } else if (index > -1) {
             // If already present, remove from the list.
             this._keysPressed.splice(index, 1);
+            if (scratchKey in this._keyTimestamps) {
+                delete this._keyTimestamps[scratchKey];
+            }
         }
         // Fix for https://github.com/LLK/scratch-vm/issues/2271
         if (Object.prototype.hasOwnProperty.call(data, 'keyCode')) {
@@ -185,6 +213,9 @@ class Keyboard {
                     const indexToUnpress = this._keysPressed.indexOf(lastKeyOfSameCode);
                     if (indexToUnpress !== -1) {
                         this._keysPressed.splice(indexToUnpress, 1);
+                        if (scratchKey in this._keyTimestamps) {
+                            delete this._keyTimestamps[lastKeyOfSameCode];
+                        }
                     }
                 }
             }
@@ -206,9 +237,48 @@ class Keyboard {
         return this._keysPressed.indexOf(scratchKey) > -1;
     }
 
+    getKeyIsHit (keyArg) {
+        if (keyArg === 'any') {
+            return this._keysHit.length > 0;
+        }
+        const scratchKey = this._keyArgToScratchKey(keyArg);
+        this._usedKeys.add(scratchKey);
+        return this._keysHit.indexOf(scratchKey) > -1;
+    }
+
     // tw: expose last pressed key
     getLastKeyPressed () {
         return this.lastKeyPressed;
+    }
+
+    getAllKeysPressed() {
+        return this._keysPressed;
+    }
+    
+    getKeyTimestamp (keyArg) {
+        if (keyArg === 'any') {
+            // loop through all keys and see which one we have held the longest
+            let oldestTimestamp = Infinity;
+            let found = false;
+            for (const keyName in this._keyTimestamps) {
+                const timestamp = this._keyTimestamps[keyName];
+                if (timestamp < oldestTimestamp) {
+                    oldestTimestamp = timestamp;
+                    found = true;
+                }
+            }
+            if (!found) return 0;
+            return oldestTimestamp;
+        }
+        // everything else
+        const scratchKey = this._keyArgToScratchKey(keyArg);
+        if (!(scratchKey in this._keyTimestamps)) {
+            return 0;
+        }
+        return this._keyTimestamps[scratchKey];
+    }
+    getKeyTimestamps () {
+        return this._keyTimestamps;
     }
 
     /**

@@ -16,6 +16,19 @@ class Scratch3EventBlocks {
                 KEY_OPTION: 'any'
             });
         });
+
+        this.runtime.on('KEY_HIT', key => {
+            this.runtime.startHats('event_whenkeyhit', {
+                KEY_OPTION: key
+            });
+            this.runtime.startHats('event_whenkeyhit', {
+                KEY_OPTION: 'any'
+            });
+        });
+        
+        this.runtime.on('RUNTIME_STEP_START', () => {
+            this.runtime.startHats('event_always');
+        });
     }
 
     /**
@@ -24,6 +37,7 @@ class Scratch3EventBlocks {
      */
     getPrimitives () {
         return {
+            event_whenanything: this.whenTrue,
             event_whentouchingobject: this.touchingObject,
             event_broadcast: this.broadcast,
             event_broadcastandwait: this.broadcastAndWait,
@@ -58,6 +72,23 @@ class Scratch3EventBlocks {
             },
             event_whenbroadcastreceived: {
                 restartExistingThreads: true
+            },
+
+            event_always: {
+                restartExistingThreads: false
+            },
+            event_whenanything: {
+                restartExistingThreads: false,
+                edgeActivated: true
+            },
+            event_whenstopclicked: {
+                restartExistingThreads: true
+            },
+            event_whenmousescrolled: {
+                restartExistingThreads: false
+            },
+            event_whenkeyhit: {
+                restartExistingThreads: false
             }
         };
     }
@@ -131,6 +162,10 @@ class Scratch3EventBlocks {
                 }
             }
         }
+    }
+
+    whenTrue (args, util) {
+        return Cast.toBoolean(args.ANYTHING);
     }
 }
 
