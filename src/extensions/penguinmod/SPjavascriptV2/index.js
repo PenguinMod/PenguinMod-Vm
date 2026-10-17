@@ -586,6 +586,16 @@ class SPjavascriptV2 {
   runNextInSandbox() {
     this.forceSandboxNextExecute = true;
   }
+
+  // save state to storage
+  serialize() {
+    return {
+      isUnsandboxed: this.isEditorUnsandboxed
+    };
+  }
+  deserialize(data) {
+    if (data.isUnsandboxed) this.toggleSandbox();
+  }
 }
 
 module.exports = SPjavascriptV2;
