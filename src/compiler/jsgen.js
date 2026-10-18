@@ -603,7 +603,7 @@ class JSGenerator {
                     output += operation;
                 }
                 let input = node.inputs[i];
-                output += this.descendInput(input);
+                output += `(${this.descendInput(input)})`;
             }
 
             output += ")";
