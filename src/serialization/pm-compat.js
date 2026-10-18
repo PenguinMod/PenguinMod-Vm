@@ -62,7 +62,7 @@ export function compatBlock(block, pmVersion) {
             // debugger!!!
             switch (block.mutation.proccode) {
                 case "​​breakpoint​​":
-                    return {
+                    block = {
                         id: block.id,
                         opcode: "jwDebugger_breakpoint",
                         next: block.next,
@@ -72,6 +72,7 @@ export function compatBlock(block, pmVersion) {
                         x: block.x,
                         y: block.y
                     };
+                    break;
                 case "​​log​​ %s":
                     block = {
                         id: block.id,
@@ -87,6 +88,7 @@ export function compatBlock(block, pmVersion) {
                         x: block.x,
                         y: block.y
                     };
+                    break;
                 case "​​warn​​ %s":
                     block = {
                         id: block.id,
@@ -102,6 +104,7 @@ export function compatBlock(block, pmVersion) {
                         x: block.x,
                         y: block.y
                     };
+                    break;
                 case "​​error​​ %s":
                     block = {
                         id: block.id,
@@ -117,15 +120,16 @@ export function compatBlock(block, pmVersion) {
                         x: block.x,
                         y: block.y
                     };
+                    break;
+                default:
+                    if (block.mutation.returns === "true") block.mutation.return = `[null, ${block.mutation.optype === "\"boolean\"" ? "1" : "2"}]`;
+                    if (block.mutation.optype === "\"end\"") block.mutation.terminal = "true";
+                    if (block.mutation.color) block.mutation.colour = JSON.parse(block.mutation.color)[0];
+                    
+                    delete block.mutation.returns;
+                    delete block.mutation.optype;
+                    delete block.mutation.color;
             }
-
-            if (block.mutation.returns === "true") block.mutation.return = `[null, ${block.mutation.optype === "\"boolean\"" ? "1" : "2"}]`;
-            if (block.mutation.optype === "\"end\"") block.mutation.terminal = "true";
-            if (block.mutation.color) block.mutation.colour = JSON.parse(block.mutation.color)[0];
-            
-            delete block.mutation.returns;
-            delete block.mutation.optype;
-            delete block.mutation.color;
         }
 
         //procedures_definition_return
