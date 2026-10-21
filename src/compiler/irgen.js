@@ -373,7 +373,7 @@ class ScriptTreeGenerator {
             const broadcastOption = block.fields.BROADCAST_OPTION;
             const broadcastVariable = this.target.lookupBroadcastMsg(broadcastOption.id, broadcastOption.value);
             // TODO: empty string probably isn't the correct fallback
-            const broadcastName = broadcastVariable ? broadcastVariable.name : '';
+            const broadcastName = broadcastVariable ? broadcastVariable.name : (broadcastOption.value === 'message1' ? 'message1' : '');
             return this.createConstantInput(broadcastName);
         }
 
@@ -391,6 +391,10 @@ class ScriptTreeGenerator {
             return new IntermediateInput(InputOpcode.LOOKS_SIZE_GET, InputType.NUMBER_POS | InputType.NUMBER_ZERO);
         
         //pm looks
+        case 'looks_backdrops':
+            return this.createConstantInput(block.fields.BACKDROP.value);
+        case 'looks_costume':
+            return this.createConstantInput(block.fields.COSTUME.value);
         case 'looks_getEffectValue':
             return new IntermediateInput(InputOpcode.PM_LOOKS_GET_EFFECT, InputType.NUMBER, {
                 effect: block.fields.EFFECT.value.toLowerCase()
@@ -628,6 +632,13 @@ class ScriptTreeGenerator {
             return new IntermediateInput(InputOpcode.PM_OP_CODE_TO_CHARACTER, InputType.STRING, {
                 one: this.descendInputOfBlock(block, 'ONE').toType(InputType.NUMBER)
             });
+        case 'operator_constant':
+            switch (block.fields.CONSTANT.value) {
+                case 'pi': return this.createConstantInput(Math.PI);
+                case 'euler': return this.createConstantInput(Math.E);
+                case 'goldenratio': return this.createConstantInput((1 + Math.sqrt(5)) / 2);
+            }
+            return this.createConstantInput(0);
         case 'operator_countAppearTimes':
             return new IntermediateInput(InputOpcode.PM_OP_COUNT_APPEAR_TIMES, InputType.NUMBER, {
                 text1: this.descendInputOfBlock(block, 'TEXT1').toType(InputType.STRING),
@@ -1076,6 +1087,8 @@ class ScriptTreeGenerator {
                 regex: this.descendInputOfBlock(block, 'reg').toType(InputType.STRING),
                 flags: this.descendInputOfBlock(block, 'regrule').toType(InputType.STRING)
             });
+        case 'sensing_sprites':
+            return this.createConstantInput(block.fields.SPRITE.value);
         case 'sensing_thing_has_number': {
             let text = this.descendInputOfBlock(block, 'TEXT1');
             if (text.isSubtypeOf(InputType.NUMBER)) return this.createConstantInput(true);
