@@ -161,7 +161,8 @@ const outputBlocks = [
     'operator_xnor',
     'looks_getinputofcostume',
     'sound_getTimePosition',
-    'sound_getSoundVolume'
+    'sound_getSoundVolume',
+    'looks_changestretchby'
 ];
 
 module.exports = {
