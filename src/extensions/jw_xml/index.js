@@ -109,9 +109,7 @@ class Extension {
     }
 
     _StringToXML(str) {
-        var div = document.createElement('div');
-        div.innerHTML = str.trim();
-        return div.firstChild;
+        return new DOMParser().parseFromString(str, 'application/xml').firstChild;
     }
 
     createNewXML({ROOT}, util) {
