@@ -77,7 +77,8 @@ const statementBlocks = [
     'sound_play_at_seconds',
     'sound_play_at_seconds_until_done',
     'sound_pauseallsounds',
-    'argument_reporter_command'
+    'argument_reporter_command',
+    'looks_changestretchby'
 ];
 
 const outputBlocks = [
@@ -161,8 +162,7 @@ const outputBlocks = [
     'operator_xnor',
     'looks_getinputofcostume',
     'sound_getTimePosition',
-    'sound_getSoundVolume',
-    'looks_changestretchby'
+    'sound_getSoundVolume'
 ];
 
 module.exports = {
