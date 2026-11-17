@@ -480,7 +480,8 @@ class ExtensionManager {
         if (extensionURL.includes("penguinmod.site")) {
             alert("Extensions using penguinmod.site are deprecated, please swap them over to use penguinmod.com instead.")
         }
-        const normalURL = extensionURL.replace("penguinmod.site", "penguinmod.com");
+        const normalURL = extensionURL.replace("penguinmod.site", "penguinmod.com")
+            .replace('sharkpools-extensions.vercel.app', 'sharkpool-sp.github.io/SharkPools-Extensions');
 
         this.runtime.setExternalCommunicationMethod('customExtensions', true);
 
