@@ -480,8 +480,22 @@ class ExtensionManager {
         if (extensionURL.includes("penguinmod.site")) {
             alert("Extensions using penguinmod.site are deprecated, please swap them over to use penguinmod.com instead.")
         }
-        const normalURL = extensionURL.replace("penguinmod.site", "penguinmod.com")
-            .replace('sharkpools-extensions.vercel.app', 'sharkpool-sp.github.io/SharkPools-Extensions');
+        let normalURL = extensionURL.replace("penguinmod.site", "penguinmod.com");
+        if (normalURL.includes('sharkpools-extensions.vercel.app') {
+            // Temporarily re-route SharkPool's extensions due to the gallery outage.
+            if (normalURL.startsWith("https://") {
+                normalURL = normalURL.replace(
+                    'sharkpools-extensions.vercel.app',
+                    'sharkpool-sp.github.io/SharkPools-Extensions'
+                );
+            } else {
+                // This was loaded via text, which will therefore be encoded.
+                normalURL = normalURL.replace(
+                    'sharkpools-extensions.vercel.app',
+                    encodeURIComponent('sharkpool-sp.github.io/SharkPools-Extensions')
+                );
+            }
+        }
 
         this.runtime.setExternalCommunicationMethod('customExtensions', true);
 
