@@ -117,8 +117,8 @@ class XMLType {
         ].reduce((a, b) => a.replaceAll(b, ""), text)
     }
 
-    jwArrayHandler() {
-        return XMLType.safeText(`<${this.name} />`)
+    jwArrayHandler(expectsPlainString, context) {
+        return XMLType.safeText(`<${this.name} />`) // always a string
     }
 
     toString(pretty = false, depth = 0) {
