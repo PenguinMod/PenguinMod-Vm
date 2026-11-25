@@ -489,11 +489,9 @@ class ExtensionManager {
                     'sharkpool-sp.github.io/SharkPools-Extensions'
                 );
             } else {
-                // This was loaded via text, which will therefore be encoded.
-                normalURL = normalURL.replace(
-                    'sharkpools-extensions.vercel.app',
-                    encodeURIComponent('sharkpool-sp.github.io/SharkPools-Extensions')
-                );
+                // This extension was loaded via text, which will therefore be encoded.
+                // The instance of 'sharkpools-extensions.vercel.app' will be out of 
+                // our responsibility as it is part of the extension code.
             }
         }
 
