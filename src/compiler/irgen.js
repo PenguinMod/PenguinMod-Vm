@@ -482,6 +482,12 @@ class ScriptTreeGenerator {
                 left: this.descendInputOfBlock(block, 'OPERAND1'),
                 right: this.descendInputOfBlock(block, 'OPERAND2')
             };
+        case 'operator_gtorequal':
+            return {
+                kind: 'op.greaterorequal',
+                left: this.descendInputOfBlock(block, 'OPERAND1'),
+                right: this.descendInputOfBlock(block, 'OPERAND2')
+            };
         case 'operator_join':
             return {
                 kind: 'op.join',
@@ -516,6 +522,12 @@ class ScriptTreeGenerator {
         case 'operator_lt':
             return {
                 kind: 'op.less',
+                left: this.descendInputOfBlock(block, 'OPERAND1'),
+                right: this.descendInputOfBlock(block, 'OPERAND2')
+            };
+        case 'operator_ltorequal':
+            return {
+                kind: 'op.lessorequal',
                 left: this.descendInputOfBlock(block, 'OPERAND1'),
                 right: this.descendInputOfBlock(block, 'OPERAND2')
             };
@@ -615,6 +627,12 @@ class ScriptTreeGenerator {
             return {
                 kind: 'op.not',
                 operand: this.descendInputOfBlock(block, 'OPERAND')
+            };
+        case 'operator_notequal':
+            return {
+                kind: 'op.notequal',
+                left: this.descendInputOfBlock(block, 'OPERAND1'),
+                right: this.descendInputOfBlock(block, 'OPERAND2')
             };
         case 'operator_or':
             return {

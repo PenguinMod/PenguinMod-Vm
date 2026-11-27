@@ -812,6 +812,24 @@ class JSGenerator {
             // No compile-time optimizations possible - use fallback method.
             return new TypedInput(`compareGreaterThan(${left.asUnknown()}, ${right.asUnknown()})`, TYPE_BOOLEAN);
         }
+        case 'op.greaterorequal': { // Adapted from op.greater optimizations
+            const left = this.descendInput(node.left);
+            const right = this.descendInput(node.right);
+            // When the left operand is a number and the right operand is a number or NaN, we can use >=
+            if (left.isAlwaysNumber() && right.isAlwaysNumberOrNaN()) {
+                return new TypedInput(`(${left.asNumber()} >= ${right.asNumberOrNaN()})`, TYPE_BOOLEAN);
+            }
+            // When the left operand is a number or NaN and the right operand is a number, we can negate <
+            if (left.isAlwaysNumberOrNaN() && right.isAlwaysNumber()) {
+                return new TypedInput(`!(${left.asNumberOrNaN()} < ${right.asNumber()})`, TYPE_BOOLEAN);
+            }
+            // When either operand is known to never be a number, avoid all number parsing.
+            if (left.isNeverNumber() || right.isNeverNumber()) {
+                return new TypedInput(`(${left.asString()}.toLowerCase() >= ${right.asString()}.toLowerCase())`, TYPE_BOOLEAN);
+            }
+            // No compile-time optimizations possible - use fallback method.
+            return new TypedInput(`(!compareLessThan(${left.asUnknown()}, ${right.asUnknown()}))`, TYPE_BOOLEAN);
+        }
         case 'op.join':
             return new TypedInput(`(${this.descendInput(node.left).asString()} + ${this.descendInput(node.right).asString()})`, TYPE_STRING);
         case "op.expandjoin": {
@@ -840,6 +858,24 @@ class JSGenerator {
             // No compile-time optimizations possible - use fallback method.
             return new TypedInput(`compareLessThan(${left.asUnknown()}, ${right.asUnknown()})`, TYPE_BOOLEAN);
         }
+        case 'op.lessorequal': { // Adapted from op.less optimizations
+            const left = this.descendInput(node.left);
+            const right = this.descendInput(node.right);
+            // When the left operand is a number or NaN and the right operand is a number, we can use <=
+            if (left.isAlwaysNumberOrNaN() && right.isAlwaysNumber()) {
+                return new TypedInput(`(${left.asNumberOrNaN()} <= ${right.asNumber()})`, TYPE_BOOLEAN);
+            }
+            // When the left operand is a number and the right operand is a number or NaN, we can negate >
+            if (left.isAlwaysNumber() && right.isAlwaysNumberOrNaN()) {
+                return new TypedInput(`!(${left.asNumber()} > ${right.asNumberOrNaN()})`, TYPE_BOOLEAN);
+            }
+            // When either operand is known to never be a number, avoid all number parsing.
+            if (left.isNeverNumber() || right.isNeverNumber()) {
+                return new TypedInput(`(${left.asString()}.toLowerCase() <= ${right.asString()}.toLowerCase())`, TYPE_BOOLEAN);
+            }
+            // No compile-time optimizations possible - use fallback method.
+            return new TypedInput(`(!compareGreaterThan(${left.asUnknown()}, ${right.asUnknown()}))`, TYPE_BOOLEAN);
+        }
         case 'op.letterOf':
             return new TypedInput(`((${this.descendInput(node.string).asString()})[(${this.descendInput(node.letter).asNumber()} | 0) - 1] || "")`, TYPE_STRING);
         case 'op.ln':
@@ -863,6 +899,29 @@ class JSGenerator {
             return new TypedInput(`(${this.descendInput(node.left).asNumber()} * ${this.descendInput(node.right).asNumber()})`, TYPE_NUMBER_NAN);
         case 'op.not':
             return new TypedInput(`!${this.descendInput(node.operand).asBoolean()}`, TYPE_BOOLEAN);
+        case 'op.notequal': { /// Adapted from op.equals optimizations
+            const left = this.descendInput(node.left);
+            const right = this.descendInput(node.right);
+            // When both operands are known to never be numbers, only use string comparison to avoid all number parsing.
+            if (left.isNeverNumber() || right.isNeverNumber()) {
+                return new TypedInput(`(${left.asString()}.toLowerCase() !== ${right.asString()}.toLowerCase())`, TYPE_BOOLEAN);
+            }
+            const leftAlwaysNumber = left.isAlwaysNumber();
+            const rightAlwaysNumber = right.isAlwaysNumber();
+            // When both operands are known to be numbers, we can use !==
+            if (leftAlwaysNumber && rightAlwaysNumber) {
+                return new TypedInput(`(${left.asNumber()} !== ${right.asNumber()})`, TYPE_BOOLEAN);
+            }
+            // In certain conditions, we can use !== when one of the operands is known to be a safe number.
+            if (leftAlwaysNumber && left instanceof ConstantInput && isSafeConstantForEqualsOptimization(left)) {
+                return new TypedInput(`(${left.asNumber()} !== ${right.asNumber()})`, TYPE_BOOLEAN);
+            }
+            if (rightAlwaysNumber && right instanceof ConstantInput && isSafeConstantForEqualsOptimization(right)) {
+                return new TypedInput(`(${left.asNumber()} !== ${right.asNumber()})`, TYPE_BOOLEAN);
+            }
+            // No compile-time optimizations possible - use fallback method.
+            return new TypedInput(`(!compareEqual(${left.asUnknown()}, ${right.asUnknown()}))`, TYPE_BOOLEAN);
+        }
         case 'op.or':
             return new TypedInput(`(${this.descendInput(node.left).asBoolean()} || ${this.descendInput(node.right).asBoolean()})`, TYPE_BOOLEAN);
         case 'op.random':
