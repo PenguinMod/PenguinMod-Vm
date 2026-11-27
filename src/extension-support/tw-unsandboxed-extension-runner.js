@@ -149,6 +149,9 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
 
     global.Scratch = Scratch;
     global.ScratchExtensions = createScratchX(Scratch);
+    
+    vm._ScratchStack ??= [];
+    vm._ScratchStack.push({ Scratch, ScratchExtensions: global.ScratchExtensions });
 
     vm.emit('CREATE_UNSANDBOXED_EXTENSION_API', Scratch);
 });
@@ -162,6 +165,10 @@ const teardownUnsandboxedExtensionAPI = () => {
     global.Scratch.extensions.register = () => {
         throw new Error('Too late to register new extensions.');
     };
+
+    const { Scratch, ScratchExtensions } = vm._ScratchStack.pop();
+    global.Scratch = Scratch;
+    global.ScratchExtensions = ScratchExtensions;
 };
 
 /**
@@ -184,12 +191,7 @@ const loadUnsandboxedExtension = (extensionURL, vm) => new Promise((resolve, rej
     return objects;
 });
 
-// Because loading unsandboxed extensions requires messing with global state (global.Scratch),
-// only let one extension load at a time.
-const limiter = new AsyncLimiter(loadUnsandboxedExtension, 1);
-const load = (extensionURL, vm) => limiter.do(extensionURL, vm);
-
 module.exports = {
     setupUnsandboxedExtensionAPI,
-    load
+    load: loadUnsandboxedExtension,
 };
