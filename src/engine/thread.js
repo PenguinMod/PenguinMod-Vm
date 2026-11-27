@@ -217,6 +217,7 @@ class Thread {
          * @type {Object.<string, !CompiledScript>}
          */
         this.procedures = null;
+        this.procedureFactories = null;
         this.executableHat = false;
         this.compatibilityStackFrame = null;
 
@@ -561,8 +562,10 @@ class Thread {
         }
 
         this.procedures = {};
+        this.procedureFactories = {};
         for (const procedureCode of Object.keys(result.procedures)) {
-            this.procedures[procedureCode] = result.procedures[procedureCode](this);
+            this.procedureFactories[procedureCode] = result.procedures[procedureCode];
+            this.procedures[procedureCode] = this.procedureFactories[procedureCode](this);
         }
         
         this.generator = result.startingFunction(this)();
