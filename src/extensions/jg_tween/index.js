@@ -58,8 +58,7 @@ const quint = (x, dir) => {
         case "in": return x * x * x * x * x;
         case "out": return 1 - Math.pow(1 - x, 5);
         case "in out": return x < 0.5 ? 16 * x * x * x * x * x : 1 - Math.pow(-2 * x + 2, 5) / 2;
-        default:
-        return 0;
+        default: return 0;
     }
 };
 
@@ -137,6 +136,7 @@ class Tween {
          */
         this.runtime = runtime;
     }
+
     getInfo() {
         return {
             id: "jgTween",
@@ -310,7 +310,7 @@ class Tween {
                         SEC: {
                             type: ArgumentType.NUMBER,
                             defaultValue: 1,
-                        }, 
+                        },
                     }
                 },
                 {
@@ -379,14 +379,11 @@ class Tween {
             // First run, need to start timer
             util.yield();
 
-            if (util.stackTimerNeedsInit()) {
-               const durationMS = Math.max(0, 1000 * Cast.toNumber(args.SEC));
-               util.startStackTimer(durationMS);
-            }
             const easeMethod = Cast.toString(args.MODE);
             const easeDirection = Cast.toString(args.DIRECTION);
             const start = currentValue;
             const end = Cast.toNumber(args[valueArgName]);
+            const durationSecs = Math.max(0, Cast.toNumber(args.SEC));
 
             let easingFunction;
             if (Object.prototype.hasOwnProperty.call(EasingMethods, easeMethod)) easingFunction = EasingMethods[easeMethod];
@@ -394,17 +391,22 @@ class Tween {
 
             util.stackFrame[id] = {
                 easingFunction, easeDirection,
-                start, end, propertyName
+                start, end, propertyName,
+                startTime: this.runtime.ioDevices.clock.projectTimer(),
+                durationSecs
             };
             return start;
-        } else if (util.stackTimerFinished()) {
-            // Done
-            return util.stackFrame[id].end;
-        } 
-        // Still running
+        }
+
+        const elapsed = this.runtime.ioDevices.clock.projectTimer() - state.startTime;
+
+        if (elapsed >= state.durationSecs) {
+            return state.end;
+        }
+
         util.yield();
 
-        const progress = util.stackFrame.timer.timeElapsed() / util.stackFrame.duration;
+        const progress = elapsed / state.durationSecs;
         const tweened = state.easingFunction(progress, state.easeDirection);
         return interpolate(tweened, state.start, state.end);
     }
@@ -454,6 +456,7 @@ class Tween {
             PROPERTY: property
         }, util);
     }
+
     tweenPropertyCancel(args, util) {
         const property = args.PROPERTY;
         const id = util.target.id;
@@ -478,40 +481,46 @@ class Tween {
     }
 
     tweenC(args, util) {
-      const id = "loopedVal";
-      const state = util.stackFrame[id];
-      if (!state) {
-        if (util.stackTimerNeedsInit()) {
-            const durationMS = Math.max(0, 1000 * Cast.toNumber(args.SEC));
-            util.startStackTimer(durationMS);
-        }
-        const easeMethod = Cast.toString(args.MODE);
-        const easeDirection = Cast.toString(args.DIRECTION);
-        const start = Cast.toNumber(args.START);
-        const end = Cast.toNumber(args.END);
-        const params = util.thread.tweenValue;
-        if (typeof params === "undefined") util.thread.stackFrames[0].tweenValue = start;
-        let easingFunction;
-        if (Object.prototype.hasOwnProperty.call(EasingMethods, easeMethod)) easingFunction = EasingMethods[easeMethod];
-        else easingFunction = EasingMethods.linear;
+        const id = "loopedVal";
+        const state = util.stackFrame[id];
 
-        util.stackFrame[id] = {
-          easingFunction, easeDirection,
-          start, end,
-        };
-        util.startBranch(1, true);
-      } else if (util.stackTimerFinished()) {
-        util.thread.stackFrames[0].tweenValue = util.stackFrame[id].end;
-        if (util.stackFrame[id].canContinue !== "stop") {
-          util.stackFrame[id].canContinue = "stop";
-          util.startBranch(1, true);
+        if (!state) {
+            const easeMethod = Cast.toString(args.MODE);
+            const easeDirection = Cast.toString(args.DIRECTION);
+            const start = Cast.toNumber(args.START);
+            const end = Cast.toNumber(args.END);
+            const durationSecs = Math.max(0, Cast.toNumber(args.SEC));
+            const params = util.thread.tweenValue;
+            if (typeof params === "undefined") util.thread.stackFrames[0].tweenValue = start;
+            let easingFunction;
+            if (Object.prototype.hasOwnProperty.call(EasingMethods, easeMethod)) easingFunction = EasingMethods[easeMethod];
+            else easingFunction = EasingMethods.linear;
+
+            util.stackFrame[id] = {
+                easingFunction, easeDirection,
+                start, end,
+                startTime: this.runtime.ioDevices.clock.projectTimer(),
+                durationSecs
+            };
+            util.startBranch(1, true);
+            return;
         }
-      } else {
-        const progress = util.stackFrame.timer.timeElapsed() / util.stackFrame.duration;
+
+        const elapsed = this.runtime.ioDevices.clock.projectTimer() - state.startTime;
+
+        if (elapsed >= state.durationSecs) {
+            util.thread.stackFrames[0].tweenValue = state.end;
+            if (state.canContinue !== "stop") {
+                state.canContinue = "stop";
+                util.startBranch(1, true);
+            }
+            return;
+        }
+
+        const progress = elapsed / state.durationSecs;
         const tweened = state.easingFunction(progress, state.easeDirection);
-        util.thread.stackFrames[0].tweenValue =  interpolate(tweened, state.start, state.end);
-        if (util.stackFrame[id].canContinue !== "stop") util.startBranch(1, true);
-      }
+        util.thread.stackFrames[0].tweenValue = interpolate(tweened, state.start, state.end);
+        if (state.canContinue !== "stop") util.startBranch(1, true);
     }
 
     tweenVal(_, util) {
